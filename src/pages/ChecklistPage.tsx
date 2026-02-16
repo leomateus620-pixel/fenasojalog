@@ -28,6 +28,9 @@ export default function ChecklistPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', date: '', time: '', priority: 'medium' as TaskPriority, assignedTo: '', category: 'general' as any, recurrence: 'none' as RecurrenceType });
 
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [pendingTaskId, setPendingTaskId] = useState('');
+
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
@@ -49,7 +52,28 @@ export default function ChecklistPage() {
       updateTask(id, { status: 'pending', completedAt: undefined, completedBy: undefined });
     } else {
       updateTask(id, { status: 'done', completedAt: new Date().toISOString(), completedBy: '1' });
+      setPendingTaskId(id);
+      setRepeatOpen(true);
     }
+  };
+
+  const handleRepeatYes = () => {
+    const task = tasks.find((t) => t.id === pendingTaskId);
+    if (task) {
+      addTask({
+        id: `tk${Date.now()}`,
+        title: task.title,
+        description: task.description,
+        date: tomorrow,
+        time: task.time,
+        priority: task.priority,
+        assignedTo: task.assignedTo,
+        category: task.category,
+        recurrence: task.recurrence,
+        status: 'pending',
+      });
+    }
+    setRepeatOpen(false);
   };
 
   const dates = [today, tomorrow];
@@ -119,6 +143,18 @@ export default function ChecklistPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Repeat tomorrow dialog */}
+      <Dialog open={repeatOpen} onOpenChange={setRepeatOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Repetir tarefa?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Essa tarefa se repete no mesmo horário amanhã?</p>
+          <div className="flex gap-3 pt-2">
+            <Button onClick={handleRepeatYes} className="flex-1">Sim, repetir amanhã</Button>
+            <Button variant="outline" onClick={() => setRepeatOpen(false)} className="flex-1">Não</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue={tomorrow} className="space-y-4">
         <TabsList>

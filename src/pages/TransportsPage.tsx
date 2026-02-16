@@ -1,6 +1,6 @@
-import { useAppStore, TransportStatus } from '@/store/useAppStore';
+import { useAppStore, TransportStatus, Transport } from '@/store/useAppStore';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, AlertTriangle, Plus, Check, Clock, X, Phone, Mail } from 'lucide-react';
+import { MapPin, AlertTriangle, Plus, Check, Clock, X, Phone, Mail, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -19,6 +19,46 @@ export default function TransportsPage() {
   const { transports, team, vehicles, addTransport, updateTransport } = useAppStore();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '' });
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState('');
+  const [editForm, setEditForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '', status: 'scheduled' as TransportStatus });
+
+  const openEdit = (t: Transport) => {
+    setEditId(t.id);
+    setEditForm({
+      guestName: t.guestName,
+      guestPhone: t.guestPhone || '',
+      guestEmail: t.guestEmail || '',
+      from: t.from,
+      to: t.to,
+      dateTime: t.dateTime,
+      vehicleId: t.vehicleId || '',
+      driverId: t.driverId || '',
+      isVIP: t.isVIP || false,
+      notes: t.notes || '',
+      status: t.status,
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editForm.guestName || !editForm.from || !editForm.to) return;
+    updateTransport(editId, {
+      guestName: editForm.guestName,
+      guestPhone: editForm.guestPhone || undefined,
+      guestEmail: editForm.guestEmail || undefined,
+      from: editForm.from,
+      to: editForm.to,
+      dateTime: editForm.dateTime,
+      vehicleId: editForm.vehicleId || undefined,
+      driverId: editForm.driverId || undefined,
+      isVIP: editForm.isVIP,
+      notes: editForm.notes || undefined,
+      status: editForm.status,
+    });
+    setEditOpen(false);
+  };
 
   const handleAdd = () => {
     if (!form.guestName || !form.from || !form.to || !form.dateTime) return;
@@ -97,6 +137,58 @@ export default function TransportsPage() {
         </Dialog>
       </div>
 
+      {/* Edit transport dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Transporte</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Nome do passageiro" value={editForm.guestName} onChange={(e) => setEditForm({ ...editForm, guestName: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Celular / WhatsApp" value={editForm.guestPhone} onChange={(e) => setEditForm({ ...editForm, guestPhone: e.target.value })} />
+              <Input placeholder="E-mail" type="email" value={editForm.guestEmail} onChange={(e) => setEditForm({ ...editForm, guestEmail: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Origem" value={editForm.from} onChange={(e) => setEditForm({ ...editForm, from: e.target.value })} />
+              <Input placeholder="Destino" value={editForm.to} onChange={(e) => setEditForm({ ...editForm, to: e.target.value })} />
+            </div>
+            <Input type="datetime-local" value={editForm.dateTime} onChange={(e) => setEditForm({ ...editForm, dateTime: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={editForm.vehicleId} onValueChange={(v) => setEditForm({ ...editForm, vehicleId: v })}>
+                <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={editForm.driverId} onValueChange={(v) => setEditForm({ ...editForm, driverId: v })}>
+                <SelectTrigger><SelectValue placeholder="Motorista" /></SelectTrigger>
+                <SelectContent>
+                  {team.filter((m) => m.role === 'Motorista').map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as TransportStatus })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scheduled">Agendado</SelectItem>
+                <SelectItem value="in_progress">Em andamento</SelectItem>
+                <SelectItem value="completed">Concluído</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input placeholder="Observações" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={editForm.isVIP} onChange={(e) => setEditForm({ ...editForm, isVIP: e.target.checked })} className="rounded" />
+              Convidado VIP
+            </label>
+            <Button onClick={handleEditSave} className="w-full">Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-3">
         {sorted.map((t) => {
           const sc = statusConfig[t.status];
@@ -127,6 +219,9 @@ export default function TransportsPage() {
                 <p className="text-sm font-mono font-medium">{dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                 <p className="text-[10px] text-muted-foreground">{dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</p>
               </div>
+              <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
               {t.status !== 'completed' && t.status !== 'cancelled' && (
                 <button onClick={() => cycleStatus(t.id, t.status)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0">
                   {t.status === 'scheduled' ? 'Iniciar' : 'Concluir'}
