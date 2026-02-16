@@ -1,6 +1,6 @@
 import { useAppStore } from '@/store/useAppStore';
 import { Badge } from '@/components/ui/badge';
-import { Plus, CalendarDays } from 'lucide-react';
+import { Plus, CalendarDays, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,26 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function TeamPage() {
-  const { team, tasks, transports, addSchedule } = useAppStore();
+  const { team, tasks, transports, addSchedule, updateTeamMember } = useAppStore();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState('');
   const [scheduleForm, setScheduleForm] = useState({ date: '', startTime: '', endTime: '', note: '' });
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState('');
+  const [editForm, setEditForm] = useState({ name: '', role: '' });
+
+  const openEdit = (m: typeof team[0]) => {
+    setEditId(m.id);
+    setEditForm({ name: m.name, role: m.role });
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!editForm.name || !editForm.role) return;
+    updateTeamMember(editId, { name: editForm.name, role: editForm.role });
+    setEditOpen(false);
+  };
 
   const handleAddSchedule = () => {
     if (!selectedMember || !scheduleForm.date || !scheduleForm.startTime || !scheduleForm.endTime) return;
@@ -33,7 +49,7 @@ export default function TeamPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Equipe</h1>
-          <p className="text-sm text-muted-foreground mt-1">10 membros da logística</p>
+          <p className="text-sm text-muted-foreground mt-1">{team.length} membros da logística</p>
         </div>
         <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <DialogTrigger asChild>
@@ -68,6 +84,18 @@ export default function TeamPage() {
         </Dialog>
       </div>
 
+      {/* Edit member dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Membro</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            <Input placeholder="Função" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} />
+            <Button onClick={handleEdit} className="w-full">Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {team.map((m) => {
           const memberTasks = tasks.filter((t) => t.assignedTo === m.id);
@@ -83,10 +111,13 @@ export default function TeamPage() {
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-primary-foreground" style={{ backgroundColor: m.color }}>
                   {m.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-semibold">{m.name}</p>
                   <p className="text-xs text-muted-foreground">{m.role}</p>
                 </div>
+                <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               <div className="flex items-center gap-2 mb-3">
@@ -94,7 +125,6 @@ export default function TeamPage() {
                 <Badge variant="secondary" className="text-[10px]">{done} concluída{done !== 1 ? 's' : ''}</Badge>
               </div>
 
-              {/* Escala de trabalho */}
               {(todaySchedule || tomorrowSchedule) && (
                 <div className="space-y-1.5 mb-3">
                   {todaySchedule && (

@@ -1,7 +1,12 @@
-import { useAppStore, Vehicle, VehicleStatus } from '@/store/useAppStore';
-import { Car, Zap, MapPin, Wrench } from 'lucide-react';
+import { useAppStore, Vehicle, VehicleStatus, VehicleType } from '@/store/useAppStore';
+import { Car, Zap, MapPin, Wrench, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusConfig: Record<VehicleStatus, { label: string; class: string }> = {
   available: { label: 'Disponível', class: 'bg-success/10 text-success border-success/20' },
@@ -11,6 +16,19 @@ const statusConfig: Record<VehicleStatus, { label: string; class: string }> = {
 
 export default function VehiclesPage() {
   const { vehicles, team, updateVehicle } = useAppStore();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ id: '', name: '', plate: '', type: 'car' as VehicleType, status: 'available' as VehicleStatus });
+
+  const openEdit = (v: Vehicle) => {
+    setEditForm({ id: v.id, name: v.name, plate: v.plate, type: v.type, status: v.status });
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!editForm.name || !editForm.plate) return;
+    updateVehicle(editForm.id, { name: editForm.name, plate: editForm.plate, type: editForm.type, status: editForm.status });
+    setEditOpen(false);
+  };
 
   const toggleStatus = (v: Vehicle) => {
     const next: VehicleStatus = v.status === 'available' ? 'in_use' : v.status === 'in_use' ? 'available' : 'available';
@@ -23,6 +41,34 @@ export default function VehiclesPage() {
         <h1 className="text-2xl font-bold tracking-tight">Frota de Veículos</h1>
         <p className="text-sm text-muted-foreground mt-1">Gerencie carros e veículos elétricos</p>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Veículo</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            <Input placeholder="Placa" value={editForm.plate} onChange={(e) => setEditForm({ ...editForm, plate: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={editForm.type} onValueChange={(v) => setEditForm({ ...editForm, type: v as VehicleType })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="car">Combustão</SelectItem>
+                  <SelectItem value="electric">Elétrico</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as VehicleStatus })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Disponível</SelectItem>
+                  <SelectItem value="in_use">Em uso</SelectItem>
+                  <SelectItem value="maintenance">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleEdit} className="w-full">Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {vehicles.map((v) => {
@@ -40,7 +86,12 @@ export default function VehiclesPage() {
                     <p className="text-xs font-mono text-muted-foreground">{v.plate}</p>
                   </div>
                 </div>
-                <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => openEdit(v)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>
+                </div>
               </div>
               {driver && (
                 <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
