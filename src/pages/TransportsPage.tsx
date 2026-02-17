@@ -1,12 +1,13 @@
 import { useAppStore, TransportStatus, Transport } from '@/store/useAppStore';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, AlertTriangle, Plus, Check, Clock, X, Phone, Mail, Pencil } from 'lucide-react';
+import { MapPin, AlertTriangle, Plus, Check, Clock, X, Phone, Mail, Pencil, Briefcase, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusConfig: Record<TransportStatus, { label: string; icon: typeof Check; class: string }> = {
   scheduled: { label: 'Agendado', icon: Clock, class: 'bg-info/10 text-info' },
@@ -18,26 +19,20 @@ const statusConfig: Record<TransportStatus, { label: string; icon: typeof Check;
 export default function TransportsPage() {
   const { transports, team, vehicles, addTransport, updateTransport } = useAppStore();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '' });
+  const [form, setForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', guestRole: '', guestAgenda: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '' });
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
-  const [editForm, setEditForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '', status: 'scheduled' as TransportStatus });
+  const [editForm, setEditForm] = useState({ guestName: '', guestPhone: '', guestEmail: '', guestRole: '', guestAgenda: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '', status: 'scheduled' as TransportStatus });
 
   const openEdit = (t: Transport) => {
     setEditId(t.id);
     setEditForm({
-      guestName: t.guestName,
-      guestPhone: t.guestPhone || '',
-      guestEmail: t.guestEmail || '',
-      from: t.from,
-      to: t.to,
-      dateTime: t.dateTime,
-      vehicleId: t.vehicleId || '',
-      driverId: t.driverId || '',
-      isVIP: t.isVIP || false,
-      notes: t.notes || '',
-      status: t.status,
+      guestName: t.guestName, guestPhone: t.guestPhone || '', guestEmail: t.guestEmail || '',
+      guestRole: t.guestRole || '', guestAgenda: t.guestAgenda || '',
+      from: t.from, to: t.to, dateTime: t.dateTime,
+      vehicleId: t.vehicleId || '', driverId: t.driverId || '',
+      isVIP: t.isVIP || false, notes: t.notes || '', status: t.status,
     });
     setEditOpen(true);
   };
@@ -45,17 +40,12 @@ export default function TransportsPage() {
   const handleEditSave = () => {
     if (!editForm.guestName || !editForm.from || !editForm.to) return;
     updateTransport(editId, {
-      guestName: editForm.guestName,
-      guestPhone: editForm.guestPhone || undefined,
-      guestEmail: editForm.guestEmail || undefined,
-      from: editForm.from,
-      to: editForm.to,
-      dateTime: editForm.dateTime,
-      vehicleId: editForm.vehicleId || undefined,
-      driverId: editForm.driverId || undefined,
-      isVIP: editForm.isVIP,
-      notes: editForm.notes || undefined,
-      status: editForm.status,
+      guestName: editForm.guestName, guestPhone: editForm.guestPhone || undefined,
+      guestEmail: editForm.guestEmail || undefined, guestRole: editForm.guestRole || undefined,
+      guestAgenda: editForm.guestAgenda || undefined,
+      from: editForm.from, to: editForm.to, dateTime: editForm.dateTime,
+      vehicleId: editForm.vehicleId || undefined, driverId: editForm.driverId || undefined,
+      isVIP: editForm.isVIP, notes: editForm.notes || undefined, status: editForm.status,
     });
     setEditOpen(false);
   };
@@ -63,16 +53,13 @@ export default function TransportsPage() {
   const handleAdd = () => {
     if (!form.guestName || !form.from || !form.to || !form.dateTime) return;
     addTransport({
-      id: `t${Date.now()}`,
-      ...form,
-      status: 'scheduled',
-      vehicleId: form.vehicleId || undefined,
-      driverId: form.driverId || undefined,
-      guestPhone: form.guestPhone || undefined,
-      guestEmail: form.guestEmail || undefined,
+      id: `t${Date.now()}`, ...form, status: 'scheduled',
+      vehicleId: form.vehicleId || undefined, driverId: form.driverId || undefined,
+      guestPhone: form.guestPhone || undefined, guestEmail: form.guestEmail || undefined,
+      guestRole: form.guestRole || undefined, guestAgenda: form.guestAgenda || undefined,
       notes: form.notes || undefined,
     });
-    setForm({ guestName: '', guestPhone: '', guestEmail: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '' });
+    setForm({ guestName: '', guestPhone: '', guestEmail: '', guestRole: '', guestAgenda: '', from: '', to: '', dateTime: '', vehicleId: '', driverId: '', isVIP: false, notes: '' });
     setOpen(false);
   };
 
@@ -83,6 +70,46 @@ export default function TransportsPage() {
   };
 
   const sorted = [...transports].sort((a, b) => a.dateTime.localeCompare(b.dateTime));
+
+  const TransportFormFields = ({ data, setData }: { data: typeof form; setData: (d: typeof form) => void }) => (
+    <div className="space-y-3">
+      <Input placeholder="Nome do passageiro" value={data.guestName} onChange={(e) => setData({ ...data, guestName: e.target.value })} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="Celular / WhatsApp" value={data.guestPhone} onChange={(e) => setData({ ...data, guestPhone: e.target.value })} />
+        <Input placeholder="E-mail" type="email" value={data.guestEmail} onChange={(e) => setData({ ...data, guestEmail: e.target.value })} />
+      </div>
+      <Input placeholder="Cargo / Função profissional" value={data.guestRole} onChange={(e) => setData({ ...data, guestRole: e.target.value })} />
+      <Textarea placeholder="Agenda do passageiro no evento (compromissos, horários...)" value={data.guestAgenda} onChange={(e) => setData({ ...data, guestAgenda: e.target.value })} className="min-h-[60px]" />
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="Origem" value={data.from} onChange={(e) => setData({ ...data, from: e.target.value })} />
+        <Input placeholder="Destino" value={data.to} onChange={(e) => setData({ ...data, to: e.target.value })} />
+      </div>
+      <Input type="datetime-local" value={data.dateTime} onChange={(e) => setData({ ...data, dateTime: e.target.value })} />
+      <div className="grid grid-cols-2 gap-3">
+        <Select value={data.vehicleId} onValueChange={(v) => setData({ ...data, vehicleId: v })}>
+          <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
+          <SelectContent>
+            {vehicles.map((v) => (
+              <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={data.driverId} onValueChange={(v) => setData({ ...data, driverId: v })}>
+          <SelectTrigger><SelectValue placeholder="Responsável" /></SelectTrigger>
+          <SelectContent>
+            {team.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.name} - {m.role}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Input placeholder="Observações" value={data.notes} onChange={(e) => setData({ ...data, notes: e.target.value })} />
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={data.isVIP} onChange={(e) => setData({ ...data, isVIP: e.target.checked })} className="rounded" />
+        Convidado VIP
+      </label>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -95,97 +122,28 @@ export default function TransportsPage() {
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Novo Transporte</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Agendar Transporte</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Input placeholder="Nome do passageiro" value={form.guestName} onChange={(e) => setForm({ ...form, guestName: e.target.value })} />
-              <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="Celular / WhatsApp" value={form.guestPhone} onChange={(e) => setForm({ ...form, guestPhone: e.target.value })} />
-                <Input placeholder="E-mail" type="email" value={form.guestEmail} onChange={(e) => setForm({ ...form, guestEmail: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="Origem" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
-                <Input placeholder="Destino" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
-              </div>
-              <Input type="datetime-local" value={form.dateTime} onChange={(e) => setForm({ ...form, dateTime: e.target.value })} />
-              <div className="grid grid-cols-2 gap-3">
-                <Select value={form.vehicleId} onValueChange={(v) => setForm({ ...form, vehicleId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
-                  <SelectContent>
-                    {vehicles.filter((v) => v.status === 'available').map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={form.driverId} onValueChange={(v) => setForm({ ...form, driverId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Motorista" /></SelectTrigger>
-                  <SelectContent>
-                    {team.filter((m) => m.role === 'Motorista').map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input placeholder="Observações" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.isVIP} onChange={(e) => setForm({ ...form, isVIP: e.target.checked })} className="rounded" />
-                Convidado VIP
-              </label>
-              <Button onClick={handleAdd} className="w-full">Agendar</Button>
-            </div>
+            <TransportFormFields data={form} setData={setForm} />
+            <Button onClick={handleAdd} className="w-full">Agendar</Button>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Edit transport dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar Transporte</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Nome do passageiro" value={editForm.guestName} onChange={(e) => setEditForm({ ...editForm, guestName: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Celular / WhatsApp" value={editForm.guestPhone} onChange={(e) => setEditForm({ ...editForm, guestPhone: e.target.value })} />
-              <Input placeholder="E-mail" type="email" value={editForm.guestEmail} onChange={(e) => setEditForm({ ...editForm, guestEmail: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Origem" value={editForm.from} onChange={(e) => setEditForm({ ...editForm, from: e.target.value })} />
-              <Input placeholder="Destino" value={editForm.to} onChange={(e) => setEditForm({ ...editForm, to: e.target.value })} />
-            </div>
-            <Input type="datetime-local" value={editForm.dateTime} onChange={(e) => setEditForm({ ...editForm, dateTime: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
-              <Select value={editForm.vehicleId} onValueChange={(v) => setEditForm({ ...editForm, vehicleId: v })}>
-                <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
-                <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={editForm.driverId} onValueChange={(v) => setEditForm({ ...editForm, driverId: v })}>
-                <SelectTrigger><SelectValue placeholder="Motorista" /></SelectTrigger>
-                <SelectContent>
-                  {team.filter((m) => m.role === 'Motorista').map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as TransportStatus })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">Agendado</SelectItem>
-                <SelectItem value="in_progress">Em andamento</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input placeholder="Observações" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={editForm.isVIP} onChange={(e) => setEditForm({ ...editForm, isVIP: e.target.checked })} className="rounded" />
-              Convidado VIP
-            </label>
-            <Button onClick={handleEditSave} className="w-full">Salvar</Button>
-          </div>
+          <TransportFormFields data={editForm} setData={(d) => setEditForm({ ...d, status: editForm.status })} />
+          <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as TransportStatus })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="scheduled">Agendado</SelectItem>
+              <SelectItem value="in_progress">Em andamento</SelectItem>
+              <SelectItem value="completed">Concluído</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleEditSave} className="w-full">Salvar</Button>
         </DialogContent>
       </Dialog>
 
@@ -198,36 +156,45 @@ export default function TransportsPage() {
           const dt = new Date(t.dateTime);
 
           return (
-            <div key={t.id} className="rounded-xl border bg-card p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
-              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', sc.class)}>
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  {t.isVIP && <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />}
-                  <p className="text-sm font-semibold truncate">{t.guestName}</p>
+            <div key={t.id} className="rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0', sc.class)}>
+                  <Icon className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{t.from} → {t.to}</p>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                  {vehicle && <span>🚗 {vehicle.name}</span>}
-                  {driver && <span>👤 {driver.name.split(' ')[0]}</span>}
-                  {t.guestPhone && <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{t.guestPhone}</span>}
-                  {t.guestEmail && <span className="flex items-center gap-0.5"><Mail className="w-2.5 h-2.5" />{t.guestEmail}</span>}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {t.isVIP && <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />}
+                    <p className="text-sm font-semibold truncate">{t.guestName}</p>
+                    {t.guestRole && <Badge variant="secondary" className="text-[10px] shrink-0">{t.guestRole}</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.from} → {t.to}</p>
+                  <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                    {vehicle && <span>🚗 {vehicle.name}</span>}
+                    {driver && <span>👤 {driver.name.split(' ')[0]}</span>}
+                    {t.guestPhone && <span className="flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{t.guestPhone}</span>}
+                    {t.guestEmail && <span className="flex items-center gap-0.5"><Mail className="w-2.5 h-2.5" />{t.guestEmail}</span>}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-mono font-medium">{dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                <p className="text-[10px] text-muted-foreground">{dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</p>
-              </div>
-              <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              {t.status !== 'completed' && t.status !== 'cancelled' && (
-                <button onClick={() => cycleStatus(t.id, t.status)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0">
-                  {t.status === 'scheduled' ? 'Iniciar' : 'Concluir'}
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-mono font-medium">{dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-[10px] text-muted-foreground">{dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</p>
+                </div>
+                <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
+                {t.status !== 'completed' && t.status !== 'cancelled' && (
+                  <button onClick={() => cycleStatus(t.id, t.status)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0">
+                    {t.status === 'scheduled' ? 'Iniciar' : 'Concluir'}
+                  </button>
+                )}
+                {t.status === 'completed' && <Badge variant="secondary" className="shrink-0">✓</Badge>}
+              </div>
+              {t.guestAgenda && (
+                <div className="mt-2 ml-14 text-xs text-muted-foreground p-2 rounded-lg bg-muted/50 flex items-start gap-1.5">
+                  <CalendarDays className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span>{t.guestAgenda}</span>
+                </div>
               )}
-              {t.status === 'completed' && <Badge variant="secondary" className="shrink-0">✓</Badge>}
             </div>
           );
         })}

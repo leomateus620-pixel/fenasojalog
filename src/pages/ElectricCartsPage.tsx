@@ -1,5 +1,5 @@
 import { useAppStore, Vehicle, VehicleStatus, VehicleLog } from '@/store/useAppStore';
-import { Car, MapPin, Wrench, Pencil, Plus, Phone, Clock, Gauge } from 'lucide-react';
+import { Zap, MapPin, Wrench, Pencil, Plus, Phone, Clock, Gauge } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -14,9 +14,9 @@ const statusConfig: Record<VehicleStatus, { label: string; class: string }> = {
   maintenance: { label: 'Manutenção', class: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
-export default function VehiclesPage() {
+export default function ElectricCartsPage() {
   const { vehicles, team, updateVehicle, addVehicle, addVehicleLog, closeVehicleLog } = useAppStore();
-  const cars = vehicles.filter((v) => v.type === 'car');
+  const carts = vehicles.filter((v) => v.type === 'electric');
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ id: '', name: '', plate: '', status: 'available' as VehicleStatus });
@@ -50,7 +50,7 @@ export default function VehiclesPage() {
       id: `v${Date.now()}`,
       name: addForm.name,
       plate: addForm.plate,
-      type: 'car',
+      type: 'electric',
       status: 'available',
       currentKm: addForm.currentKm ? Number(addForm.currentKm) : 0,
       logs: [],
@@ -82,8 +82,8 @@ export default function VehiclesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Veículos Botolli</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gerencie a frota de veículos</p>
+          <h1 className="text-2xl font-bold tracking-tight">Carrinhos Elétricos</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie os carrinhos elétricos do evento</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setPickupOpen(true)}>
@@ -95,26 +95,26 @@ export default function VehiclesPage() {
         </div>
       </div>
 
-      {/* Add Vehicle */}
+      {/* Add */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Veículo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Adicionar Carrinho Elétrico</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Nome do veículo" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} />
-            <Input placeholder="Placa" value={addForm.plate} onChange={(e) => setAddForm({ ...addForm, plate: e.target.value })} />
+            <Input placeholder="Nome / Identificação" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} />
+            <Input placeholder="Placa / Código" value={addForm.plate} onChange={(e) => setAddForm({ ...addForm, plate: e.target.value })} />
             <Input placeholder="KM atual" type="number" value={addForm.currentKm} onChange={(e) => setAddForm({ ...addForm, currentKm: e.target.value })} />
             <Button onClick={handleAdd} className="w-full">Adicionar</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Vehicle */}
+      {/* Edit */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Editar Veículo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Editar Carrinho</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-            <Input placeholder="Placa" value={editForm.plate} onChange={(e) => setEditForm({ ...editForm, plate: e.target.value })} />
+            <Input placeholder="Placa / Código" value={editForm.plate} onChange={(e) => setEditForm({ ...editForm, plate: e.target.value })} />
             <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as VehicleStatus })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -134,9 +134,9 @@ export default function VehiclesPage() {
           <DialogHeader><DialogTitle>Registrar Retirada</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Select value={pickupForm.vehicleId} onValueChange={(v) => setPickupForm({ ...pickupForm, vehicleId: v })}>
-              <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Carrinho" /></SelectTrigger>
               <SelectContent>
-                {cars.filter((v) => v.status === 'available').map((v) => (
+                {carts.filter((v) => v.status === 'available').map((v) => (
                   <SelectItem key={v.id} value={v.id}>{v.name} ({v.plate})</SelectItem>
                 ))}
               </SelectContent>
@@ -193,7 +193,7 @@ export default function VehiclesPage() {
       </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {cars.map((v) => {
+        {carts.map((v) => {
           const driver = team.find((m) => m.id === v.assignedTo);
           const sc = statusConfig[v.status];
           const activeLog = v.logs.find((l) => !l.returnDate);
@@ -201,8 +201,8 @@ export default function VehiclesPage() {
             <div key={v.id} className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
-                    <Car className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-accent/10 text-accent">
+                    <Zap className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="font-semibold text-sm">{v.name}</p>
@@ -237,11 +237,13 @@ export default function VehiclesPage() {
                 </div>
               )}
 
-              {v.currentLocation && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <MapPin className="w-3 h-3" /> {v.currentLocation}
+              {activeLog && (
+                <div className="text-xs text-muted-foreground p-2 rounded-lg bg-info/5 border border-info/10 mb-2">
+                  <p>Retirado: {new Date(activeLog.pickupDate).toLocaleString('pt-BR')}</p>
+                  <p>KM retirada: {activeLog.pickupKm}</p>
                 </div>
               )}
+
               {v.status === 'maintenance' && (
                 <div className="flex items-center gap-1.5 text-xs text-destructive mt-2">
                   <Wrench className="w-3 h-3" /> Em manutenção
