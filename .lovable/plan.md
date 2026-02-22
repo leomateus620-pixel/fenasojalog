@@ -1,80 +1,114 @@
 
-# Fix: Organization Creation Flow + Navigation Testing
 
-## Problem Found
+# Plano de Melhorias - Fenasoja Logistica
 
-Two issues discovered during testing:
+Este plano abrange todas as solicitações em uma implementacao integrada.
 
-1. **403 on organization INSERT**: The `organizations` table INSERT succeeds, but the `.select('id')` call afterwards fails because the SELECT RLS policy requires the user to already be an org member. Since the org was just created and the member hasn't been added yet, the SELECT-back is blocked by RLS.
+---
 
-2. **406 on org_members query**: This is expected behavior (0 rows returned with `.single()` for a new user). The code already handles this correctly.
+## 1. Corrigir criacao de organizacao (bloqueio atual)
 
-## Solution
+O sistema esta travado na tela "Criar Organizacao" porque o INSERT falha por causa do RLS.
 
-Create a database function `create_org_with_member` (SECURITY DEFINER) that atomically:
-- Creates the organization
-- Adds the calling user as admin member
-- Returns the org_id
+**Solucao:** Criar funcao RPC `create_org_with_member` (SECURITY DEFINER) que atomicamente cria a org e adiciona o usuario como admin. Atualizar `useCurrentOrg.ts` para usar essa RPC. Remover a tela de "Criar Organizacao" da exibicao (conforme solicitado - "desabilitar esse item").
 
-Then update `useCurrentOrg.ts` to call this RPC instead of doing two separate inserts.
+---
 
-### Step 1: SQL Migration
+## 2. Carrinhos Eletricos - novos campos
 
-Create a new `create_org_with_member` function:
+Adicionar campos a tabela `electric_carts`:
+- `comissao` (text) - para qual comissao o carrinho esta cedido
+- Ja existem campos de `responsavel_user_id`, `retirada_em` e `devolucao_em`
 
+Atualizar a pagina `ElectricCartsPage.tsx`:
+- Exibir campo "Comissao" no formulario de retirada e nos cards
+- Exibir data/horario de retirada e devolucao de forma mais visivel nos cards
+- Adicionar campo comissao no formulario de edicao
+
+---
+
+## 3. Transportes - filtros e historico
+
+Atualizar `TransportsPage.tsx`:
+- Adicionar barra de filtros no topo: por motorista/responsavel, por status (pendente, em andamento, concluido, cancelado)
+- Por padrao, ocultar transportes concluidos/cancelados da listagem principal
+- Adicionar campo de pesquisa para buscar historico por dia e por veiculo
+- Botao "Mostrar Historico" que revela os concluidos com filtro de data
+
+---
+
+## 4. Dashboard - renomear cards e adicionar navegacao
+
+Alterar `Dashboard.tsx`:
+- "Veiculos Disponiveis" -> "Veiculos Botolli Disponiveis"
+- "Carrinhos em Uso" -> "Carrinhos Eletricos Disponiveis" (mostrando disponiveis ao inves de em uso)
+- Cada StatCard ao ser clicado navega para a pagina correspondente:
+  - Veiculos Botolli -> `/vehicles`
+  - Carrinhos Eletricos -> `/electric-carts`
+  - Transportes Ativos -> `/transports`
+  - Tarefas Pendentes -> `/checklist`
+
+Atualizar `StatCard.tsx` para aceitar prop `onClick` ou `href`.
+
+---
+
+## 5. Cadastro de membros - e-mail e senha integrado
+
+O cadastro na pagina de Equipe ja possui campos de e-mail e senha. Vou garantir que:
+- Os campos sejam obrigatorios (ja estao presentes)
+- A edge function `create-user` funcione corretamente com a permissao do admin
+
+---
+
+## 6. Google Cloud (Google OAuth Login)
+
+Habilitar login com Google na aplicacao:
+- Configurar o provider Google OAuth via conector
+- Adicionar botao "Entrar com Google" na `LoginPage.tsx`
+- Atualizar o fluxo de autenticacao
+
+---
+
+## Detalhes Tecnicos
+
+### Migracao SQL
 ```sql
+-- 1. Funcao atomica para criar org
 CREATE OR REPLACE FUNCTION public.create_org_with_member(org_nome text)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   new_org_id uuid;
   caller_id uuid := auth.uid();
   caller_name text;
 BEGIN
-  IF caller_id IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
-
-  -- Get caller display name from auth metadata
-  SELECT COALESCE(
-    raw_user_meta_data->>'full_name',
-    email
-  ) INTO caller_name
-  FROM auth.users WHERE id = caller_id;
-
-  -- Create org
-  INSERT INTO organizations (nome)
-  VALUES (org_nome)
-  RETURNING id INTO new_org_id;
-
-  -- Add caller as admin
+  IF caller_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+  SELECT COALESCE(raw_user_meta_data->>'full_name', email)
+    INTO caller_name FROM auth.users WHERE id = caller_id;
+  INSERT INTO organizations (nome) VALUES (org_nome) RETURNING id INTO new_org_id;
   INSERT INTO org_members (org_id, user_id, role, nome_exibicao)
-  VALUES (new_org_id, caller_id, 'admin', caller_name);
-
+    VALUES (new_org_id, caller_id, 'admin', caller_name);
   RETURN new_org_id;
-END;
-$$;
+END; $$;
+
+-- 2. Novo campo comissao em electric_carts
+ALTER TABLE public.electric_carts ADD COLUMN IF NOT EXISTS comissao text;
 ```
 
-### Step 2: Update `useCurrentOrg.ts`
+### Arquivos modificados
+- `src/hooks/useCurrentOrg.ts` - usar RPC `create_org_with_member`
+- `src/components/OrgGuard.tsx` - remover exibicao de CreateOrgPage (pular direto)
+- `src/pages/ElectricCartsPage.tsx` - campo comissao, exibir datas
+- `src/hooks/useElectricCarts.ts` - incluir comissao na retirada
+- `src/pages/TransportsPage.tsx` - filtros por responsavel/status, pesquisa historico
+- `src/pages/Dashboard.tsx` - renomear labels, adicionar onClick com navegacao
+- `src/components/StatCard.tsx` - aceitar prop onClick
+- `src/pages/LoginPage.tsx` - botao Google OAuth
 
-Change `createOrgMutation` to call the RPC:
+### Ordem de execucao
+1. Migracao SQL (create_org_with_member + campo comissao)
+2. Corrigir useCurrentOrg + OrgGuard
+3. Atualizar ElectricCartsPage
+4. Atualizar TransportsPage com filtros
+5. Atualizar Dashboard + StatCard
+6. Configurar Google OAuth + LoginPage
 
-```typescript
-const { data, error } = await supabase.rpc('create_org_with_member', { org_nome: nome });
-if (error) throw error;
-localStorage.setItem(ORG_KEY, data);
-return { id: data };
-```
-
-This eliminates the two-step INSERT problem entirely.
-
-### Step 3: Verify Navigation
-
-After the fix, re-test:
-- Login -> Create Org -> Dashboard loads with bottom tabs
-- Navigate to all 8 pages (Vehicles, Carts, Transports, Guests, Agenda, Checklist, Team, Settings)
-- Verify mobile bottom tabs work correctly
