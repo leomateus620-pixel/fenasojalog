@@ -48,7 +48,10 @@ export default function TeamPage() {
   const [viewMemberId, setViewMemberId] = useState('');
 
   const handleAdd = async () => {
-    if (!addForm.nome || !addForm.cargo) return;
+    if (!addForm.nome) { toast.error('Informe o nome'); return; }
+    if (!addForm.cargo) { toast.error('Informe o cargo'); return; }
+    if (!addForm.email) { toast.error('Informe o e-mail de acesso'); return; }
+    if (!addForm.password) { toast.error('Informe a senha'); return; }
     setAddLoading(true);
     try {
       let userId: string | null = null;
@@ -77,10 +80,12 @@ export default function TeamPage() {
   };
 
   const handleEdit = async () => {
-    if (!editForm.nome) return;
-    await updateMember.mutateAsync({ id: editId, nome_exibicao: editForm.nome, cargo: editForm.cargo || null, telefone: editForm.telefone || null });
-    setEditOpen(false);
-    toast.success('Membro atualizado');
+    if (!editForm.nome) { toast.error('Informe o nome'); return; }
+    try {
+      await updateMember.mutateAsync({ id: editId, nome_exibicao: editForm.nome, cargo: editForm.cargo || null, telefone: editForm.telefone || null });
+      setEditOpen(false);
+      toast.success('Membro atualizado');
+    } catch (err: any) { toast.error(err.message || 'Erro ao salvar'); }
   };
 
   const handleCreateSchedule = async () => {
