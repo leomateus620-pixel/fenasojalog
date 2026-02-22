@@ -34,7 +34,7 @@ export default function AgendaPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  const dates: string[] = [...new Set(events.map((e: any) => String(e.inicio_em?.split('T')[0] || '')).filter((d: string) => d !== ''))].sort();
+  const dates: string[] = [...new Set(events.map((e: any) => String(e.inicio_em?.split('T')[0] || '')).filter((d: string) => d !== ''))].sort() as string[];
   if (dates.length === 0) dates.push(today);
   const getLabel = (d: string) => d === today ? 'Hoje' : d === tomorrow ? 'Amanhã' : new Date(d + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
