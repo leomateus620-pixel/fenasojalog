@@ -1,7 +1,7 @@
 import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
-import { Zap, Wrench, Pencil, Plus, Phone } from 'lucide-react';
+import { Zap, Wrench, Pencil, Plus, Phone, Clock, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal } from '@/lib/utils';
 import { useState } from 'react';
@@ -20,7 +20,7 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 };
 
 export default function ElectricCartsPage() {
-  const { carts, create, update, pickup, returnCart } = useElectricCarts();
+  const { carts, create, update, pickup, returnCart, history } = useElectricCarts();
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
 
@@ -37,6 +37,9 @@ export default function ElectricCartsPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnId, setReturnId] = useState('');
   const [returnForm, setReturnForm] = useState({ devolucao_em: '' });
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyCart, setHistoryCart] = useState<any>(null);
 
   // Get commission name for a member
   const getMemberCommission = (userId: string) => {
@@ -206,12 +209,24 @@ export default function ElectricCartsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* History dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Histórico — {historyCart?.nome || historyCart?.codigo}</DialogTitle></DialogHeader>
+          {historyCart && <CartHistoryContent cart={historyCart} history={history} members={members} />}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {carts.map((c: any) => {
           const resp = members.find((m: any) => m.user_id === c.responsavel_user_id);
           const sc = statusConfig[c.status] || statusConfig.disponivel;
           return (
-            <div key={c.id} className="rounded-xl border bg-card p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div
+              key={c.id}
+              className="rounded-xl border bg-card p-4 sm:p-5 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => { setHistoryCart(c); setHistoryOpen(true); }}
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-accent/10 text-accent">
@@ -223,7 +238,7 @@ export default function ElectricCartsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => { setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                  <button onClick={(e) => { e.stopPropagation(); setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>
@@ -244,7 +259,7 @@ export default function ElectricCartsPage() {
               )}
               {c.retirada_em && c.status === 'em_uso' && (
                 <div className="text-xs text-muted-foreground p-2 rounded-lg bg-info/5 border border-info/10 mb-2">
-                  <p>Retirado: {new Date(c.retirada_em).toLocaleString('pt-BR')}</p>
+                  <p>Retirado: {new Date(c.retirada_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
                 </div>
               )}
               {c.status === 'manutencao' && (
@@ -254,7 +269,7 @@ export default function ElectricCartsPage() {
               )}
               <div className="flex gap-2 mt-4">
                 {c.status === 'em_uso' && (
-                  <button onClick={() => openReturn(c.id)} className="flex-1 text-xs font-medium py-2.5 rounded-lg border border-border hover:bg-muted transition-colors">
+                  <button onClick={(e) => { e.stopPropagation(); openReturn(c.id); }} className="flex-1 text-xs font-medium py-2.5 rounded-lg border border-border hover:bg-muted transition-colors">
                     Devolver
                   </button>
                 )}
@@ -269,6 +284,90 @@ export default function ElectricCartsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Sub-component for cart history
+function CartHistoryContent({ cart, history, members }: { cart: any; history: any[]; members: any[] }) {
+  const cartHistory = history.filter((h: any) => h.cart_id === cart.id);
+
+  // Group retirada+devolucao pairs
+  const retiradas = cartHistory.filter((h: any) => h.action === 'retirada').sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const devolucoes = cartHistory.filter((h: any) => h.action === 'devolucao');
+
+  const getMemberName = (uid: string) => members.find((m: any) => m.user_id === uid)?.nome_exibicao || '—';
+
+  const formatDateTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const calcDuration = (start: string, end: string) => {
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    if (diff <= 0) return '—';
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return hours > 0 ? `${hours}h${mins > 0 ? `${mins}min` : ''}` : `${mins}min`;
+  };
+
+  // Build usage entries from retirada events
+  const usageEntries = retiradas.map((ret: any) => {
+    const retData = ret.after_data || {};
+    const retiradaEm = retData.retirada_em || ret.created_at;
+    const responsavel = ret.actor_user_id;
+    const comissao = retData.comissao;
+
+    // Find matching devolucao for same cart after this retirada
+    const matchingDev = devolucoes.find((d: any) =>
+      new Date(d.created_at).getTime() > new Date(ret.created_at).getTime()
+    );
+    const devData = matchingDev?.after_data || {};
+    const devolucaoEm = matchingDev ? (devData.devolucao_em || matchingDev.created_at) : null;
+
+    return {
+      id: ret.id,
+      responsavel,
+      comissao,
+      retirada_em: retiradaEm,
+      devolucao_em: devolucaoEm,
+    };
+  });
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">Histórico de Utilização</p>
+      {usageEntries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum uso registrado</p>
+      ) : (
+        <div className="space-y-2">
+          {usageEntries.map((u: any) => (
+            <div key={u.id} className="rounded-lg border p-3 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{getMemberName(u.responsavel)}</span>
+                <Badge variant={u.devolucao_em ? 'secondary' : 'outline'} className="text-[10px]">
+                  {u.devolucao_em ? 'Devolvido' : 'Em uso'}
+                </Badge>
+              </div>
+              {u.comissao && (
+                <div className="text-muted-foreground">
+                  Comissão: <Badge variant="outline" className="text-[10px]">{u.comissao}</Badge>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDateTime(u.retirada_em)}</span>
+                {u.devolucao_em && (
+                  <>
+                    <ArrowRight className="w-3 h-3" />
+                    <span>{formatDateTime(u.devolucao_em)}</span>
+                    <Badge variant="outline" className="text-[10px] ml-auto">{calcDuration(u.retirada_em, u.devolucao_em)}</Badge>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

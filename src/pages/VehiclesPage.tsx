@@ -1,10 +1,12 @@
 import { useVehicles } from '@/hooks/useVehicles';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useVehicleUsage } from '@/hooks/useVehicleUsage';
+import { useTransports } from '@/hooks/useTransports';
 import { useAuth } from '@/hooks/useAuth';
-import { Car, Pencil, Plus, Gauge, Fuel, ArrowRight, Palette } from 'lucide-react';
+import { Car, Pencil, Plus, Gauge, Fuel, ArrowRight, Palette, Clock, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -246,7 +248,9 @@ export default function VehiclesPage() {
 // Sub-component for vehicle detail with usage history
 function VehicleDetailContent({ vehicle, members, userId }: { vehicle: any; members: any[]; userId?: string }) {
   const { usages, createUsage, updateUsage } = useVehicleUsage(vehicle.id);
+  const { transports } = useTransports();
   const { update: updateVehicle } = useVehicles();
+  const navigate = useNavigate();
 
   const [kmSaida, setKmSaida] = useState('');
   const [kmChegada, setKmChegada] = useState('');
@@ -278,7 +282,6 @@ function VehicleDetailContent({ vehicle, members, userId }: { vehicle: any; memb
         km_chegada: Number(kmChegada),
         devolucao_em: nowSP(),
       });
-      // Update vehicle km_atual
       await updateVehicle.mutateAsync({ id: vehicle.id, km_atual: Number(kmChegada) });
       setKmChegada('');
       toast.success('Devolução registrada');
@@ -286,6 +289,29 @@ function VehicleDetailContent({ vehicle, members, userId }: { vehicle: any; memb
   };
 
   const getMemberName = (uid: string) => members.find((m: any) => m.user_id === uid)?.nome_exibicao || '—';
+
+  const formatDateTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const calcDuration = (start: string, end: string) => {
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    if (diff <= 0) return '—';
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return hours > 0 ? `${hours}h${mins > 0 ? `${mins}min` : ''}` : `${mins}min`;
+  };
+
+  // Find matching transport for a usage entry
+  const findTransport = (usage: any) => {
+    return transports.find((t: any) =>
+      t.vehicle_id === vehicle.id &&
+      t.status === 'concluido' &&
+      t.km_retirada != null &&
+      Number(t.km_retirada) === Number(usage.km_saida)
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -323,38 +349,65 @@ function VehicleDetailContent({ vehicle, members, userId }: { vehicle: any; memb
 
       {/* Usage history */}
       <div>
-        <p className="text-sm font-medium mb-2">Histórico de Usos</p>
+        <p className="text-sm font-medium mb-3">Histórico de Utilização</p>
         {usages.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum uso registrado</p>
         ) : (
           <div className="space-y-2">
-            {usages.map((u: any) => (
-              <div key={u.id} className="rounded-lg border p-3 text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{getMemberName(u.responsavel_user_id)}</span>
-                  <Badge variant={u.km_chegada ? 'secondary' : 'outline'} className="text-[10px]">
-                    {u.km_chegada ? 'Devolvido' : 'Em uso'}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <span>Saída: {Number(u.km_saida).toLocaleString('pt-BR')} km</span>
-                  {u.km_chegada && (
-                    <>
-                      <ArrowRight className="w-3 h-3" />
-                      <span>Chegada: {Number(u.km_chegada).toLocaleString('pt-BR')} km</span>
-                      <span className="font-semibold text-foreground ml-auto">
-                        {Number(u.km_rodados).toLocaleString('pt-BR')} km rodados
-                      </span>
-                    </>
+            {usages.map((u: any) => {
+              const matchedTransport = u.km_chegada ? findTransport(u) : null;
+              return (
+                <div
+                  key={u.id}
+                  className={cn(
+                    'rounded-lg border p-3 text-xs space-y-1.5 transition-colors',
+                    matchedTransport ? 'cursor-pointer hover:bg-muted/60' : ''
                   )}
+                  onClick={() => {
+                    if (matchedTransport) navigate('/transports');
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{getMemberName(u.responsavel_user_id)}</span>
+                    <div className="flex items-center gap-1.5">
+                      {matchedTransport && <ExternalLink className="w-3 h-3 text-primary" />}
+                      <Badge variant={u.km_chegada ? 'secondary' : 'outline'} className="text-[10px]">
+                        {u.km_chegada ? 'Devolvido' : 'Em uso'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDateTime(u.retirada_em)}</span>
+                    {u.devolucao_em && (
+                      <>
+                        <ArrowRight className="w-3 h-3" />
+                        <span>{formatDateTime(u.devolucao_em)}</span>
+                        <Badge variant="outline" className="text-[10px] ml-auto">{calcDuration(u.retirada_em, u.devolucao_em)}</Badge>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <span>Saída: {Number(u.km_saida).toLocaleString('pt-BR')} km</span>
+                    {u.km_chegada && (
+                      <>
+                        <ArrowRight className="w-3 h-3" />
+                        <span>Chegada: {Number(u.km_chegada).toLocaleString('pt-BR')} km</span>
+                        <span className="font-semibold text-foreground ml-auto">
+                          {Number(u.km_rodados).toLocaleString('pt-BR')} km
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {matchedTransport && (
+                    <div className="text-primary text-[10px] flex items-center gap-1">
+                      <Car className="w-3 h-3" />
+                      {matchedTransport.titulo || `${matchedTransport.origem} → ${matchedTransport.destino}`}
+                    </div>
+                  )}
+                  {u.observacoes && <p className="text-muted-foreground italic">{u.observacoes}</p>}
                 </div>
-                <p className="text-muted-foreground">
-                  {new Date(u.retirada_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  {u.devolucao_em && ` — ${new Date(u.devolucao_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
-                </p>
-                {u.observacoes && <p className="text-muted-foreground italic">{u.observacoes}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
