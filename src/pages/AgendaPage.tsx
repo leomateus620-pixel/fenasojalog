@@ -63,6 +63,20 @@ export default function AgendaPage() {
       if (editingId) {
         await update.mutateAsync({ id: editingId, ...payload });
         toast.success('Evento atualizado');
+      } else if (form.repetir_diariamente) {
+        const startDate = new Date(form.inicio_em);
+        const endDate = new Date(form.fim_em);
+        const diffMs = endDate.getTime() - startDate.getTime();
+        for (let i = 0; i < 7; i++) {
+          const newStart = new Date(startDate.getTime() + i * 86400000);
+          const newEnd = new Date(newStart.getTime() + diffMs);
+          await create.mutateAsync({
+            ...payload,
+            inicio_em: newStart.toISOString().slice(0, 16),
+            fim_em: newEnd.toISOString().slice(0, 16),
+          });
+        }
+        toast.success('7 eventos criados (diário)');
       } else {
         await create.mutateAsync(payload);
         toast.success('Evento criado');
