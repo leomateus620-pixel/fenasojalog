@@ -225,11 +225,16 @@ export default function TeamPage() {
                 {commissions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="border-t pt-3 mt-2">
-              <p className="text-xs text-muted-foreground mb-2">Acesso ao sistema (obrigatório)</p>
-              <Input type="email" placeholder="E-mail de acesso" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
-              <Input type="password" placeholder="Senha" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} className="mt-2" />
-            </div>
+            {needsCredentials && (
+              <div className="border-t pt-3 mt-2">
+                <p className="text-xs text-muted-foreground mb-2">Acesso ao sistema (obrigatório para esta comissão)</p>
+                <Input type="email" placeholder="E-mail de acesso" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
+                <Input type="password" placeholder="Senha" value={addForm.password} onChange={(e) => setAddForm({ ...addForm, password: e.target.value })} className="mt-2" />
+              </div>
+            )}
+            {!needsCredentials && addForm.commission_id && addForm.commission_id !== 'none' && (
+              <p className="text-[10px] text-muted-foreground">Este membro não terá acesso ao sistema.</p>
+            )}
             <Button onClick={handleAdd} className="w-full" disabled={addLoading}>
               {addLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Adicionar
             </Button>
