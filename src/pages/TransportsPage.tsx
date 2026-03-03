@@ -346,6 +346,9 @@ export default function TransportsPage() {
                 <button onClick={() => openEditDlg(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
+                <button onClick={() => { if (confirm('Excluir este transporte?')) remove.mutate(t.id); }} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive shrink-0">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
                 {t.status !== 'concluido' && t.status !== 'cancelado' && (
                   <button onClick={() => cycleStatus(t)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0">
                     {t.status === 'pendente' ? 'Iniciar' : 'Concluir'}
