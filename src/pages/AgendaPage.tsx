@@ -128,6 +128,12 @@ export default function AgendaPage() {
                 </SelectContent>
               </Select>
               <Input placeholder="Categoria / Tag" value={form.tipo_tag} onChange={(e) => setForm({ ...form, tipo_tag: e.target.value })} />
+              {!editingId && (
+                <div className="flex items-center gap-2">
+                  <Switch id="repetir" checked={form.repetir_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_diariamente: v })} />
+                  <Label htmlFor="repetir" className="text-sm cursor-pointer">Repetir diariamente (7 dias)</Label>
+                </div>
+              )}
               <Button onClick={handleSave} className="w-full" disabled={isSubmitting}>
                 {editingId ? 'Salvar Alterações' : 'Criar Evento'}
               </Button>
