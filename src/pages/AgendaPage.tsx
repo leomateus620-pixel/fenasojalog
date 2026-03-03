@@ -2,6 +2,8 @@ import { useEvents } from '@/hooks/useEvents';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Plus, Clock, MapPin, User, Pencil } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn, rawTime, todaySP } from '@/lib/utils';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
