@@ -151,7 +151,6 @@ export default function TeamPage() {
     toast.success('Alocação registrada');
   };
 
-  const getCommissionName = (id: string) => commissions.find((c: any) => c.id === id)?.nome || '';
 
   return (
     <div className="space-y-6">
