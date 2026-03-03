@@ -1,6 +1,7 @@
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { rawTime } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTasks } from '@/hooks/useTasks';
 import { useTransports } from '@/hooks/useTransports';
@@ -66,15 +67,22 @@ export default function TeamPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const selectedCommissionName = addForm.commission_id && addForm.commission_id !== 'none'
+    ? getCommissionName(addForm.commission_id)
+    : '';
+  const needsCredentials = selectedCommissionName.toUpperCase().includes('LOGÍSTICA') || selectedCommissionName.toUpperCase().includes('LOGISTICA');
+
   const handleAdd = async () => {
     if (!addForm.nome) { toast.error('Informe o nome'); return; }
     if (!addForm.cargo) { toast.error('Informe o cargo'); return; }
-    if (!addForm.email) { toast.error('Informe o e-mail de acesso'); return; }
-    if (!addForm.password) { toast.error('Informe a senha'); return; }
+    if (needsCredentials && !addForm.email) { toast.error('Informe o e-mail de acesso'); return; }
+    if (needsCredentials && !addForm.password) { toast.error('Informe a senha'); return; }
     setAddLoading(true);
     try {
+      const email = needsCredentials ? addForm.email : `placeholder-${Date.now()}@noaccess.local`;
+      const password = needsCredentials ? addForm.password : `P@ss${crypto.randomUUID().slice(0, 12)}`;
       const { data, error } = await supabase.functions.invoke('create-user', {
-        body: { email: addForm.email, password: addForm.password, full_name: addForm.nome, org_id: orgId, role: addForm.role, cargo: addForm.cargo },
+        body: { email, password, full_name: addForm.nome, org_id: orgId, role: addForm.role, cargo: addForm.cargo },
       });
       if (error) {
         const msg = data?.error || error?.message || 'Erro ao criar usuário';
