@@ -67,6 +67,8 @@ export default function TeamPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const getCommissionName = (id: string) => commissions.find((c: any) => c.id === id)?.nome || '';
+
   const selectedCommissionName = addForm.commission_id && addForm.commission_id !== 'none'
     ? getCommissionName(addForm.commission_id)
     : '';
