@@ -47,6 +47,7 @@ export default function TransportsPage() {
   const [filterData, setFilterData] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const hasFilters = (!!filterMotorista && filterMotorista !== 'all') || !!filterData || (!!filterStatus && filterStatus !== 'all') || !!filterSearch;
 
   // Detail view
