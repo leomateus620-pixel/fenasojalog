@@ -16,13 +16,14 @@ export function useCurrentOrg() {
         .from('org_members')
         .select('id, org_id, role, nome_exibicao, cargo, organizations(id, nome)')
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .single();
-      if (error || !data) return null;
-      // Save org_id to localStorage
-      localStorage.setItem(ORG_KEY, data.org_id);
-      return data;
+        .eq('is_active', true);
+      if (error || !data || data.length === 0) return null;
+      // Prioritize org saved in localStorage
+      const savedOrgId = localStorage.getItem(ORG_KEY);
+      const preferred = savedOrgId ? data.find((m: any) => m.org_id === savedOrgId) : null;
+      const selected = preferred || data[0];
+      localStorage.setItem(ORG_KEY, selected.org_id);
+      return selected;
     },
     enabled: !!user,
     staleTime: 60000,
