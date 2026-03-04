@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useCurrentOrg } from '@/hooks/useCurrentOrg';
+import CreateOrgPage from '@/pages/CreateOrgPage';
 
 export default function OrgGuard({ children }: { children: ReactNode }) {
   const { hasOrg, isLoading } = useCurrentOrg();
@@ -13,8 +14,6 @@ export default function OrgGuard({ children }: { children: ReactNode }) {
   }
 
   if (!hasOrg) {
-    // Lazy-load CreateOrgPage only when needed
-    const CreateOrgPage = require('@/pages/CreateOrgPage').default;
     return <CreateOrgPage />;
   }
 
