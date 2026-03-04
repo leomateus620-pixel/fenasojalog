@@ -373,15 +373,21 @@ export default function TransportsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar..."
-            value={filterSearch}
-            onChange={(e) => setFilterSearch(e.target.value)}
-            className="pl-9 h-9 w-48 sm:w-56 text-xs"
-            aria-label="Pesquisar transporte"
-          />
+        <div className="flex items-center gap-1">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setFilterSearch(searchInput); }}
+              className="pl-9 h-9 w-48 sm:w-56 text-xs"
+              aria-label="Pesquisar transporte"
+            />
+          </div>
+          <Button size="sm" className="h-9 text-xs" onClick={() => setFilterSearch(searchInput)}>
+            Pesquisar
+          </Button>
         </div>
         <Select value={filterMotorista} onValueChange={setFilterMotorista}>
           <SelectTrigger className="w-[180px] h-9 text-xs">
