@@ -23,6 +23,7 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
 };
 
 const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Outros'];
+const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
 export default function TransportsPage() {
   const { transports, create, update, remove } = useTransports();
@@ -34,11 +35,11 @@ export default function TransportsPage() {
   const { commissions } = useCommissions();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '' });
+  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
-  const [editForm, setEditForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', status: 'pendente', km_retirada: '', km_devolucao: '', fim_em: '' });
+  const [editForm, setEditForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', status: 'pendente', km_retirada: '', km_devolucao: '', fim_em: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
 
   // Search filters
   const [filterMotorista, setFilterMotorista] = useState('');
@@ -58,7 +59,7 @@ export default function TransportsPage() {
   };
 
   const openCreateDialog = () => {
-    setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '' });
+    setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
     setOpen(true);
   };
 
@@ -75,8 +76,13 @@ export default function TransportsPage() {
         vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
         prioridade: form.prioridade,
         km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
       });
-      setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '' });
+      setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
       setOpen(false);
       toast.success('Transporte agendado');
     } catch (err: any) { toast.error(err.message); }
@@ -92,6 +98,9 @@ export default function TransportsPage() {
       km_retirada: t.km_retirada != null ? String(t.km_retirada) : '',
       km_devolucao: t.km_devolucao != null ? String(t.km_devolucao) : '',
       fim_em: t.fim_em?.slice(0, 16) || '',
+      voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
+      voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
+      horario_saida: t.horario_saida || '',
     });
     setEditOpen(true);
   };
@@ -115,6 +124,11 @@ export default function TransportsPage() {
         km_retirada: editForm.km_retirada ? Number(editForm.km_retirada) : null,
         km_devolucao: editForm.status === 'concluido' && editForm.km_devolucao ? Number(editForm.km_devolucao) : null,
         fim_em: editForm.status === 'concluido' && editForm.fim_em ? editForm.fim_em : null,
+        voo_cidade: editForm.titulo === 'Aeroporto' ? editForm.voo_cidade || null : null,
+        voo_numero: editForm.titulo === 'Aeroporto' ? editForm.voo_numero || null : null,
+        voo_checkin: editForm.titulo === 'Aeroporto' ? editForm.voo_checkin || null : null,
+        voo_chegada: editForm.titulo === 'Aeroporto' ? editForm.voo_chegada || null : null,
+        horario_saida: editForm.titulo === 'Aeroporto' ? editForm.horario_saida || null : null,
       });
 
       // If status changed to concluido and KM fields are filled, create vehicle_usage
@@ -155,6 +169,9 @@ export default function TransportsPage() {
           km_retirada: t.km_retirada != null ? String(t.km_retirada) : '',
           km_devolucao: '',
           fim_em: nowSPLocal(),
+          voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
+          voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
+          horario_saida: t.horario_saida || '',
         });
         setEditOpen(true);
         return;
@@ -195,6 +212,32 @@ export default function TransportsPage() {
             {tituloOptions.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
           </SelectContent>
         </Select>
+        {data.titulo === 'Aeroporto' && (
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+            <Label className="text-xs font-semibold text-foreground">Informações do Voo</Label>
+            <Select value={data.voo_cidade} onValueChange={(v) => setData({ ...data, voo_cidade: v })}>
+              <SelectTrigger><SelectValue placeholder="Cidade do Aeroporto" /></SelectTrigger>
+              <SelectContent>
+                {cidadeAeroportoOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Nº do Voo" aria-label="Número do voo" value={data.voo_numero} onChange={(e) => setData({ ...data, voo_numero: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Horário Check-in</Label>
+                <Input type="time" aria-label="Horário check-in" value={data.voo_checkin} onChange={(e) => setData({ ...data, voo_checkin: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Horário Chegada do Voo</Label>
+                <Input type="time" aria-label="Horário chegada do voo" value={data.voo_chegada} onChange={(e) => setData({ ...data, voo_chegada: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Horário de Saída (para o aeroporto)</Label>
+              <Input type="time" aria-label="Horário de saída para o aeroporto" value={data.horario_saida} onChange={(e) => setData({ ...data, horario_saida: e.target.value })} />
+            </div>
+          </div>
+        )}
         <Select value={data.guest_id} onValueChange={(v) => setData({ ...data, guest_id: v })}>
           <SelectTrigger><SelectValue placeholder="Hóspede (opcional)" /></SelectTrigger>
           <SelectContent>
@@ -337,6 +380,8 @@ export default function TransportsPage() {
                     {guest && <span>🎫 {guest.nome}</span>}
                     {t.km_retirada != null && <span>📏 {t.km_retirada} km</span>}
                     {t.km_devolucao != null && <span>→ {t.km_devolucao} km</span>}
+                    {t.voo_cidade && <span>✈️ {t.voo_cidade}</span>}
+                    {t.voo_numero && <span>Voo {t.voo_numero}</span>}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
