@@ -5,7 +5,7 @@ import { useGuests } from '@/hooks/useGuests';
 import { useVehicleUsage } from '@/hooks/useVehicleUsage';
 import { useCommissions } from '@/hooks/useCommissions';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2 } from 'lucide-react';
+import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye } from 'lucide-react';
 import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string }> = {
   pendente: { label: 'Pendente', icon: Clock, class: 'bg-info/10 text-info' },
