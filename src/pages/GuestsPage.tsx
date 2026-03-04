@@ -147,8 +147,8 @@ export default function GuestsPage() {
               )}
               {(g.checkin_em || g.checkout_em) && (
                 <div className="text-xs text-muted-foreground mb-2 p-2 rounded-lg bg-muted/50">
-                  {g.checkin_em && <p>Check-in: {new Date(g.checkin_em).toLocaleString('pt-BR')}</p>}
-                  {g.checkout_em && <p>Check-out: {new Date(g.checkout_em).toLocaleString('pt-BR')}</p>}
+                  {g.checkin_em && <p>Check-in: {new Date(g.checkin_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>}
+                  {g.checkout_em && <p>Check-out: {new Date(g.checkout_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>}
                 </div>
               )}
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
@@ -161,7 +161,7 @@ export default function GuestsPage() {
                   {linkedTransports.map((t: any) => (
                     <div key={t.id} className="text-xs text-muted-foreground flex items-center gap-1.5 py-0.5">
                       <MapPin className="w-2.5 h-2.5" />
-                      {t.origem} → {t.destino} · {t.inicio_em ? new Date(t.inicio_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                      {t.origem} → {t.destino} · {t.inicio_em ? new Date(t.inicio_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
                     </div>
                   ))}
                 </div>
