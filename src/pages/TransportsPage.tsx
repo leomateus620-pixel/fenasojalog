@@ -23,6 +23,7 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
 };
 
 const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Outros'];
+const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
 export default function TransportsPage() {
   const { transports, create, update, remove } = useTransports();
@@ -34,11 +35,11 @@ export default function TransportsPage() {
   const { commissions } = useCommissions();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '' });
+  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
-  const [editForm, setEditForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', status: 'pendente', km_retirada: '', km_devolucao: '', fim_em: '' });
+  const [editForm, setEditForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', status: 'pendente', km_retirada: '', km_devolucao: '', fim_em: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
 
   // Search filters
   const [filterMotorista, setFilterMotorista] = useState('');
