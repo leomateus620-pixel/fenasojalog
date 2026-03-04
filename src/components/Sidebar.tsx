@@ -41,12 +41,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-widest">Logística</p>
           </div>
         )}
-        <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 shrink-0">
+        <button
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+          className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 shrink-0 focus-ring"
+        >
           {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
       </div>
 
-      <nav className="flex-1 px-2 pt-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-2 pt-3 space-y-0.5 overflow-y-auto" role="navigation" aria-label="Menu principal">
         {links.map(({ to, icon: Icon, label }) => (
           <RouterNavLink
             key={to}
@@ -54,7 +58,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             end={to === '/'}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors focus-ring',
                 collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-primary'
@@ -62,8 +66,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )
             }
           >
-            <Icon className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="truncate">{label}</span>}
+            {({ isActive }) => (
+              <>
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                {!collapsed && <span className="truncate">{label}</span>}
+                {isActive && <span className="sr-only">(página atual)</span>}
+              </>
+            )}
           </RouterNavLink>
         ))}
       </nav>
@@ -71,12 +80,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="p-2 border-t border-sidebar-border">
         <button
           onClick={signOut}
+          aria-label="Sair da conta"
           className={cn(
-            'flex items-center gap-3 w-full rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors',
+            'flex items-center gap-3 w-full rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors focus-ring',
             collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
           )}
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

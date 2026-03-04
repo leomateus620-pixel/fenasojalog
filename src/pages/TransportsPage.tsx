@@ -203,8 +203,8 @@ export default function TransportsPage() {
           </SelectContent>
         </Select>
         <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Origem" value={data.origem} onChange={(e) => setData({ ...data, origem: e.target.value })} />
-          <Input placeholder="Destino" value={data.destino} onChange={(e) => setData({ ...data, destino: e.target.value })} />
+          <Input placeholder="Origem" aria-label="Origem" value={data.origem} onChange={(e) => setData({ ...data, origem: e.target.value })} />
+          <Input placeholder="Destino" aria-label="Destino" value={data.destino} onChange={(e) => setData({ ...data, destino: e.target.value })} />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída</Label>
@@ -232,10 +232,10 @@ export default function TransportsPage() {
             <Badge variant="secondary">{driverCommission}</Badge>
           </div>
         )}
-        <Input placeholder="KM Retirada" type="number" value={data.km_retirada} onChange={(e) => setData({ ...data, km_retirada: e.target.value })} />
+        <Input placeholder="KM Retirada" aria-label="KM Retirada" type="number" value={data.km_retirada} onChange={(e) => setData({ ...data, km_retirada: e.target.value })} />
         {isConcluido && (
           <>
-            <Input placeholder="KM Devolução" type="number" value={data.km_devolucao} onChange={(e) => setData({ ...data, km_devolucao: e.target.value })} />
+            <Input placeholder="KM Devolução" aria-label="KM Devolução" type="number" value={data.km_devolucao} onChange={(e) => setData({ ...data, km_devolucao: e.target.value })} />
             <div>
               <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora devolução</Label>
               <Input type="datetime-local" value={data.fim_em} onChange={(e) => setData({ ...data, fim_em: e.target.value })} />
@@ -343,14 +343,14 @@ export default function TransportsPage() {
                   <p className="text-sm font-mono font-medium">{rawTime(t.inicio_em)}</p>
                   <p className="text-[10px] text-muted-foreground">{rawDateShort(t.inicio_em)}</p>
                 </div>
-                <button onClick={() => openEditDlg(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
+                <button onClick={() => openEditDlg(t)} aria-label="Editar transporte" className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0 focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => { if (confirm('Excluir este transporte?')) remove.mutate(t.id); }} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive shrink-0">
+                <button onClick={() => { if (confirm('Excluir este transporte?')) remove.mutate(t.id); }} aria-label="Excluir transporte" className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive shrink-0 focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
                 {t.status !== 'concluido' && t.status !== 'cancelado' && (
-                  <button onClick={() => cycleStatus(t)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0">
+                  <button onClick={() => cycleStatus(t)} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors shrink-0 focus-ring min-h-[44px]">
                     {t.status === 'pendente' ? 'Iniciar' : 'Concluir'}
                   </button>
                 )}

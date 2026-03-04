@@ -177,7 +177,7 @@ export default function ChecklistPage() {
                   const pc = priorityConfig[t.prioridade] || priorityConfig.media;
                   return (
                     <div key={t.id} className="rounded-xl border bg-card p-4 flex items-center gap-3">
-                      <button onClick={() => toggleDone(t.id, t.status)} className="w-6 h-6 rounded-full border-2 border-border hover:border-primary shrink-0 transition-colors" />
+                      <button onClick={() => toggleDone(t.id, t.status)} aria-label={`Marcar "${t.titulo}" como concluída`} className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-full border-2 border-border hover:border-primary shrink-0 transition-colors focus-ring flex items-center justify-center" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{t.titulo}</p>
                         {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
@@ -196,7 +196,7 @@ export default function ChecklistPage() {
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Concluídas ({done.length})</p>
                     {done.map((t: any) => (
                       <div key={t.id} className="rounded-xl border bg-muted/30 p-4 flex items-center gap-3 opacity-60">
-                        <button onClick={() => toggleDone(t.id, t.status)} className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                        <button onClick={() => toggleDone(t.id, t.status)} aria-label={`Desmarcar "${t.titulo}"`} className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-full bg-success/20 flex items-center justify-center shrink-0 focus-ring">
                           <Check className="w-3.5 h-3.5 text-success" />
                         </button>
                         <p className="text-sm line-through flex-1">{t.titulo}</p>
