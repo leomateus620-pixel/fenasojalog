@@ -208,7 +208,7 @@ export default function VehiclesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={(e) => { e.stopPropagation(); openEdit(v); }} className="p-1.5 rounded-lg hover:bg-background/60 transition-colors text-muted-foreground hover:text-foreground">
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(v); }} aria-label={`Editar ${v.placa}`} className="p-1.5 rounded-lg hover:bg-background/60 transition-colors text-muted-foreground hover:text-foreground focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>

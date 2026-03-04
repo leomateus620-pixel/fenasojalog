@@ -238,7 +238,7 @@ export default function ElectricCartsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={(e) => { e.stopPropagation(); setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                  <button onClick={(e) => { e.stopPropagation(); setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }} aria-label={`Editar ${c.nome || c.codigo}`} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>
@@ -269,7 +269,7 @@ export default function ElectricCartsPage() {
               )}
               <div className="flex gap-2 mt-4">
                 {c.status === 'em_uso' && (
-                  <button onClick={(e) => { e.stopPropagation(); openReturn(c.id); }} className="flex-1 text-xs font-medium py-2.5 rounded-lg border border-border hover:bg-muted transition-colors">
+                  <button onClick={(e) => { e.stopPropagation(); openReturn(c.id); }} aria-label={`Devolver ${c.nome || c.codigo}`} className="flex-1 text-xs font-medium py-2.5 rounded-lg border border-border hover:bg-muted transition-colors focus-ring min-h-[44px]">
                     Devolver
                   </button>
                 )}

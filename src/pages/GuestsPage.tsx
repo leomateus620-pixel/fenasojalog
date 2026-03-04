@@ -15,12 +15,12 @@ type GuestFormData = { nome: string; telefone: string; email: string; tipo: stri
 function GuestFormFields({ data, setData }: { data: GuestFormData; setData: (d: GuestFormData) => void }) {
   return (
     <div className="space-y-3">
-      <Input placeholder="Nome completo" value={data.nome} onChange={(e) => setData({ ...data, nome: e.target.value })} />
+      <Input placeholder="Nome completo" aria-label="Nome completo" value={data.nome} onChange={(e) => setData({ ...data, nome: e.target.value })} />
       <div className="grid grid-cols-2 gap-3">
-        <Input placeholder="Telefone" value={data.telefone} onChange={(e) => setData({ ...data, telefone: e.target.value })} />
-        <Input placeholder="E-mail" type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} />
+        <Input placeholder="Telefone" aria-label="Telefone" value={data.telefone} onChange={(e) => setData({ ...data, telefone: e.target.value })} />
+        <Input placeholder="E-mail" aria-label="E-mail" type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} />
       </div>
-      <Input placeholder="Hotel" value={data.hotel_nome} onChange={(e) => setData({ ...data, hotel_nome: e.target.value })} />
+      <Input placeholder="Hotel" aria-label="Hotel" value={data.hotel_nome} onChange={(e) => setData({ ...data, hotel_nome: e.target.value })} />
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Check-in</label>
@@ -132,10 +132,10 @@ export default function GuestsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(g)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                  <button onClick={() => openEdit(g)} aria-label={`Editar ${g.nome}`} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { remove.mutateAsync(g.id); toast.success('Hóspede removido'); }} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive">
+                  <button onClick={() => { remove.mutateAsync(g.id); toast.success('Hóspede removido'); }} aria-label={`Remover ${g.nome}`} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

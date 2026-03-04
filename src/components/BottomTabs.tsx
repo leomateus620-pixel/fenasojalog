@@ -31,7 +31,7 @@ export default function BottomTabs() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-pb">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-pb" role="navigation" aria-label="Navegação principal">
         <div className="flex items-center justify-around h-16">
           {mainTabs.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -40,23 +40,31 @@ export default function BottomTabs() {
               end={to === '/'}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium transition-colors',
+                  'flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium transition-colors focus-ring min-w-[44px] min-h-[44px]',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )
               }
             >
-              <Icon className="w-5 h-5" />
-              <span>{label}</span>
+              {({ isActive }) => (
+                <>
+                  <Icon className="w-5 h-5" aria-hidden="true" />
+                  <span>{label}</span>
+                  {isActive && <span className="sr-only">(página atual)</span>}
+                </>
+              )}
             </NavLink>
           ))}
           <button
             onClick={() => setMoreOpen(true)}
+            aria-expanded={moreOpen}
+            aria-haspopup="dialog"
+            aria-label="Abrir mais opções de menu"
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium transition-colors',
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full text-[10px] font-medium transition-colors focus-ring min-w-[44px] min-h-[44px]',
               isMoreActive ? 'text-primary' : 'text-muted-foreground'
             )}
           >
-            <MoreHorizontal className="w-5 h-5" />
+            <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
             <span>Mais</span>
           </button>
         </div>

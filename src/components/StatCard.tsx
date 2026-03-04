@@ -29,10 +29,20 @@ const iconStyles = {
 
 export default function StatCard({ label, value, icon, trend, variant = 'default', to }: StatCardProps) {
   const navigate = useNavigate();
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (to && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      navigate(to);
+    }
+  };
   return (
     <div
-      className={cn('rounded-xl border p-5 transition-shadow hover:shadow-md', variantStyles[variant], to && 'cursor-pointer active:scale-[0.98]')}
+      className={cn('rounded-xl border p-5 transition-shadow hover:shadow-md focus-ring', variantStyles[variant], to && 'cursor-pointer active:scale-[0.98]')}
       onClick={to ? () => navigate(to) : undefined}
+      onKeyDown={handleKeyDown}
+      tabIndex={to ? 0 : undefined}
+      role={to ? 'link' : undefined}
+      aria-label={to ? `${label}: ${value}` : undefined}
     >
       <div className="flex items-start justify-between">
         <div>

@@ -15,6 +15,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <a href="#main-content" className="skip-to-content">
+        Pular para conteúdo
+      </a>
       <OfflineBanner />
 
       {/* Mobile overlay */}
@@ -32,6 +35,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}
 
       <main
+        id="main-content"
         className="min-h-screen p-4 md:p-6 transition-all duration-200"
         style={{
           marginLeft: sidebarWidth,
