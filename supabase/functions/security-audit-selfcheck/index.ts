@@ -190,8 +190,8 @@ Deno.serve(async (req) => {
     if (callerUserId) {
       const metaCheck = createClient(supabaseUrl, serviceKey);
       const { data: role } = await metaCheck.rpc("get_user_org_role", { _user_id: callerUserId, _org_id: orgId });
-      if (role !== "admin") {
-        return new Response(JSON.stringify({ error: "Apenas administradores podem executar auditoria" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (role !== "admin" && role !== "operador") {
+        return new Response(JSON.stringify({ error: "Apenas administradores e operadores podem executar auditoria" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
