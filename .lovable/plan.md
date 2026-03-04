@@ -1,27 +1,30 @@
 
 
-# Tornar seção de Auditoria visível para Operadores
+# Plano: Ajustar horários para fuso de São Paulo (UTC-3)
 
-## Mudança
+## Problema
+Todos os `new Date().toISOString()` geram horário UTC. Formulários e timestamps automáticos ficam 3 horas adiantados em relação a São Paulo.
 
-Atualmente a seção "Auditoria de Segurança" só aparece quando `myRole === 'admin'`. O usuário quer que operadores também vejam essa seção.
+## Solução
 
-## Implementação
+### 1. Criar função utilitária `nowSP()` em `src/lib/utils.ts`
+Função que retorna a data/hora atual no fuso `America/Sao_Paulo`:
+- `nowSP()` → ISO string completa no fuso SP
+- `nowSPLocal()` → formato `YYYY-MM-DDTHH:MM` para inputs `datetime-local`
+- `todaySP()` → formato `YYYY-MM-DD` para inputs `date`
 
-No `src/pages/SettingsPage.tsx`:
+### 2. Substituir todas as ocorrências de `new Date().toISOString()` e `new Date()`
 
-1. Alterar a variável de controle de visibilidade de `isAdmin` para uma nova variável `canSeeAudit` que inclua ambos os papéis:
-   ```typescript
-   const canSeeAudit = myRole === 'admin' || myRole === 'operador';
-   ```
+**Arquivos afetados (8 arquivos):**
+- `src/pages/TransportsPage.tsx` — 4 ocorrências (abertura formulário, devolução, fourHoursAgo)
+- `src/pages/ElectricCartsPage.tsx` — 4 ocorrências (retirada, devolução)
+- `src/pages/ChecklistPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/Dashboard.tsx` — 2 ocorrências (now, todayStr)
+- `src/pages/AgendaPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/VehiclesPage.tsx` — 1 ocorrência (devolução)
+- `src/hooks/useElectricCarts.ts` — 2 ocorrências (pickup, return)
+- `src/hooks/useTasks.ts` — 1 ocorrência (completed_at)
 
-2. Substituir a condição `{isAdmin && (` que envolve o bloco de auditoria por `{canSeeAudit && (`.
-
-3. Manter `isAdmin` para outras funcionalidades que devem permanecer restritas a admins.
-
-**Nota**: A Edge Function no backend já valida permissões separadamente. Se a política de execução da edge function também precisa aceitar operadores, será necessário ajustar a validação de role no `security-audit-selfcheck/index.ts` (verificar se aceita apenas admin ou também operador).
-
-## Arquivos alterados
-- `src/pages/SettingsPage.tsx` (1 linha nova + 1 condição alterada)
-- Possivelmente `supabase/functions/security-audit-selfcheck/index.ts` (se a validação de role bloquear operadores)
+### 3. Atualizar funções de exibição em `rawTime`, `rawWeekday` etc.
+Adicionar conversão para fuso SP ao exibir datas que vêm do banco em UTC.
 

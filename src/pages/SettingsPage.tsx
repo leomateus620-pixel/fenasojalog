@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [loadingFindings, setLoadingFindings] = useState(false);
 
   const isAdmin = myRole === 'admin';
+  const canSeeAudit = myRole === 'admin' || myRole === 'operador';
 
   const runAudit = async () => {
     if (!orgId) return;
@@ -155,7 +156,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {isAdmin && (
+      {canSeeAudit && (
         <div className="rounded-xl border bg-card p-4 sm:p-5">
           <h2 className="font-semibold flex items-center gap-2 mb-3">
             <ShieldCheck className="w-4 h-4 text-primary" /> Auditoria de Segurança
