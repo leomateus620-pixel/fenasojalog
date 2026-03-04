@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -36,7 +37,9 @@ export default function TransportsPage() {
   const { commissions } = useCommissions();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+  const [form, setForm] = useState({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+  const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
+  const [guestDestinations, setGuestDestinations] = useState<Record<string, string>>({});
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
@@ -116,32 +119,43 @@ export default function TransportsPage() {
   };
 
   const openCreateDialog = () => {
-    setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+    setForm({ titulo: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+    setSelectedGuests([]);
+    setGuestDestinations({});
     setOpen(true);
   };
 
   const handleAdd = async () => {
-    if (!form.origem || !form.destino || !form.inicio_em) return;
+    if (!form.origem || !form.inicio_em) return;
+    // If guests selected, create one transport per guest
+    const guestIds = selectedGuests.length > 0 ? selectedGuests : [null];
+    if (selectedGuests.length === 0 && !form.destino) return;
     try {
-      await create.mutateAsync({
-        titulo: form.titulo || null,
-        guest_id: form.guest_id && form.guest_id !== 'none' ? form.guest_id : null,
-        origem: form.origem,
-        destino: form.destino,
-        inicio_em: form.inicio_em,
-        motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-        vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-        prioridade: form.prioridade,
-        km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
-        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
-        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
-        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
-        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
-        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
-      });
-      setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+      for (const gId of guestIds) {
+        const destino = gId ? (guestDestinations[gId] || form.destino) : form.destino;
+        if (!destino) continue;
+        await create.mutateAsync({
+          titulo: form.titulo || null,
+          guest_id: gId || null,
+          origem: form.origem,
+          destino,
+          inicio_em: form.inicio_em,
+          motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+          vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+          prioridade: form.prioridade,
+          km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+          voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+          voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+          voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+          voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+          horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
+        });
+      }
+      setForm({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+      setSelectedGuests([]);
+      setGuestDestinations({});
       setOpen(false);
-      toast.success('Transporte agendado');
+      toast.success(selectedGuests.length > 1 ? `${selectedGuests.length} transportes agendados` : 'Transporte agendado');
     } catch (err: any) { toast.error(err.message); }
   };
 
@@ -302,16 +316,68 @@ export default function TransportsPage() {
             </div>
           </div>
         )}
-        <Select value={data.guest_id} onValueChange={(v) => setData({ ...data, guest_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Hóspede (opcional)" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Nenhum</SelectItem>
-            {guests.map((g: any) => <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {isEdit ? (
+          <Select value={data.guest_id} onValueChange={(v) => setData({ ...data, guest_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Hóspede (opcional)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum</SelectItem>
+              {guests.map((g: any) => <SelectItem key={g.id} value={g.id}>{g.nome}{g.hotel_nome ? ` — ${g.hotel_nome}` : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-foreground">Hóspedes (opcional)</Label>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border p-2 space-y-1">
+              {guests.length === 0 && <p className="text-xs text-muted-foreground py-1">Nenhum hóspede cadastrado</p>}
+              {guests.map((g: any) => {
+                const checked = selectedGuests.includes(g.id);
+                return (
+                  <label key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer text-sm">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        if (v) {
+                          setSelectedGuests(prev => [...prev, g.id]);
+                          setGuestDestinations(prev => ({ ...prev, [g.id]: g.hotel_nome || '' }));
+                        } else {
+                          setSelectedGuests(prev => prev.filter(id => id !== g.id));
+                          setGuestDestinations(prev => { const n = { ...prev }; delete n[g.id]; return n; });
+                        }
+                      }}
+                    />
+                    <span className="flex-1">{g.nome}</span>
+                    {g.hotel_nome && <span className="text-xs text-muted-foreground">{g.hotel_nome}</span>}
+                  </label>
+                );
+              })}
+            </div>
+            {selectedGuests.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <Label className="text-xs font-semibold text-foreground">Destino por hóspede</Label>
+                {selectedGuests.map((gId) => {
+                  const g = guests.find((x: any) => x.id === gId);
+                  return (
+                    <div key={gId} className="flex items-center gap-2">
+                      <span className="text-sm min-w-[100px] truncate">{g?.nome}</span>
+                      <Input
+                        placeholder="Destino (hotel)"
+                        value={guestDestinations[gId] || ''}
+                        onChange={(e) => setGuestDestinations(prev => ({ ...prev, [gId]: e.target.value }))}
+                        className="flex-1 h-8 text-sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Input placeholder="Origem" aria-label="Origem" value={data.origem} onChange={(e) => setData({ ...data, origem: e.target.value })} />
-          <Input placeholder="Destino" aria-label="Destino" value={data.destino} onChange={(e) => setData({ ...data, destino: e.target.value })} />
+          {/* Show single destino field only when no guests selected (create) or in edit */}
+          {(isEdit || selectedGuests.length === 0) && (
+            <Input placeholder="Destino" aria-label="Destino" value={data.destino} onChange={(e) => setData({ ...data, destino: e.target.value })} />
+          )}
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída</Label>

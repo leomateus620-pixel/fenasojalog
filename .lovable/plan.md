@@ -1,32 +1,30 @@
 
 
-# Multi-Guest Selection in Transport Form
+# Plano: Ajustar horários para fuso de São Paulo (UTC-3)
 
-## Current Behavior
-The transport form has a single `guest_id` select dropdown. One transport = one guest.
+## Problema
+Todos os `new Date().toISOString()` geram horário UTC. Formulários e timestamps automáticos ficam 3 horas adiantados em relação a São Paulo.
 
-## Proposed Approach
-In the **Create** dialog, allow selecting multiple guests. For each selected guest, display their hotel (from `guests.hotel_nome`) as the destination, editable per guest. On submit, create **one transport record per guest**, each with the guest's hotel as destination.
+## Solução
 
-In the **Edit** dialog, keep single guest (transport already exists as individual record).
+### 1. Criar função utilitária `nowSP()` em `src/lib/utils.ts`
+Função que retorna a data/hora atual no fuso `America/Sao_Paulo`:
+- `nowSP()` → ISO string completa no fuso SP
+- `nowSPLocal()` → formato `YYYY-MM-DDTHH:MM` para inputs `datetime-local`
+- `todaySP()` → formato `YYYY-MM-DD` para inputs `date`
 
-## Implementation Details
+### 2. Substituir todas as ocorrências de `new Date().toISOString()` e `new Date()`
 
-### `src/pages/TransportsPage.tsx`
+**Arquivos afetados (8 arquivos):**
+- `src/pages/TransportsPage.tsx` — 4 ocorrências (abertura formulário, devolução, fourHoursAgo)
+- `src/pages/ElectricCartsPage.tsx` — 4 ocorrências (retirada, devolução)
+- `src/pages/ChecklistPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/Dashboard.tsx` — 2 ocorrências (now, todayStr)
+- `src/pages/AgendaPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/VehiclesPage.tsx` — 1 ocorrência (devolução)
+- `src/hooks/useElectricCarts.ts` — 2 ocorrências (pickup, return)
+- `src/hooks/useTasks.ts` — 1 ocorrência (completed_at)
 
-1. **Form state**: Replace `guest_id: string` with `guest_ids: string[]` and `guest_destinations: Record<string, string>` (maps guest_id to their destination) in the create form only.
-
-2. **Multi-select UI**: Replace the single guest `<Select>` in the create form with a checkbox-based list of guests. When a guest is checked:
-   - Add them to `guest_ids[]`
-   - Auto-fill `guest_destinations[guestId]` with their `hotel_nome` from the guests table
-   - Show an editable destination input next to/below each selected guest
-
-3. **Submit logic** (`handleAdd`): Loop over `guest_ids`, call `create.mutateAsync()` once per guest, using `guest_destinations[guestId]` as `destino` and `guest_id` as the guest link.
-
-4. **Edit dialog**: Unchanged -- keeps single `guest_id` select since each transport is already linked to one guest.
-
-5. **Display/cards/PDF**: No changes needed -- each transport already shows its single linked guest.
-
-### Files Changed
-- `src/pages/TransportsPage.tsx` (form state, create form UI, handleAdd logic)
+### 3. Atualizar funções de exibição em `rawTime`, `rawWeekday` etc.
+Adicionar conversão para fuso SP ao exibir datas que vêm do banco em UTC.
 
