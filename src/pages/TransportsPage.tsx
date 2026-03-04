@@ -412,7 +412,7 @@ export default function TransportsPage() {
           </SelectContent>
         </Select>
         {hasFilters && (
-          <Button size="sm" variant="ghost" className="h-9 text-xs" onClick={() => { setFilterMotorista(''); setFilterData(''); setFilterStatus(''); setFilterSearch(''); }}>
+          <Button size="sm" variant="ghost" className="h-9 text-xs" onClick={() => { setFilterMotorista(''); setFilterData(''); setFilterStatus(''); setFilterSearch(''); setSearchInput(''); }}>
             <XCircle className="w-3.5 h-3.5 mr-1" /> Limpar
           </Button>
         )}
