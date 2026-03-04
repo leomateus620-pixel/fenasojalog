@@ -37,7 +37,9 @@ export default function TransportsPage() {
   const { commissions } = useCommissions();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+  const [form, setForm] = useState({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+  const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
+  const [guestDestinations, setGuestDestinations] = useState<Record<string, string>>({});
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
@@ -117,32 +119,43 @@ export default function TransportsPage() {
   };
 
   const openCreateDialog = () => {
-    setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+    setForm({ titulo: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+    setSelectedGuests([]);
+    setGuestDestinations({});
     setOpen(true);
   };
 
   const handleAdd = async () => {
-    if (!form.origem || !form.destino || !form.inicio_em) return;
+    if (!form.origem || !form.inicio_em) return;
+    // If guests selected, create one transport per guest
+    const guestIds = selectedGuests.length > 0 ? selectedGuests : [null];
+    if (selectedGuests.length === 0 && !form.destino) return;
     try {
-      await create.mutateAsync({
-        titulo: form.titulo || null,
-        guest_id: form.guest_id && form.guest_id !== 'none' ? form.guest_id : null,
-        origem: form.origem,
-        destino: form.destino,
-        inicio_em: form.inicio_em,
-        motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-        vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-        prioridade: form.prioridade,
-        km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
-        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
-        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
-        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
-        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
-        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
-      });
-      setForm({ titulo: '', guest_id: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+      for (const gId of guestIds) {
+        const destino = gId ? (guestDestinations[gId] || form.destino) : form.destino;
+        if (!destino) continue;
+        await create.mutateAsync({
+          titulo: form.titulo || null,
+          guest_id: gId || null,
+          origem: form.origem,
+          destino,
+          inicio_em: form.inicio_em,
+          motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+          vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+          prioridade: form.prioridade,
+          km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+          voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+          voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+          voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+          voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+          horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
+        });
+      }
+      setForm({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
+      setSelectedGuests([]);
+      setGuestDestinations({});
       setOpen(false);
-      toast.success('Transporte agendado');
+      toast.success(selectedGuests.length > 1 ? `${selectedGuests.length} transportes agendados` : 'Transporte agendado');
     } catch (err: any) { toast.error(err.message); }
   };
 
