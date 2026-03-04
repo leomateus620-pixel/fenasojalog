@@ -589,6 +589,7 @@ export type Database = {
           destino: string
           fim_em: string | null
           guest_id: string | null
+          horario_saida: string | null
           id: string
           inicio_em: string
           km_devolucao: number | null
@@ -604,12 +605,17 @@ export type Database = {
           titulo: string | null
           updated_at: string
           vehicle_id: string | null
+          voo_checkin: string | null
+          voo_chegada: string | null
+          voo_cidade: string | null
+          voo_numero: string | null
         }
         Insert: {
           created_at?: string
           destino: string
           fim_em?: string | null
           guest_id?: string | null
+          horario_saida?: string | null
           id?: string
           inicio_em: string
           km_devolucao?: number | null
@@ -625,12 +631,17 @@ export type Database = {
           titulo?: string | null
           updated_at?: string
           vehicle_id?: string | null
+          voo_checkin?: string | null
+          voo_chegada?: string | null
+          voo_cidade?: string | null
+          voo_numero?: string | null
         }
         Update: {
           created_at?: string
           destino?: string
           fim_em?: string | null
           guest_id?: string | null
+          horario_saida?: string | null
           id?: string
           inicio_em?: string
           km_devolucao?: number | null
@@ -646,6 +657,10 @@ export type Database = {
           titulo?: string | null
           updated_at?: string
           vehicle_id?: string | null
+          voo_checkin?: string | null
+          voo_chegada?: string | null
+          voo_cidade?: string | null
+          voo_numero?: string | null
         }
         Relationships: [
           {
