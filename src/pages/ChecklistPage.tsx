@@ -35,20 +35,6 @@ export default function ChecklistPage() {
   // Filters
   const [filterDate, setFilterDate] = useState('');
   const [filterResponsavel, setFilterResponsavel] = useState('');
-  const [appliedDate, setAppliedDate] = useState('');
-  const [appliedResponsavel, setAppliedResponsavel] = useState('');
-
-  const handleSearch = () => {
-    setAppliedDate(filterDate);
-    setAppliedResponsavel(filterResponsavel);
-  };
-
-  const handleClearFilters = () => {
-    setFilterDate('');
-    setFilterResponsavel('');
-    setAppliedDate('');
-    setAppliedResponsavel('');
-  };
 
   const today = todaySP();
   const tomorrowDate = new Date(today + 'T12:00:00');
