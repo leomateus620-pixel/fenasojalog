@@ -368,6 +368,7 @@ export default function TransportsPage() {
         voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
         voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
         voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+        voo_chegada_data: form.titulo === 'Aeroporto' ? form.voo_chegada_data || null : null,
         horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
         observacoes: buildEscoltaObs(form),
         distancia_estimada_km: routeData.distance_km || null,
