@@ -3,7 +3,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useTransports } from '@/hooks/useTransports';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Check, Clock, Repeat, CalendarDays, Car, MapPin, User, Pencil, Filter } from 'lucide-react';
+import { Plus, Check, Clock, Repeat, CalendarDays, Car, MapPin, User, Pencil, Filter, Search } from 'lucide-react';
 import { cn, rawTime, todaySP } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -33,9 +33,11 @@ export default function ChecklistPage() {
   const [form, setForm] = useState({ titulo: '', descricao: '', due_em: '', prioridade: 'media', assignee_user_id: '', recorrencia: 'nenhuma' });
   const [editForm, setEditForm] = useState({ titulo: '', descricao: '', due_em: '', prioridade: 'media', assignee_user_id: '', recorrencia: 'nenhuma' });
 
-  // Filters
+  // Filters — applied on button click
   const [filterDate, setFilterDate] = useState('');
   const [filterResponsavel, setFilterResponsavel] = useState('');
+  const [appliedDate, setAppliedDate] = useState('');
+  const [appliedResponsavel, setAppliedResponsavel] = useState('');
 
   const today = todaySP();
   const tomorrowDate = new Date(today + 'T12:00:00');
@@ -104,26 +106,43 @@ export default function ChecklistPage() {
   };
 
   const escalaItems = useMemo(() => {
-    const evToday = events.filter((e: any) => e.inicio_em?.startsWith(today)).map((e: any) => ({
+    const filterDateStr = appliedDate || today;
+    const evForDate = events.filter((e: any) => e.inicio_em?.startsWith(filterDateStr)).map((e: any) => ({
       id: e.id, tipo: 'evento' as const, titulo: e.titulo, inicio_em: e.inicio_em, fim_em: e.fim_em, local: e.local, responsavel_user_id: e.responsavel_user_id,
     }));
-    const trToday = transports.filter((t: any) => t.inicio_em?.startsWith(today)).map((t: any) => ({
+    const trForDate = transports.filter((t: any) => t.inicio_em?.startsWith(filterDateStr)).map((t: any) => ({
       id: t.id, tipo: 'transporte' as const, titulo: t.titulo || `${t.origem} → ${t.destino}`, inicio_em: t.inicio_em, fim_em: t.fim_em, local: null, responsavel_user_id: t.motorista_user_id,
     }));
-    return [...evToday, ...trToday].sort((a, b) => (a.inicio_em || '').localeCompare(b.inicio_em || ''));
-  }, [events, transports, today]);
+    let items = [...evForDate, ...trForDate].sort((a, b) => (a.inicio_em || '').localeCompare(b.inicio_em || ''));
+    if (appliedResponsavel && appliedResponsavel !== 'all') {
+      items = items.filter(i => i.responsavel_user_id === appliedResponsavel);
+    }
+    return items;
+  }, [events, transports, today, appliedDate, appliedResponsavel]);
 
   const dates = [today, tomorrow];
   const getLabel = (d: string) => d === today ? 'Hoje' : 'Amanhã';
 
+  const handleSearch = () => {
+    setAppliedDate(filterDate);
+    setAppliedResponsavel(filterResponsavel);
+  };
+
+  const handleClearFilters = () => {
+    setFilterDate('');
+    setFilterResponsavel('');
+    setAppliedDate('');
+    setAppliedResponsavel('');
+  };
+
   // Apply filters to tasks for a given tab
   const applyFilters = (taskList: any[]) => {
     let filtered = taskList;
-    if (filterDate) {
-      filtered = filtered.filter((t: any) => t.due_em?.startsWith(filterDate));
+    if (appliedDate) {
+      filtered = filtered.filter((t: any) => t.due_em?.startsWith(appliedDate));
     }
-    if (filterResponsavel && filterResponsavel !== 'all') {
-      filtered = filtered.filter((t: any) => t.assignee_user_id === filterResponsavel);
+    if (appliedResponsavel && appliedResponsavel !== 'all') {
+      filtered = filtered.filter((t: any) => t.assignee_user_id === appliedResponsavel);
     }
     return filtered;
   };
@@ -247,8 +266,11 @@ export default function ChecklistPage() {
             ))}
           </SelectContent>
         </Select>
-        {(filterDate || (filterResponsavel && filterResponsavel !== 'all')) && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterDate(''); setFilterResponsavel(''); }}>
+        <Button size="sm" className="h-8 text-xs" onClick={handleSearch}>
+          <Search className="w-3.5 h-3.5 mr-1" /> Pesquisar
+        </Button>
+        {(appliedDate || (appliedResponsavel && appliedResponsavel !== 'all')) && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={handleClearFilters}>
             Limpar
           </Button>
         )}
@@ -264,8 +286,10 @@ export default function ChecklistPage() {
         {/* Escala tab */}
         <TabsContent value="escala">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Eventos e Transportes de Hoje ({escalaItems.length})</p>
-            {escalaItems.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">Nenhum item na escala de hoje.</p>}
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              Eventos e Transportes {appliedDate ? `de ${new Date(appliedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : 'de Hoje'} ({escalaItems.length})
+            </p>
+            {escalaItems.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">Nenhum item na escala{appliedDate ? ' para esta data' : ' de hoje'}.</p>}
             {escalaItems.map((item) => (
               <div key={`${item.tipo}-${item.id}`} className="rounded-xl border bg-card p-4 flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-muted">
