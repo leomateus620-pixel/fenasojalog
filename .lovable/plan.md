@@ -1,30 +1,25 @@
 
 
-# Plano: Ajustar horários para fuso de São Paulo (UTC-3)
+## Plano: Adicionar informações de Hotel, Voo, Motorista, Veículo e Hóspede no card de transporte
 
-## Problema
-Todos os `new Date().toISOString()` geram horário UTC. Formulários e timestamps automáticos ficam 3 horas adiantados em relação a São Paulo.
+### Problema
+Ao implementar a Dynamic Island, as informações detalhadas que antes apareciam no card (hotel, voo, veículo, motorista, hóspede) foram removidas. Elas precisam voltar ao card principal, abaixo da Dynamic Island.
 
-## Solução
+### Mudanças em `src/pages/TransportsPage.tsx`
 
-### 1. Criar função utilitária `nowSP()` em `src/lib/utils.ts`
-Função que retorna a data/hora atual no fuso `America/Sao_Paulo`:
-- `nowSP()` → ISO string completa no fuso SP
-- `nowSPLocal()` → formato `YYYY-MM-DDTHH:MM` para inputs `datetime-local`
-- `todaySP()` → formato `YYYY-MM-DD` para inputs `date`
+Adicionar uma seção de **info chips/badges** entre a Dynamic Island (linha 1006) e os Actions (linha 1007), contendo:
 
-### 2. Substituir todas as ocorrências de `new Date().toISOString()` e `new Date()`
+1. **Motorista** — se `driver` existir, mostrar nome com ícone 👤
+2. **Veículo** — se `vehicle` existir, mostrar placa + modelo com ícone 🚙
+3. **Hóspede + Hotel** — se `guest` existir, mostrar nome e `hotel_nome` com ícone 🏨
+4. **Info do Voo** (se `titulo === 'Aeroporto'`) — mostrar `voo_cidade`, `voo_numero` com ícone ✈️
+5. **KM Retirada** — se `km_retirada` existir
+6. **Observações** — se `t.observacoes` existir, texto truncado
 
-**Arquivos afetados (8 arquivos):**
-- `src/pages/TransportsPage.tsx` — 4 ocorrências (abertura formulário, devolução, fourHoursAgo)
-- `src/pages/ElectricCartsPage.tsx` — 4 ocorrências (retirada, devolução)
-- `src/pages/ChecklistPage.tsx` — 2 ocorrências (today, tomorrow)
-- `src/pages/Dashboard.tsx` — 2 ocorrências (now, todayStr)
-- `src/pages/AgendaPage.tsx` — 2 ocorrências (today, tomorrow)
-- `src/pages/VehiclesPage.tsx` — 1 ocorrência (devolução)
-- `src/hooks/useElectricCarts.ts` — 2 ocorrências (pickup, return)
-- `src/hooks/useTasks.ts` — 1 ocorrência (completed_at)
+Layout: chips compactos em `flex flex-wrap gap-1.5`, estilo `bg-muted/40 text-muted-foreground text-[11px] px-2 py-1 rounded-full`, consistente com o visual Liquid Glass do card.
 
-### 3. Atualizar funções de exibição em `rawTime`, `rawWeekday` etc.
-Adicionar conversão para fuso SP ao exibir datas que vêm do banco em UTC.
+### Resultado
+- Todas as informações essenciais visíveis no card sem precisar expandir a Dynamic Island ou abrir detalhes
+- Layout compacto com chips que não ocupam espaço excessivo
+- Consistente com o padrão visual existente
 
