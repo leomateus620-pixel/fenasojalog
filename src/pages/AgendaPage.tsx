@@ -6,7 +6,7 @@ import { useCurrentOrg } from '@/hooks/useCurrentOrg';
 import { useGuests } from '@/hooks/useGuests';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Plus, MapPin, User, Pencil, Trash2, Users, Sun, Sunset, Moon, CalendarOff } from 'lucide-react';
+import { CalendarDays, Plus, MapPin, User, Pencil, Trash2, Users, Sun, Sunset, Moon, CalendarOff, FileDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn, rawTime, todaySP, rawDay, rawWeekday, rawMonthShort } from '@/lib/utils';
