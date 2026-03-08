@@ -292,15 +292,33 @@ export default function Dashboard() {
           {logisticsMembers.map((m: any) => {
             const isInTransport = transports.some((t: any) => t.motorista_user_id === m.user_id && t.status === 'em_andamento');
             const now = new Date();
-            const isInShift = assignments.some((a: any) => {
+            const todayStr = now.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+            const hasShiftToday = assignments.some((a: any) => {
+              if (a.member_user_id !== m.user_id || a.status === 'cancelado') return false;
+              const shift = shifts.find((s: any) => s.id === a.schedule_shift_id);
+              if (!shift) return false;
+              return shift.inicio_em?.startsWith(todayStr);
+            });
+            const isInShiftNow = assignments.some((a: any) => {
               if (a.member_user_id !== m.user_id || a.status === 'cancelado') return false;
               const shift = shifts.find((s: any) => s.id === a.schedule_shift_id);
               if (!shift) return false;
               return new Date(shift.inicio_em) <= now && new Date(shift.fim_em) >= now;
             });
-            const isBusy = isInTransport || isInShift || m.status === 'em_deslocamento';
-            const statusLabel = isBusy ? (isInShift && !isInTransport ? 'Em escala' : 'Em deslocamento') : 'Disponível';
-            const statusClass = isBusy ? 'bg-accent/15 text-accent' : 'bg-success/15 text-success';
+
+            let statusLabel: string;
+            let statusClass: string;
+            if (isInTransport) {
+              statusLabel = 'Em deslocamento';
+              statusClass = 'bg-accent/15 text-accent';
+            } else if (hasShiftToday) {
+              statusLabel = 'Disponível';
+              statusClass = 'bg-success/15 text-success';
+            } else {
+              statusLabel = 'OFF';
+              statusClass = 'bg-destructive/15 text-destructive';
+            }
+
             return (
               <div key={m.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-primary-foreground shrink-0" style={{ backgroundColor: m.avatar_color || 'hsl(var(--primary))' }}>
