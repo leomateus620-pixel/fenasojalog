@@ -1020,11 +1020,11 @@ function TransportCard({ t, members, vehicles, guests, highlightId, highlightRef
               🚙 {vehicle.placa}{vehicle.modelo ? ` · ${vehicle.modelo}` : ''}
             </span>
           )}
-          {guest && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
-              🎫 {guest.nome}
+          {transportGuests.length > 0 && transportGuests.map((g: any) => (
+            <span key={g.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
+              🎫 {g.nome}
             </span>
-          )}
+          ))}
           {guest?.hotel_nome && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
               🏨 {guest.hotel_nome}
