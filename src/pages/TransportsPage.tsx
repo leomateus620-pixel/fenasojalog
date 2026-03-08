@@ -886,6 +886,7 @@ export default function TransportsPage() {
               {t.status === 'em_andamento' && (
                 <TransportLocationCard
                   transportId={t.id}
+                  transport={t}
                   driverName={driver?.nome_exibicao}
                   isMyTracking={trackingTransportId === t.id}
                   onStopTracking={async () => {
