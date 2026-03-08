@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 
 const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
+import TransportDynamicIsland from '@/components/TransportDynamicIsland';
 
 /* ─── Status config ─── */
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string; dotClass: string; bgClass: string }> = {
@@ -992,85 +993,17 @@ function TransportCard({ t, members, vehicles, guests, highlightId, highlightRef
           </div>
         </div>
 
-        {/* ─ Row 2: Route bar ─ */}
-        <button
-          onClick={onDetail}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
-        >
-          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <div className="w-2 h-2 rounded-full bg-primary" />
-          </div>
-          <span className="text-sm font-medium truncate text-foreground">{t.origem}</span>
-          <div className="flex-1 border-t border-dashed border-muted-foreground/30 mx-1" />
-          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium truncate text-foreground">{t.destino}</span>
-          <div className="w-5 h-5 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-            <div className="w-2 h-2 rounded-full bg-destructive" />
-          </div>
-        </button>
-
-        {/* ─ Row 3: ETA & Distance chips ─ */}
-        {(t.distancia_estimada_km || t.duracao_estimada_min) && (
-          <div className="flex gap-2">
-            {t.distancia_estimada_km && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/5 border border-primary/10 text-[11px] font-medium text-primary">
-                <Ruler className="w-3 h-3" /> {t.distancia_estimada_km} km
-              </span>
-            )}
-            {t.duracao_estimada_min && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/5 border border-primary/10 text-[11px] font-medium text-primary">
-                <Timer className="w-3 h-3" /> {t.duracao_estimada_min} min
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ─ Row 4: Info chips ─ */}
-        <div className="flex flex-wrap gap-1.5">
-          {vehicle && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted/40 text-[11px] text-muted-foreground">
-              🚗 {vehicle.placa}{vehicle.marca || vehicle.modelo ? ` • ${[vehicle.marca, vehicle.modelo].filter(Boolean).join(' ')}` : ''}{vehicle.cor ? ` ${vehicle.cor.toUpperCase()}` : ''}
-            </span>
-          )}
-          {driver && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted/40 text-[11px] text-muted-foreground">
-              👤 {(driver.nome_exibicao || '').split(' ')[0]}
-            </span>
-          )}
-          {guest && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted/40 text-[11px] text-muted-foreground">
-              🎫 {guest.nome}{guest.hotel_nome ? ` • 🏨 ${guest.hotel_nome}` : ''}
-            </span>
-          )}
-        </div>
-
-        {/* ─ Flight mini info ─ */}
-        {hasFlightInfo && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-info/5 border border-info/10 text-xs">
-            <Plane className="w-3.5 h-3.5 text-info shrink-0" />
-            <span className="text-muted-foreground">
-              {t.voo_cidade && <span className="font-medium text-foreground">{t.voo_cidade}</span>}
-              {t.voo_numero && <span className="ml-1.5">Voo {t.voo_numero}</span>}
-              {t.voo_chegada && <span className="ml-1.5">• Chegada {t.voo_chegada}</span>}
-            </span>
-          </div>
-        )}
-
-        {/* ─ Live tracking map for active transports ─ */}
-        {isActive && (
-          <TransportLocationCard
-            transportId={t.id}
-            transport={t}
-            driverName={driver?.nome_exibicao}
-            isMyTracking={trackingTransportId === t.id}
-            onStopTracking={async () => {
-              await locationTracker.stopTracking();
-              setTrackingTransportId(null);
-            }}
-            trackingError={trackingTransportId === t.id ? locationTracker.error : null}
-          />
-        )}
-
+        {/* ─ Dynamic Island: Route + Map + ETA ─ */}
+        <TransportDynamicIsland
+          transport={t}
+          driverName={driver?.nome_exibicao}
+          guestName={guest?.nome}
+          trackingTransportId={trackingTransportId}
+          locationTracker={locationTracker}
+          setTrackingTransportId={setTrackingTransportId}
+          onCycleStatus={onCycleStatus}
+          onDetail={onDetail}
+        />
         {/* ─ Actions ─ */}
         <div className="flex items-center gap-2 pt-1">
           {t.status !== 'concluido' && t.status !== 'cancelado' && (
