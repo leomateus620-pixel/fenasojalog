@@ -6,9 +6,10 @@ import { useEvents } from '@/hooks/useEvents';
 import { useCommissions } from '@/hooks/useCommissions';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import StatCard from '@/components/StatCard';
-import { Car, Zap, MapPin, CheckSquare, CalendarDays, Users, Clock, AlertTriangle } from 'lucide-react';
+import { Car, Zap, MapPin, CheckSquare, CalendarDays, Users, Clock, AlertTriangle, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, rawTime, todaySP } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const { vehicles } = useVehicles();
