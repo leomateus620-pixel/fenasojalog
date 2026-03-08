@@ -1,46 +1,30 @@
 
 
-## Plano: Corrigir status de veículos com dados inconsistentes
+# Plano: Ajustar horários para fuso de São Paulo (UTC-3)
 
-### Problema
-Existem 4 veículos no banco com registros de uso abertos (`vehicle_usage` sem `km_chegada`) mas com `status = 'disponivel'` na tabela `vehicles`. Isso ocorreu porque os registros foram criados antes da correção anterior que sincroniza o status.
+## Problema
+Todos os `new Date().toISOString()` geram horário UTC. Formulários e timestamps automáticos ficam 3 horas adiantados em relação a São Paulo.
 
-### Solução: Duas abordagens combinadas
+## Solução
 
-**A. Migração SQL — Sincronizar dados existentes**
+### 1. Criar função utilitária `nowSP()` em `src/lib/utils.ts`
+Função que retorna a data/hora atual no fuso `America/Sao_Paulo`:
+- `nowSP()` → ISO string completa no fuso SP
+- `nowSPLocal()` → formato `YYYY-MM-DDTHH:MM` para inputs `datetime-local`
+- `todaySP()` → formato `YYYY-MM-DD` para inputs `date`
 
-Atualizar os veículos que têm `vehicle_usage` abertos (sem `km_chegada`) para `status = 'em_uso'`:
+### 2. Substituir todas as ocorrências de `new Date().toISOString()` e `new Date()`
 
-```sql
-UPDATE vehicles v
-SET status = 'em_uso'
-WHERE EXISTS (
-  SELECT 1 FROM vehicle_usage vu
-  WHERE vu.vehicle_id = v.id AND vu.km_chegada IS NULL
-)
-AND v.status = 'disponivel';
-```
+**Arquivos afetados (8 arquivos):**
+- `src/pages/TransportsPage.tsx` — 4 ocorrências (abertura formulário, devolução, fourHoursAgo)
+- `src/pages/ElectricCartsPage.tsx` — 4 ocorrências (retirada, devolução)
+- `src/pages/ChecklistPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/Dashboard.tsx` — 2 ocorrências (now, todayStr)
+- `src/pages/AgendaPage.tsx` — 2 ocorrências (today, tomorrow)
+- `src/pages/VehiclesPage.tsx` — 1 ocorrência (devolução)
+- `src/hooks/useElectricCarts.ts` — 2 ocorrências (pickup, return)
+- `src/hooks/useTasks.ts` — 1 ocorrência (completed_at)
 
-**B. `src/pages/VehiclesPage.tsx` — Computar status real no frontend**
-
-Para evitar futuras inconsistências, derivar o status exibido no card a partir dos dados reais: se o veículo tem um `vehicle_usage` aberto (sem `km_chegada`), o status exibido deve ser `'em_uso'` independentemente do valor no banco.
-
-No componente principal, após carregar `usages` e `vehicles`, computar um `effectiveStatus` para cada veículo:
-
-```ts
-const effectiveStatus = useMemo(() => {
-  const map: Record<string, string> = {};
-  vehicles.forEach((v: any) => {
-    const hasOpenUsage = usages.some((u: any) => u.vehicle_id === v.id && !u.km_chegada);
-    map[v.id] = hasOpenUsage ? 'em_uso' : v.status;
-  });
-  return map;
-}, [vehicles, usages]);
-```
-
-Usar `effectiveStatus[v.id]` ao invés de `v.status` nos cards e nos filtros.
-
-### Resultado
-- Dados existentes corrigidos pela migração
-- Frontend resiliente: mesmo se o banco estiver desatualizado, o status exibido será correto
+### 3. Atualizar funções de exibição em `rawTime`, `rawWeekday` etc.
+Adicionar conversão para fuso SP ao exibir datas que vêm do banco em UTC.
 
