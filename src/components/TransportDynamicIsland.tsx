@@ -193,9 +193,9 @@ export default function TransportDynamicIsland({
         {/* Route text */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold truncate text-white/95">{t.origem}</span>
-            <ArrowRight className="w-3 h-3 text-white/40 shrink-0" />
-            <span className="text-sm font-semibold truncate text-white/95">{t.destino}</span>
+            <span className="text-sm font-semibold truncate text-foreground">{t.origem}</span>
+            <ArrowRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+            <span className="text-sm font-semibold truncate text-foreground">{t.destino}</span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className={cn(
