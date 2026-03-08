@@ -239,6 +239,7 @@ export default function VerEscalaPage() {
             placeholder="Filtrar por nome..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             className="h-9"
           />
         </div>
@@ -255,6 +256,14 @@ export default function VerEscalaPage() {
         <Button size="sm" className="h-9" onClick={handleSearch}>
           <Search className="w-4 h-4 mr-1" /> Pesquisar
         </Button>
+        {(appliedFilterName || appliedFilterDate) && (
+          <Button size="sm" variant="ghost" className="h-9 text-xs" onClick={() => {
+            setFilterName(''); setFilterDate('');
+            setAppliedFilterName(''); setAppliedFilterDate('');
+          }}>
+            Limpar
+          </Button>
+        )}
       </div>
 
       {/* Active schedules */}
