@@ -733,6 +733,15 @@ export default function TransportsPage() {
                       }} />
                     </div>
                     <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Data e Hora de Chegada (volta)</Label>
+                      <DateTimePicker
+                        value={returnForm.voo_chegada_data}
+                        onChange={(v) => setReturnForm(prev => ({ ...prev, voo_chegada_data: v }))}
+                        mode="datetime"
+                        placeholder="Selecionar data e hora"
+                      />
+                    </div>
+                    <div>
                       <Label className="text-xs text-muted-foreground mb-1 block">Saída (sugerido)</Label>
                       <Input type="time" value={returnForm.horario_saida} onChange={(e) => setReturnForm(prev => ({ ...prev, horario_saida: e.target.value }))} />
                     </div>
