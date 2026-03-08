@@ -412,8 +412,13 @@ export default function VehiclesPage() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto liquid-glass-card border-border/40">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">
-              {detailVehicle?.marca} {detailVehicle?.modelo} {detailVehicle?.cor ? detailVehicle.cor.toUpperCase() : ''} — {detailVehicle?.placa}
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 flex-wrap">
+              <span>{detailVehicle?.marca} {detailVehicle?.modelo} — {detailVehicle?.placa}</span>
+              {detailVehicle && (() => {
+                const vStatus = effectiveStatus[detailVehicle.id] || detailVehicle.status;
+                const sc = statusConfig[vStatus] || statusConfig.disponivel;
+                return <Badge variant="outline" className={cn('text-[10px] font-medium', sc.badgeCls)}>{sc.label}</Badge>;
+              })()}
             </DialogTitle>
           </DialogHeader>
           {detailVehicle && (
