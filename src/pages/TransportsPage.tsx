@@ -551,7 +551,8 @@ export default function TransportsPage() {
             <SelectContent>
               <SelectItem value="none">Nenhum</SelectItem>
               {vehicleList.map((v: any) => {
-                const conflictInfo = data.inicio_em ? getVehicleConflictInfo(v.id, data.inicio_em, isEdit ? editForm?.id : undefined) : null;
+                const editId = isEdit ? data.id : undefined;
+                const conflictInfo = data.inicio_em ? getVehicleConflictInfo(v.id, data.inicio_em, editId) : null;
                 const isBusy = !!conflictInfo && v.id !== data.vehicle_id;
                 return (
                   <SelectItem key={v.id} value={v.id} disabled={isBusy}>
