@@ -515,8 +515,10 @@ export default function TransportsPage() {
     if (filterSearch) {
       const q = filterSearch.toLowerCase();
       const driver = members.find((m: any) => m.user_id === t.motorista_user_id);
-      const guest = guests.find((g: any) => g.id === t.guest_id);
-      const haystack = [t.origem, t.destino, t.titulo, t.voo_numero, t.voo_cidade, driver?.nome_exibicao, guest?.nome].filter(Boolean).join(' ').toLowerCase();
+      const linkedGIds = getGuestsForTransport(t.id);
+      const guestNames = linkedGIds.map((gid: string) => guests.find((g: any) => g.id === gid)?.nome).filter(Boolean);
+      if (guestNames.length === 0 && t.guest_id) { const g = guests.find((g: any) => g.id === t.guest_id); if (g) guestNames.push(g.nome); }
+      const haystack = [t.origem, t.destino, t.titulo, t.voo_numero, t.voo_cidade, driver?.nome_exibicao, ...guestNames].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     if (!showHistory && !hasFilters) {
