@@ -20,12 +20,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 export default function VerEscalaPage() {
   const { schedules, isLoading, createSchedule, shifts, createShift, assignments, createAssignment } = useSchedules();
   const { members } = useOrgMembers();
+  const { commissions } = useCommissions();
   const { user } = useAuth();
   const { myRole, orgId } = useCurrentOrg();
   const qc = useQueryClient();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showShiftDialog, setShowShiftDialog] = useState(false);
 
