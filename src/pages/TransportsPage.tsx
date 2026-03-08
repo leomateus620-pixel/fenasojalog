@@ -190,6 +190,7 @@ export default function TransportsPage() {
 
   const openEditDlg = (t: any) => {
     setEditId(t.id);
+    const escoltaData = parseEscoltaFromObs(t.observacoes);
     setEditForm({
       titulo: t.titulo || '', guest_id: t.guest_id || '', origem: t.origem, destino: t.destino,
       inicio_em: t.inicio_em?.slice(0, 16) || '', motorista_user_id: t.motorista_user_id || '',
@@ -201,6 +202,7 @@ export default function TransportsPage() {
       voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
       voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
       horario_saida: t.horario_saida || '',
+      ...escoltaData,
     });
     setEditOpen(true);
   };
