@@ -329,41 +329,45 @@ export default function TransportsPage() {
 
   const handleAdd = async () => {
     if (!form.origem || !form.inicio_em) return;
-    const guestIds = selectedGuests.length > 0 ? selectedGuests : [null];
     if (selectedGuests.length === 0 && !form.destino) return;
     try {
-      for (const gId of guestIds) {
-        const destino = gId ? (guestDestinations[gId] || form.destino) : form.destino;
-        if (!destino) continue;
+      // Fetch route estimate
+      let routeData: { duration_minutes?: number; distance_km?: number; polyline?: string } = {};
+      const destKey = form.titulo === 'Aeroporto' && form.voo_cidade ? `Aeroporto_${form.voo_cidade}` : (form.titulo || 'Outros');
+      try {
+        const preview = await fetchRoutePreview(destKey);
+        if (preview) routeData = preview;
+      } catch { /* continue without route data */ }
 
-        // Fetch route estimate before creating
-        let routeData: { duration_minutes?: number; distance_km?: number; polyline?: string } = {};
-        const destKey = form.titulo === 'Aeroporto' && form.voo_cidade ? `Aeroporto_${form.voo_cidade}` : (form.titulo || 'Outros');
-        try {
-          const preview = await fetchRoutePreview(destKey);
-          if (preview) routeData = preview;
-        } catch { /* continue without route data */ }
+      // Determine destination: use first guest's hotel or form.destino
+      const destino = selectedGuests.length > 0
+        ? (guestDestinations[selectedGuests[0]] || form.destino || guests.find((g: any) => g.id === selectedGuests[0])?.hotel_nome || '')
+        : form.destino;
 
-        await create.mutateAsync({
-          titulo: form.titulo || null,
-          guest_id: gId || null,
-          origem: form.origem,
-          destino,
-          inicio_em: form.inicio_em,
-          motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-          vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-          prioridade: form.prioridade,
-          km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
-          voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
-          voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
-          voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
-          voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
-          horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
-          observacoes: buildEscoltaObs(form),
-          distancia_estimada_km: routeData.distance_km || null,
-          duracao_estimada_min: routeData.duration_minutes || null,
-          rota_polyline: routeData.polyline || null,
-        });
+      const result = await create.mutateAsync({
+        titulo: form.titulo || null,
+        guest_id: selectedGuests.length > 0 ? selectedGuests[0] : null,
+        origem: form.origem,
+        destino,
+        inicio_em: form.inicio_em,
+        motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+        vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+        prioridade: form.prioridade,
+        km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
+        observacoes: buildEscoltaObs(form),
+        distancia_estimada_km: routeData.distance_km || null,
+        duracao_estimada_min: routeData.duration_minutes || null,
+        rota_polyline: routeData.polyline || null,
+      });
+
+      // Save all guests to junction table
+      if (selectedGuests.length > 0 && result?.id) {
+        try { await setGuestsForTransport.mutateAsync({ transportId: result.id, guestIds: selectedGuests }); } catch { /* silent */ }
       }
 
       if (form.titulo === 'Escolta Policial') {
@@ -379,7 +383,7 @@ export default function TransportsPage() {
       setSelectedGuests([]);
       setGuestDestinations({});
       setOpen(false);
-      toast.success(selectedGuests.length > 1 ? `${selectedGuests.length} transportes agendados` : 'Transporte agendado');
+      toast.success('Transporte agendado');
     } catch (err: any) { toast.error(err.message); }
   };
 
