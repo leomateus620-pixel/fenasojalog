@@ -1,6 +1,6 @@
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Car, Zap, MapPin, CalendarDays, CheckSquare, Users, Hotel,
+  LayoutDashboard, Car, Zap, MapPin, CalendarDays, CheckSquare, Users, Hotel, Bike,
   PanelLeftClose, PanelLeftOpen, LogOut, Settings, ClipboardList, X,
 } from 'lucide-react';
 import logo from '@/assets/logofeira26.webp';
@@ -11,6 +11,7 @@ const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/vehicles', icon: Car, label: 'Veículos Botolli' },
   { to: '/electric-carts', icon: Zap, label: 'Carrinhos Elétricos' },
+  { to: '/scooters', icon: Bike, label: 'Patinetes' },
   { to: '/transports', icon: MapPin, label: 'Transportes' },
   { to: '/guests', icon: Hotel, label: 'Hóspedes' },
   { to: '/agenda', icon: CalendarDays, label: 'Agenda' },

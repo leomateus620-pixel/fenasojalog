@@ -9,6 +9,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import VehiclesPage from "./pages/VehiclesPage";
 import ElectricCartsPage from "./pages/ElectricCartsPage";
+import ScootersPage from "./pages/ScootersPage";
 import TransportsPage from "./pages/TransportsPage";
 import GuestsPage from "./pages/GuestsPage";
 import AgendaPage from "./pages/AgendaPage";
@@ -33,6 +34,7 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/vehicles" element={<VehiclesPage />} />
                 <Route path="/electric-carts" element={<ElectricCartsPage />} />
+                <Route path="/scooters" element={<ScootersPage />} />
                 <Route path="/transports" element={<TransportsPage />} />
                 <Route path="/guests" element={<GuestsPage />} />
                 <Route path="/agenda" element={<AgendaPage />} />
