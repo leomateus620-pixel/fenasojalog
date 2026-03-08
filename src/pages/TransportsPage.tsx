@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff } from 'lucide-react';
 import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -256,7 +256,6 @@ export default function TransportsPage() {
       // Start location tracking when initiating transport
       if (newStatus === 'em_andamento') {
         setTrackingTransportId(t.id);
-        locationTracker.startTracking();
         toast.success('Transporte iniciado — localização ativada');
       }
     }
