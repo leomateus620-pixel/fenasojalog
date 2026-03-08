@@ -332,6 +332,8 @@ export default function TransportsPage() {
     setGuestDestinations({});
     setShowNewGuestForm(false);
     setNewGuestForm({ nome: '', telefone: '', email: '', hotel_nome: '', checkin_em: '', checkout_em: '', observacoes: '' });
+    setIncludeReturn(false);
+    setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
     setOpen(true);
   };
 
