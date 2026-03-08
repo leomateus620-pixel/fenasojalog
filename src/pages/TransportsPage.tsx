@@ -45,6 +45,13 @@ export default function TransportsPage() {
   const [trackingTransportId, setTrackingTransportId] = useState<string | null>(null);
   const locationTracker = useLocationTracking(trackingTransportId);
 
+  // Auto-start tracking when trackingTransportId is set
+  useEffect(() => {
+    if (trackingTransportId && !locationTracker.isTracking) {
+      locationTracker.startTracking();
+    }
+  }, [trackingTransportId]);
+
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
   const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
