@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { toast } from 'sonner';
 
 type GuestFormData = { nome: string; telefone: string; email: string; tipo: string; hotel_nome: string; checkin_em: string; checkout_em: string; observacoes: string };
