@@ -93,16 +93,18 @@ export default function VerEscalaPage() {
     return eachDayOfInterval({ start: calStart, end: calEnd });
   }, [currentMonth]);
 
+  // Logística member user IDs set
+  const logisticaUserIds = useMemo(() => new Set(logisticaMembers.map((m: any) => m.user_id)), [logisticaMembers]);
+
   // Map shifts by date — only include shifts with logística member assignments
   const shiftsByDate = useMemo(() => {
     const map: Record<string, any[]> = {};
     shifts.forEach((s: any) => {
       const dateKey = s.inicio_em?.slice(0, 10);
       if (!dateKey) return;
-      // Check if this shift has any logística member assigned
       const shiftAssigns = assignments.filter((a: any) => a.schedule_shift_id === s.id);
       const hasLogistica = shiftAssigns.some((a: any) => logisticaUserIds.has(a.member_user_id));
-      if (!hasLogistica && shiftAssigns.length > 0) return; // skip non-logística
+      if (!hasLogistica && shiftAssigns.length > 0) return;
       if (!map[dateKey]) map[dateKey] = [];
       map[dateKey].push(s);
     });
@@ -127,9 +129,6 @@ export default function VerEscalaPage() {
     }
     return m?.nome_exibicao || '—';
   };
-
-  // Filter shifts to only those assigned to logística members
-  const logisticaUserIds2 = logisticaUserIds; // already defined above
 
   const handleCreateSchedule = async () => {
     if (!schedName || !schedStart || !schedEnd) {
