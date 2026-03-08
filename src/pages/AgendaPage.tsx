@@ -314,7 +314,7 @@ export default function AgendaPage() {
 
       {/* ── Modal ── */}
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditingId(null); setForm(emptyForm); } }}>
-        <DialogContent className="bg-white/10 backdrop-blur-2xl border-white/15 sm:max-w-md">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg">{editingId ? 'Editar Evento' : 'Criar Evento'}</DialogTitle>
           </DialogHeader>
