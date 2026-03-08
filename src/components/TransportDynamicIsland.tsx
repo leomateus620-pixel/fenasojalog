@@ -263,7 +263,7 @@ export default function TransportDynamicIsland({
               ) : !isActive && destCoords ? (
                 <Suspense fallback={
                   <div className="h-[140px] bg-white/5 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-xs text-white/40">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <MapPin className="w-4 h-4" /> Carregando rota...
                     </div>
                   </div>
