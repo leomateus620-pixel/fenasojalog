@@ -39,6 +39,11 @@ export default function TransportsPage() {
   const { createUsage } = useVehicleUsage();
   const { update: updateVehicle } = useVehicles();
   const { commissions } = useCommissions();
+  const { user } = useAuth();
+
+  // Location tracking state
+  const [trackingTransportId, setTrackingTransportId] = useState<string | null>(null);
+  const locationTracker = useLocationTracking(trackingTransportId);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
