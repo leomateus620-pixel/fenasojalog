@@ -726,8 +726,23 @@ export default function TransportsPage() {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-mono font-semibold">{rawTime(t.inicio_em)}</p>
-                  <p className="text-[10px] text-muted-foreground">{rawDateShort(t.inicio_em)}</p>
+                  {/* Airport time highlighted */}
+                  {(t.voo_checkin || t.voo_chegada) && (
+                    <div className="mb-1">
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">{t.voo_checkin ? 'Check-in' : 'Desembarque'}</p>
+                      <p className="text-base font-mono font-bold text-primary">{t.voo_checkin || t.voo_chegada}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 justify-end">
+                    <div>
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">Saída</p>
+                      <p className="text-xs font-mono text-muted-foreground">{t.horario_saida || rawTime(t.inicio_em)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">Retorno</p>
+                      <p className="text-xs font-mono text-muted-foreground">{formatReturnTime(t) || '—'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
