@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff } from 'lucide-react';
 import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
-import { useState, lazy, Suspense, useEffect, useRef, useCallback } from 'react';
+import { useState, lazy, Suspense, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,53 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
 const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Escolta Policial', 'Outros'];
 const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
+// Santa Rosa origin coords (Parque de Exposições)
+const SANTA_ROSA_LAT = -27.8708;
+const SANTA_ROSA_LNG = -54.4814;
+
+/** Fetch travel duration in minutes from Google Maps via edge function */
+async function fetchTravelMinutes(cidade: string): Promise<number | null> {
+  try {
+    const destination = `Aeroporto_${cidade}`;
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ origin_lat: SANTA_ROSA_LAT, origin_lng: SANTA_ROSA_LNG, destination }),
+      }
+    );
+    const data = await res.json();
+    if (data.fallback || !data.duration_minutes) return null;
+    return data.duration_minutes;
+  } catch {
+    return null;
+  }
+}
+
+/** Subtract minutes from a HH:MM string, return new HH:MM or null */
+function subtractMinutes(time: string, mins: number): string | null {
+  if (!time) return null;
+  const [h, m] = time.split(':').map(Number);
+  let totalMin = h * 60 + m - mins;
+  if (totalMin < 0) totalMin += 24 * 60; // wrap to previous day
+  const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+  const mm = String(totalMin % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/** Calculate suggested departure time based on travel + buffer */
+async function calcSuggestedDeparture(cidade: string, flightTime: string, isCheckin: boolean): Promise<string | null> {
+  if (!cidade || !flightTime) return null;
+  const travelMin = await fetchTravelMinutes(cidade);
+  // Fallback durations if API fails
+  const fallback: Record<string, number> = { 'Chapecó': 150, 'Santo Ângelo': 50, 'Passo Fundo': 120, 'Porto Alegre': 300 };
+  const duration = travelMin || fallback[cidade] || 120;
+  // Add 1h buffer for check-in
+  const totalBuffer = isCheckin ? duration + 60 : duration;
+  return subtractMinutes(flightTime, totalBuffer);
+}
+
 // Estimated round-trip durations in minutes by transport type
 const estimatedDurationMin: Record<string, number> = {
   'Aeroporto': 120,
@@ -45,7 +92,6 @@ const estimatedDurationMin: Record<string, number> = {
 /** Estimate the return time for a transport based on its type and start time */
 function estimateReturnTime(t: any): Date | null {
   if (!t.inicio_em) return null;
-  // If already concluded, use fim_em
   if (t.fim_em) return new Date(t.fim_em);
   const start = new Date(t.inicio_em);
   const durationMin = estimatedDurationMin[t.titulo] || 60;
@@ -445,7 +491,17 @@ export default function TransportsPage() {
         {data.titulo === 'Aeroporto' && (
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
             <Label className="text-xs font-semibold text-foreground">Informações do Voo</Label>
-            <Select value={data.voo_cidade} onValueChange={(v) => setData({ ...data, voo_cidade: v })}>
+            <Select value={data.voo_cidade} onValueChange={async (v) => {
+              const updates: any = { ...data, voo_cidade: v };
+              setData(updates);
+              // Recalculate departure with new city
+              const flightTime = data.voo_checkin || data.voo_chegada;
+              const isCheckin = !!data.voo_checkin;
+              if (v && flightTime) {
+                const suggested = await calcSuggestedDeparture(v, flightTime, isCheckin);
+                if (suggested) setData((prev: any) => ({ ...prev, voo_cidade: v, horario_saida: suggested }));
+              }
+            }}>
               <SelectTrigger><SelectValue placeholder="Cidade do Aeroporto" /></SelectTrigger>
               <SelectContent>
                 {cidadeAeroportoOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -455,30 +511,33 @@ export default function TransportsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Horário Check-in</Label>
-                <Input type="time" aria-label="Horário check-in" value={data.voo_checkin} onChange={(e) => {
+                <Input type="time" aria-label="Horário check-in" value={data.voo_checkin} onChange={async (e) => {
                   const checkin = e.target.value;
-                  const updates: any = { ...data, voo_checkin: checkin };
-                  // Auto-set departure 1h before check-in
-                  if (checkin) {
-                    const [h, m] = checkin.split(':').map(Number);
-                    const totalMin = h * 60 + m - 60;
-                    if (totalMin >= 0) {
-                      const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
-                      const mm = String(totalMin % 60).padStart(2, '0');
-                      updates.horario_saida = `${hh}:${mm}`;
-                    }
+                  setData({ ...data, voo_checkin: checkin });
+                  if (checkin && data.voo_cidade) {
+                    const suggested = await calcSuggestedDeparture(data.voo_cidade, checkin, true);
+                    if (suggested) setData((prev: any) => ({ ...prev, voo_checkin: checkin, horario_saida: suggested }));
                   }
-                  setData(updates);
                 }} />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Horário Chegada do Voo</Label>
-                <Input type="time" aria-label="Horário chegada do voo" value={data.voo_chegada} onChange={(e) => setData({ ...data, voo_chegada: e.target.value })} />
+                <Input type="time" aria-label="Horário chegada do voo" value={data.voo_chegada} onChange={async (e) => {
+                  const chegada = e.target.value;
+                  setData({ ...data, voo_chegada: chegada });
+                  if (chegada && data.voo_cidade && !data.voo_checkin) {
+                    const suggested = await calcSuggestedDeparture(data.voo_cidade, chegada, false);
+                    if (suggested) setData((prev: any) => ({ ...prev, voo_chegada: chegada, horario_saida: suggested }));
+                  }
+                }} />
               </div>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Horário de Saída (para o aeroporto)</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Horário de Saída (sugerido pelo Google Maps)</Label>
               <Input type="time" aria-label="Horário de saída para o aeroporto" value={data.horario_saida} onChange={(e) => setData({ ...data, horario_saida: e.target.value })} />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {data.voo_checkin ? '⏱ Tempo de viagem + 1h de antecedência para check-in' : data.voo_chegada ? '⏱ Baseado no tempo de viagem Google Maps' : 'Preencha cidade e horário do voo para sugestão automática'}
+              </p>
             </div>
           </div>
         )}
