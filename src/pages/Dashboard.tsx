@@ -19,6 +19,9 @@ export default function Dashboard() {
   const { members } = useOrgMembers();
 
   const todayStr = todaySP();
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
   const availableVehicles = vehicles.filter((v: any) => v.status === 'disponivel').length;
   const cartsInUse = carts.filter((c: any) => c.status === 'em_uso').length;
@@ -26,6 +29,7 @@ export default function Dashboard() {
   const pendingTasks = tasks.filter((t: any) => t.status === 'pendente').length;
 
   const todayEvents = events.filter((e: any) => e.inicio_em?.startsWith(todayStr));
+  const tomorrowEvents = events.filter((e: any) => e.inicio_em?.startsWith(tomorrowStr));
   const logisticsMembers = members.filter((m: any) =>
     m.commission_nome && m.commission_nome.toUpperCase().includes('LOG')
   );
@@ -78,26 +82,51 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Today's Events */}
+        {/* Agenda - Today & Tomorrow */}
         <div className="rounded-xl border bg-card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" /> Eventos de Hoje</h2>
-            <Badge variant="secondary">{todayEvents.length} eventos</Badge>
+            <h2 className="font-semibold flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" /> Agenda</h2>
+            <Badge variant="secondary">{todayEvents.length + tomorrowEvents.length} eventos</Badge>
           </div>
-          <div className="space-y-3">
-            {todayEvents.length === 0 && <p className="text-sm text-muted-foreground">Nenhum evento hoje.</p>}
-            {todayEvents.map((e: any) => (
-              <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="text-center shrink-0 w-14">
-                  <p className="text-xs font-mono font-semibold">{rawTime(e.inicio_em)}</p>
-                  <p className="text-[10px] text-muted-foreground">{rawTime(e.fim_em)}</p>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{e.titulo}</p>
-                  {e.local && <p className="text-xs text-muted-foreground">{e.local}</p>}
-                </div>
+          <div className="space-y-4">
+            {/* Today */}
+            <div>
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Hoje — {todayStr.split('-').reverse().join('/')}</p>
+              <div className="space-y-2">
+                {todayEvents.length === 0 && <p className="text-sm text-muted-foreground">Nenhum evento hoje.</p>}
+                {todayEvents.map((e: any) => (
+                  <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="text-center shrink-0 w-14">
+                      <p className="text-xs font-mono font-semibold">{rawTime(e.inicio_em)}</p>
+                      <p className="text-[10px] text-muted-foreground">{rawTime(e.fim_em)}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{e.titulo}</p>
+                      {e.local && <p className="text-xs text-muted-foreground">{e.local}</p>}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            {/* Tomorrow */}
+            <div>
+              <p className="text-xs font-semibold text-accent uppercase tracking-wider mb-2">Amanhã — {tomorrowStr.split('-').reverse().join('/')}</p>
+              <div className="space-y-2">
+                {tomorrowEvents.length === 0 && <p className="text-sm text-muted-foreground">Nenhum evento amanhã.</p>}
+                {tomorrowEvents.map((e: any) => (
+                  <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="text-center shrink-0 w-14">
+                      <p className="text-xs font-mono font-semibold">{rawTime(e.inicio_em)}</p>
+                      <p className="text-[10px] text-muted-foreground">{rawTime(e.fim_em)}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{e.titulo}</p>
+                      {e.local && <p className="text-xs text-muted-foreground">{e.local}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
