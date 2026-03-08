@@ -186,7 +186,7 @@ export default function TransportDynamicIsland({
           ) : isDone ? (
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           ) : (
-            <MapPin className="w-4 h-4 text-white/60" />
+            <MapPin className="w-4 h-4 text-muted-foreground" />
           )}
         </div>
 
