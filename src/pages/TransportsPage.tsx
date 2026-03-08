@@ -591,6 +591,20 @@ export default function TransportsPage() {
                 </div>
               )}
 
+              {/* Realtime location for em_andamento transports */}
+              {t.status === 'em_andamento' && (
+                <TransportLocationCard
+                  transportId={t.id}
+                  driverName={driver?.nome_exibicao}
+                  isMyTracking={trackingTransportId === t.id}
+                  onStopTracking={async () => {
+                    await locationTracker.stopTracking();
+                    setTrackingTransportId(null);
+                  }}
+                  trackingError={trackingTransportId === t.id ? locationTracker.error : null}
+                />
+              )}
+
               {/* Actions */}
               <div className="flex items-center gap-2 pt-1">
                 {t.status !== 'concluido' && t.status !== 'cancelado' && (
@@ -600,7 +614,9 @@ export default function TransportsPage() {
                     className="flex-1 h-10 text-xs"
                     onClick={() => cycleStatus(t)}
                   >
-                    {t.status === 'pendente' ? 'Iniciar' : 'Concluir'}
+                    {t.status === 'pendente' ? (
+                      <><Navigation className="w-3.5 h-3.5 mr-1" /> Iniciar</>
+                    ) : 'Concluir'}
                   </Button>
                 )}
                 {t.status === 'concluido' && (
