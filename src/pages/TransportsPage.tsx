@@ -215,12 +215,32 @@ export default function TransportsPage() {
 
   const availableVehicles = vehicles.filter((v: any) => v.status === 'disponivel');
 
-  // Vehicles with active (pendente/em_andamento) transports
-  const busyVehicleIds = new Set(
-    transports
-      .filter((t: any) => ['pendente', 'em_andamento'].includes(t.status) && t.vehicle_id)
-      .map((t: any) => t.vehicle_id)
-  );
+  // Check if a vehicle is busy at a given time (time-based conflict)
+  const isVehicleBusyAt = (vehicleId: string, startTime: string, excludeTransportId?: string) => {
+    return transports.some((t: any) => {
+      if (t.vehicle_id !== vehicleId) return false;
+      if (!['pendente', 'em_andamento'].includes(t.status)) return false;
+      if (excludeTransportId && t.id === excludeTransportId) return false;
+      const estReturn = estimateReturnTime(t);
+      if (!estReturn) return true; // can't estimate, assume busy
+      return new Date(startTime) < estReturn;
+    });
+  };
+
+  // For backward compat in selector: check if vehicle has ANY active transport (used for label)
+  const getVehicleConflictInfo = (vehicleId: string, startTime: string, excludeTransportId?: string) => {
+    const conflicting = transports.find((t: any) => {
+      if (t.vehicle_id !== vehicleId) return false;
+      if (!['pendente', 'em_andamento'].includes(t.status)) return false;
+      if (excludeTransportId && t.id === excludeTransportId) return false;
+      const estReturn = estimateReturnTime(t);
+      if (!estReturn) return true;
+      return new Date(startTime) < estReturn;
+    });
+    if (!conflicting) return null;
+    const ret = formatReturnTime(conflicting);
+    return ret ? `em uso até ~${ret}` : 'em uso';
+  };
 
   const getDriverCommission = (driverUserId: string) => {
     const member = members.find((m: any) => m.user_id === driverUserId);
