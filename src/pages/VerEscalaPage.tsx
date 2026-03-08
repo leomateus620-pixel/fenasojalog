@@ -52,15 +52,6 @@ export default function VerEscalaPage() {
   const [appliedFilterDate, setAppliedFilterDate] = useState('');
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
 
-  // Name suggestions based on typed text
-  const nameSuggestions = useMemo(() => {
-    if (!filterName.trim()) return [];
-    const term = filterName.trim().toLowerCase();
-    return logisticaMembers.filter((m: any) =>
-      m.nome_exibicao?.toLowerCase().includes(term)
-    ).slice(0, 6);
-  }, [filterName, logisticaMembers]);
-
   // Find LOGÍSTICA commission
   const logisticaCommission = commissions.find((c: any) =>
     c.nome?.toUpperCase().includes('LOGÍSTICA') || c.nome?.toUpperCase().includes('LOGISTICA')
@@ -71,6 +62,15 @@ export default function VerEscalaPage() {
     if (!logisticaCommission) return members;
     return members.filter((m: any) => m.commission_id === logisticaCommission.id);
   }, [members, logisticaCommission]);
+
+  // Name suggestions based on typed text
+  const nameSuggestions = useMemo(() => {
+    if (!filterName.trim()) return [];
+    const term = filterName.trim().toLowerCase();
+    return logisticaMembers.filter((m: any) =>
+      m.nome_exibicao?.toLowerCase().includes(term)
+    ).slice(0, 6);
+  }, [filterName, logisticaMembers]);
 
   const handleSearch = () => {
     setAppliedFilterName(filterName);
