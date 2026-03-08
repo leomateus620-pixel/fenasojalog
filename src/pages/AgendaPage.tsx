@@ -285,9 +285,14 @@ export default function AgendaPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Programação da Feira</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Agenda oficial de eventos Fenasoja</p>
         </div>
-        <Button size="sm" onClick={openCreate} className="bg-white/12 backdrop-blur-xl border border-white/20 text-foreground hover:bg-white/20 shadow-sm gap-1.5">
-          <Plus className="w-4 h-4" /> Novo Evento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => generateAgendaPDF(selectedDate, dayEvents, grouped, members, commissions)} className="bg-white/12 backdrop-blur-xl border border-white/20 text-foreground hover:bg-white/20 shadow-sm gap-1.5" disabled={dayEvents.length === 0}>
+            <FileDown className="w-4 h-4" /> PDF
+          </Button>
+          <Button size="sm" onClick={openCreate} className="bg-white/12 backdrop-blur-xl border border-white/20 text-foreground hover:bg-white/20 shadow-sm gap-1.5">
+            <Plus className="w-4 h-4" /> Novo Evento
+          </Button>
+        </div>
       </div>
 
       {/* ── Day chips ── */}
