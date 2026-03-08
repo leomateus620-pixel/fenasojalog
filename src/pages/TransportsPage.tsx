@@ -704,7 +704,7 @@ export default function TransportsPage() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída</Label>
-          <Input type="datetime-local" value={data.inicio_em} onChange={(e) => setData({ ...data, inicio_em: e.target.value })} />
+          <DateTimePicker value={data.inicio_em} onChange={(v) => setData({ ...data, inicio_em: v })} placeholder="Data/Hora saída" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Select value={data.vehicle_id} onValueChange={(v) => setData({ ...data, vehicle_id: v })}>
