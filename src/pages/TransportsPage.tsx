@@ -29,7 +29,7 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
   cancelado: { label: 'Cancelado', icon: X, class: 'bg-destructive/10 text-destructive', dotClass: 'bg-destructive' },
 };
 
-const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Outros'];
+const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Escolta Policial', 'Outros'];
 const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
 export default function TransportsPage() {
