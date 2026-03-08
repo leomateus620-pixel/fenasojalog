@@ -41,6 +41,7 @@ function GuestFormFields({ data, setData }: { data: GuestFormData; setData: (d: 
 export default function GuestsPage() {
   const { guests, create, update, remove } = useGuests();
   const { transports } = useTransports();
+  const { transportGuests } = useTransportGuests();
 
   const emptyForm: GuestFormData = { nome: '', telefone: '', email: '', tipo: 'outro', hotel_nome: '', checkin_em: '', checkout_em: '', observacoes: '' };
   const [addOpen, setAddOpen] = useState(false);
