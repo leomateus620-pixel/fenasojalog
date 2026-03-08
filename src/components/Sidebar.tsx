@@ -46,11 +46,12 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
         {/* Sidebar panel */}
         <aside
           className={cn(
-            'fixed left-0 top-0 bottom-0 z-50 liquid-glass flex flex-col transition-all duration-300 ease-out',
+            'fixed left-0 top-0 bottom-0 z-50 flex flex-col transition-all duration-300 ease-out',
+            'backdrop-blur-2xl border-r border-white/10',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
             collapsed ? 'w-[68px]' : 'w-[280px]'
           )}
-          style={{ background: 'hsl(var(--sidebar-background) / 0.92)' }}
+          style={{ background: 'hsl(var(--sidebar-background) / 0.88)' }}
         >
           <div className="p-3 flex items-center gap-3 border-b border-white/10 min-h-[56px]">
             <img src={logo} alt="Fenasoja" className="w-9 h-9 rounded-lg object-contain bg-white/10 p-0.5 shrink-0" />
@@ -88,10 +89,10 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors focus-ring',
-                    collapsed ? 'justify-center px-2 py-3' : 'px-3 py-3',
+                    collapsed ? 'justify-center px-2 py-3.5' : 'px-3 py-3.5',
                     isActive
-                      ? 'bg-white/12 text-sidebar-primary backdrop-blur-sm'
-                      : 'text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/8'
+                      ? 'bg-white/15 text-sidebar-primary border-l-2 border-sidebar-primary'
+                      : 'text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/8 border-l-2 border-transparent'
                   )
                 }
               >
@@ -129,8 +130,8 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
 
   return (
     <aside
-      className="fixed left-0 top-0 bottom-0 liquid-glass flex flex-col z-50 transition-all duration-200 overflow-hidden"
-      style={{ width, background: 'hsl(var(--sidebar-background) / 0.92)' }}
+      className="fixed left-0 top-0 bottom-0 flex flex-col z-50 transition-all duration-200 overflow-hidden backdrop-blur-2xl border-r border-white/10"
+      style={{ width, background: 'hsl(var(--sidebar-background) / 0.88)' }}
     >
       <div className="p-3 flex items-center gap-3 border-b border-white/10 min-h-[56px]">
         <img src={logo} alt="Fenasoja" className="w-9 h-9 rounded-lg object-contain bg-white/10 p-0.5 shrink-0" />
@@ -158,10 +159,10 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors focus-ring',
-                collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5',
+                collapsed ? 'justify-center px-2 py-3' : 'px-3 py-3',
                 isActive
-                  ? 'bg-white/12 text-sidebar-primary backdrop-blur-sm'
-                  : 'text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/8'
+                  ? 'bg-white/15 text-sidebar-primary border-l-2 border-sidebar-primary'
+                  : 'text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/8 border-l-2 border-transparent'
               )
             }
           >
