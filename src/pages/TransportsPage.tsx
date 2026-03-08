@@ -608,6 +608,7 @@ export default function TransportsPage() {
           </SelectContent>
         </Select>
         {data.titulo === 'Aeroporto' && (
+          <>
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
             <Label className="text-xs font-semibold text-foreground">Informações do Voo</Label>
             <Select value={data.voo_cidade} onValueChange={async (v) => {
@@ -660,7 +661,7 @@ export default function TransportsPage() {
           </div>
           {/* Return trip option - only in create mode */}
           {!isEdit && (
-            <div className="space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3 mt-3">
+            <div className="space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox checked={includeReturn} onCheckedChange={(v) => setIncludeReturn(!!v)} />
                 <span className="text-xs font-semibold text-foreground">✈️ Agendar retorno ao aeroporto (volta)</span>
@@ -694,6 +695,7 @@ export default function TransportsPage() {
               )}
             </div>
           )}
+          </>
         )}
 
         {data.titulo === 'Escolta Policial' && (
