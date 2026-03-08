@@ -790,3 +790,57 @@ export default function TransportsPage() {
     </div>
   );
 }
+
+// Sub-component for transport location display
+function TransportLocationCard({ transportId, driverName, isMyTracking, onStopTracking, trackingError }: {
+  transportId: string;
+  driverName?: string;
+  isMyTracking: boolean;
+  onStopTracking: () => void;
+  trackingError: string | null;
+}) {
+  const location = useTransportLocation(transportId);
+
+  if (!location && !isMyTracking) return null;
+
+  return (
+    <div className="rounded-lg border border-accent/20 overflow-hidden">
+      {location ? (
+        <Suspense fallback={<div className="h-[180px] bg-muted/50 flex items-center justify-center text-xs text-muted-foreground">Carregando mapa...</div>}>
+          <div className="relative">
+            <DriverLocationMap
+              latitude={location.latitude}
+              longitude={location.longitude}
+              accuracy={location.accuracy}
+              speed={location.speed}
+              driverName={driverName}
+              className="h-[180px] relative"
+            />
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-background/90 backdrop-blur-sm rounded-md px-2 py-1 text-[10px] font-medium border shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              Ao vivo
+            </div>
+          </div>
+        </Suspense>
+      ) : isMyTracking && trackingError ? (
+        <div className="p-3 text-xs text-destructive flex items-center gap-2">
+          <MapPinOff className="w-4 h-4" />
+          {trackingError}
+        </div>
+      ) : isMyTracking ? (
+        <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
+          <Navigation className="w-4 h-4 animate-pulse text-accent" />
+          Obtendo localização...
+        </div>
+      ) : null}
+      {isMyTracking && (
+        <button
+          onClick={onStopTracking}
+          className="w-full text-xs text-destructive hover:bg-destructive/5 py-2 border-t transition-colors flex items-center justify-center gap-1.5"
+        >
+          <MapPinOff className="w-3 h-3" /> Desativar localização
+        </button>
+      )}
+    </div>
+  );
+}
