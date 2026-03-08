@@ -142,10 +142,10 @@ export function DateTimePicker({
   const pickerContent = (
     <div className={cn(
       "flex flex-col",
-      isMobile ? "max-h-[65vh] overflow-y-auto" : ""
+      isMobile ? "max-h-[55vh] overflow-y-auto" : ""
     )}>
       {/* Quick shortcuts */}
-      <div className="flex items-center gap-1.5 px-3 pt-3 pb-1">
+      <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
         <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <button
           type="button"
