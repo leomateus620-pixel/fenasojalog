@@ -32,6 +32,33 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
 const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Escolta Policial', 'Outros'];
 const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
+// Estimated round-trip durations in minutes by transport type
+const estimatedDurationMin: Record<string, number> = {
+  'Aeroporto': 120,
+  'Hotel': 45,
+  'Parque': 30,
+  'Centro': 40,
+  'Escolta Policial': 90,
+  'Outros': 60,
+};
+
+/** Estimate the return time for a transport based on its type and start time */
+function estimateReturnTime(t: any): Date | null {
+  if (!t.inicio_em) return null;
+  // If already concluded, use fim_em
+  if (t.fim_em) return new Date(t.fim_em);
+  const start = new Date(t.inicio_em);
+  const durationMin = estimatedDurationMin[t.titulo] || 60;
+  return new Date(start.getTime() + durationMin * 60000);
+}
+
+/** Format estimated return time as HH:MM */
+function formatReturnTime(t: any): string | null {
+  const ret = estimateReturnTime(t);
+  if (!ret) return null;
+  return ret.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
+
 function buildEscoltaObs(data: any): string | null {
   if (data.titulo !== 'Escolta Policial') return null;
   const parts: string[] = [];
@@ -188,12 +215,32 @@ export default function TransportsPage() {
 
   const availableVehicles = vehicles.filter((v: any) => v.status === 'disponivel');
 
-  // Vehicles with active (pendente/em_andamento) transports
-  const busyVehicleIds = new Set(
-    transports
-      .filter((t: any) => ['pendente', 'em_andamento'].includes(t.status) && t.vehicle_id)
-      .map((t: any) => t.vehicle_id)
-  );
+  // Check if a vehicle is busy at a given time (time-based conflict)
+  const isVehicleBusyAt = (vehicleId: string, startTime: string, excludeTransportId?: string) => {
+    return transports.some((t: any) => {
+      if (t.vehicle_id !== vehicleId) return false;
+      if (!['pendente', 'em_andamento'].includes(t.status)) return false;
+      if (excludeTransportId && t.id === excludeTransportId) return false;
+      const estReturn = estimateReturnTime(t);
+      if (!estReturn) return true; // can't estimate, assume busy
+      return new Date(startTime) < estReturn;
+    });
+  };
+
+  // For backward compat in selector: check if vehicle has ANY active transport (used for label)
+  const getVehicleConflictInfo = (vehicleId: string, startTime: string, excludeTransportId?: string) => {
+    const conflicting = transports.find((t: any) => {
+      if (t.vehicle_id !== vehicleId) return false;
+      if (!['pendente', 'em_andamento'].includes(t.status)) return false;
+      if (excludeTransportId && t.id === excludeTransportId) return false;
+      const estReturn = estimateReturnTime(t);
+      if (!estReturn) return true;
+      return new Date(startTime) < estReturn;
+    });
+    if (!conflicting) return null;
+    const ret = formatReturnTime(conflicting);
+    return ret ? `em uso até ~${ret}` : 'em uso';
+  };
 
   const getDriverCommission = (driverUserId: string) => {
     const member = members.find((m: any) => m.user_id === driverUserId);
@@ -504,10 +551,12 @@ export default function TransportsPage() {
             <SelectContent>
               <SelectItem value="none">Nenhum</SelectItem>
               {vehicleList.map((v: any) => {
-                const isBusy = busyVehicleIds.has(v.id) && v.id !== data.vehicle_id;
+                const editId = isEdit ? data.id : undefined;
+                const conflictInfo = data.inicio_em ? getVehicleConflictInfo(v.id, data.inicio_em, editId) : null;
+                const isBusy = !!conflictInfo && v.id !== data.vehicle_id;
                 return (
                   <SelectItem key={v.id} value={v.id} disabled={isBusy}>
-                    {v.placa} {v.modelo}{isBusy ? ' (em uso)' : ''}
+                    {v.placa} {v.modelo}{isBusy ? ` (${conflictInfo})` : ''}
                   </SelectItem>
                 );
               })}
@@ -677,8 +726,23 @@ export default function TransportsPage() {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-mono font-semibold">{rawTime(t.inicio_em)}</p>
-                  <p className="text-[10px] text-muted-foreground">{rawDateShort(t.inicio_em)}</p>
+                  {/* Airport time highlighted */}
+                  {(t.voo_checkin || t.voo_chegada) && (
+                    <div className="mb-1">
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">{t.voo_checkin ? 'Check-in' : 'Desembarque'}</p>
+                      <p className="text-base font-mono font-bold text-primary">{t.voo_checkin || t.voo_chegada}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 justify-end">
+                    <div>
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">Saída</p>
+                      <p className="text-xs font-mono text-muted-foreground">{t.horario_saida || rawTime(t.inicio_em)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase text-muted-foreground font-medium">Retorno</p>
+                      <p className="text-xs font-mono text-muted-foreground">{formatReturnTime(t) || '—'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
