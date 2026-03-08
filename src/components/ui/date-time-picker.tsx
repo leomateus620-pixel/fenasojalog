@@ -179,7 +179,7 @@ export function DateTimePicker({
         onSelect={handleDaySelect}
         locale={ptBR}
         initialFocus
-        className={cn("p-2 pointer-events-auto", isMobile && "mx-auto")}
+        className={cn("p-1 pointer-events-auto", isMobile && "mx-auto")}
       />
 
       {/* Time selector */}
