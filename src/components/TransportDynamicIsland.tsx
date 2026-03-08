@@ -295,12 +295,12 @@ export default function TransportDynamicIsland({
           {/* Metrics row */}
           <div className="flex flex-wrap gap-2">
             {(liveEta || t.distancia_estimada_km) && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.08] text-[11px] font-medium text-white/70">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/50 text-[11px] font-medium text-foreground/70">
                 <Ruler className="w-3 h-3" /> {liveEta ? `${liveEta.km} km` : `${t.distancia_estimada_km} km`}
               </span>
             )}
             {(liveEta || t.duracao_estimada_min) && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.08] text-[11px] font-medium text-white/70">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/50 text-[11px] font-medium text-foreground/70">
                 <Timer className="w-3 h-3" /> {liveEta ? `${liveEta.minutes} min` : `${t.duracao_estimada_min} min`}
               </span>
             )}
