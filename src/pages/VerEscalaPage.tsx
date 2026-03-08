@@ -302,7 +302,15 @@ export default function VerEscalaPage() {
         <div className="grid grid-cols-7">
           {calendarDays.map((day, i) => {
             const dateKey = format(day, 'yyyy-MM-dd');
-            const dayShifts = shiftsByDate[dateKey] || [];
+            let dayShifts = shiftsByDate[dateKey] || [];
+            // Apply name filter to calendar dots
+            if (appliedFilterName.trim()) {
+              const term = appliedFilterName.trim().toLowerCase();
+              dayShifts = dayShifts.filter((s: any) => {
+                const sa = assignmentsByShift[s.id] || [];
+                return sa.some((a: any) => getMemberName(a.member_user_id).toLowerCase().includes(term));
+              });
+            }
             const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
             const isToday = isSameDay(day, new Date());
             const isSelected = selectedDate && isSameDay(day, selectedDate);
