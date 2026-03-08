@@ -189,7 +189,7 @@ export default function ChecklistPage() {
             <div className="space-y-3">
               <Input placeholder="Título da tarefa" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
               <Textarea placeholder="Observações (opcional)" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} className="min-h-[60px]" />
-              <Input type="datetime-local" value={form.due_em} onChange={(e) => setForm({ ...form, due_em: e.target.value })} />
+              <DateTimePicker value={form.due_em} onChange={(v) => setForm({ ...form, due_em: v })} placeholder="Prazo" />
               <div className="grid grid-cols-2 gap-3">
                 <Select value={form.prioridade} onValueChange={(v) => setForm({ ...form, prioridade: v })}>
                   <SelectTrigger><SelectValue placeholder="Prioridade" /></SelectTrigger>
