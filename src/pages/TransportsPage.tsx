@@ -741,7 +741,7 @@ export default function TransportsPage() {
             <div>
               <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora devolução</Label>
 
-              <Input type="datetime-local" value={data.fim_em} onChange={(e) => setData({ ...data, fim_em: e.target.value })} />
+              <DateTimePicker value={data.fim_em} onChange={(v) => setData({ ...data, fim_em: v })} placeholder="Devolução" />
             </div>
           </>
         )}
