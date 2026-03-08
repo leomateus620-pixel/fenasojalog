@@ -164,6 +164,7 @@ export default function TransportDynamicIsland({
       )}
       style={{
         transition: 'all 500ms cubic-bezier(0.32, 0.72, 0, 1)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 24px rgba(0,0,0,0.08)',
       }}
     >
       {/* ── Collapsed State (always visible) ── */}
