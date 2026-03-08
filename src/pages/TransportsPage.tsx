@@ -413,6 +413,7 @@ export default function TransportsPage() {
             voo_numero: returnForm.voo_numero || null,
             voo_checkin: returnForm.voo_checkin || null,
             voo_chegada: null,
+            voo_chegada_data: returnForm.voo_chegada_data || null,
             horario_saida: returnForm.horario_saida || null,
             distancia_estimada_km: returnRouteData.distance_km || null,
             duracao_estimada_min: returnRouteData.duration_minutes || null,
