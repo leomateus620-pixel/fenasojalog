@@ -266,8 +266,11 @@ export default function ChecklistPage() {
             ))}
           </SelectContent>
         </Select>
-        {(filterDate || (filterResponsavel && filterResponsavel !== 'all')) && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterDate(''); setFilterResponsavel(''); }}>
+        <Button size="sm" className="h-8 text-xs" onClick={handleSearch}>
+          <Search className="w-3.5 h-3.5 mr-1" /> Pesquisar
+        </Button>
+        {(appliedDate || (appliedResponsavel && appliedResponsavel !== 'all')) && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={handleClearFilters}>
             Limpar
           </Button>
         )}
