@@ -20,7 +20,6 @@ export default function AgendaPage() {
   const { events, create, update, remove } = useEvents();
   const { members } = useOrgMembers();
   const { myRole } = useCurrentOrg();
-  const { members } = useOrgMembers();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
