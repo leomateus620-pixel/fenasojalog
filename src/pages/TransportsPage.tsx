@@ -660,7 +660,7 @@ export default function TransportsPage() {
           </div>
           {/* Return trip option - only in create mode */}
           {!isEdit && (
-            <div className="space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
+            <div className="space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3 mt-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox checked={includeReturn} onCheckedChange={(v) => setIncludeReturn(!!v)} />
                 <span className="text-xs font-semibold text-foreground">✈️ Agendar retorno ao aeroporto (volta)</span>
