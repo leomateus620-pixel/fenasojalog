@@ -4,10 +4,12 @@ import { useVehicles } from '@/hooks/useVehicles';
 import { useGuests } from '@/hooks/useGuests';
 import { useVehicleUsage } from '@/hooks/useVehicleUsage';
 import { useCommissions } from '@/hooks/useCommissions';
+import { useLocationTracking, useTransportLocation } from '@/hooks/useLocationTracking';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane } from 'lucide-react';
+import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff } from 'lucide-react';
 import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+
+const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
 
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string; dotClass: string }> = {
   pendente: { label: 'Pendente', icon: Clock, class: 'bg-info/10 text-info', dotClass: 'bg-info' },
@@ -35,6 +39,18 @@ export default function TransportsPage() {
   const { createUsage } = useVehicleUsage();
   const { update: updateVehicle } = useVehicles();
   const { commissions } = useCommissions();
+  const { user } = useAuth();
+
+  // Location tracking state
+  const [trackingTransportId, setTrackingTransportId] = useState<string | null>(null);
+  const locationTracker = useLocationTracking(trackingTransportId);
+
+  // Auto-start tracking when trackingTransportId is set
+  useEffect(() => {
+    if (trackingTransportId && !locationTracker.isTracking) {
+      locationTracker.startTracking();
+    }
+  }, [trackingTransportId]);
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '' });
@@ -222,6 +238,11 @@ export default function TransportsPage() {
     if (idx < order.length - 1) {
       const newStatus = order[idx + 1];
       if (newStatus === 'concluido') {
+        // Stop tracking if this transport was being tracked
+        if (trackingTransportId === t.id) {
+          await locationTracker.stopTracking();
+          setTrackingTransportId(null);
+        }
         setEditId(t.id);
         setEditForm({
           titulo: t.titulo || '', guest_id: t.guest_id || '', origem: t.origem, destino: t.destino,
@@ -239,6 +260,11 @@ export default function TransportsPage() {
         return;
       }
       await update.mutateAsync({ id: t.id, status: newStatus });
+      // Start location tracking when initiating transport
+      if (newStatus === 'em_andamento') {
+        setTrackingTransportId(t.id);
+        toast.success('Transporte iniciado — localização ativada');
+      }
     }
   };
 
@@ -571,6 +597,20 @@ export default function TransportsPage() {
                 </div>
               )}
 
+              {/* Realtime location for em_andamento transports */}
+              {t.status === 'em_andamento' && (
+                <TransportLocationCard
+                  transportId={t.id}
+                  driverName={driver?.nome_exibicao}
+                  isMyTracking={trackingTransportId === t.id}
+                  onStopTracking={async () => {
+                    await locationTracker.stopTracking();
+                    setTrackingTransportId(null);
+                  }}
+                  trackingError={trackingTransportId === t.id ? locationTracker.error : null}
+                />
+              )}
+
               {/* Actions */}
               <div className="flex items-center gap-2 pt-1">
                 {t.status !== 'concluido' && t.status !== 'cancelado' && (
@@ -580,7 +620,9 @@ export default function TransportsPage() {
                     className="flex-1 h-10 text-xs"
                     onClick={() => cycleStatus(t)}
                   >
-                    {t.status === 'pendente' ? 'Iniciar' : 'Concluir'}
+                    {t.status === 'pendente' ? (
+                      <><Navigation className="w-3.5 h-3.5 mr-1" /> Iniciar</>
+                    ) : 'Concluir'}
                   </Button>
                 )}
                 {t.status === 'concluido' && (
@@ -751,6 +793,60 @@ export default function TransportsPage() {
           })()}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Sub-component for transport location display
+function TransportLocationCard({ transportId, driverName, isMyTracking, onStopTracking, trackingError }: {
+  transportId: string;
+  driverName?: string;
+  isMyTracking: boolean;
+  onStopTracking: () => void;
+  trackingError: string | null;
+}) {
+  const location = useTransportLocation(transportId);
+
+  if (!location && !isMyTracking) return null;
+
+  return (
+    <div className="rounded-lg border border-accent/20 overflow-hidden">
+      {location ? (
+        <Suspense fallback={<div className="h-[180px] bg-muted/50 flex items-center justify-center text-xs text-muted-foreground">Carregando mapa...</div>}>
+          <div className="relative">
+            <DriverLocationMap
+              latitude={location.latitude}
+              longitude={location.longitude}
+              accuracy={location.accuracy}
+              speed={location.speed}
+              driverName={driverName}
+              className="h-[180px] relative"
+            />
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-background/90 backdrop-blur-sm rounded-md px-2 py-1 text-[10px] font-medium border shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              Ao vivo
+            </div>
+          </div>
+        </Suspense>
+      ) : isMyTracking && trackingError ? (
+        <div className="p-3 text-xs text-destructive flex items-center gap-2">
+          <MapPinOff className="w-4 h-4" />
+          {trackingError}
+        </div>
+      ) : isMyTracking ? (
+        <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
+          <Navigation className="w-4 h-4 animate-pulse text-accent" />
+          Obtendo localização...
+        </div>
+      ) : null}
+      {isMyTracking && (
+        <button
+          onClick={onStopTracking}
+          className="w-full text-xs text-destructive hover:bg-destructive/5 py-2 border-t transition-colors flex items-center justify-center gap-1.5"
+        >
+          <MapPinOff className="w-3 h-3" /> Desativar localização
+        </button>
+      )}
     </div>
   );
 }
