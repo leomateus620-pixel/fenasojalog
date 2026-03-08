@@ -32,6 +32,53 @@ const statusConfig: Record<string, { label: string; icon: typeof Check; class: s
 const tituloOptions = ['Parque', 'Hotel', 'Aeroporto', 'Centro', 'Escolta Policial', 'Outros'];
 const cidadeAeroportoOptions = ['Chapecó', 'Santo Ângelo', 'Passo Fundo', 'Porto Alegre'];
 
+function buildEscoltaObs(data: any): string | null {
+  if (data.titulo !== 'Escolta Policial') return null;
+  const parts: string[] = [];
+  if (data.escolta_nome) parts.push(`ESCOLTADO: ${data.escolta_nome}`);
+  if (data.escolta_cargo) parts.push(`CARGO: ${data.escolta_cargo}`);
+  if (data.escolta_viaturas) parts.push(`VIATURAS: ${data.escolta_viaturas}`);
+  if (data.escolta_ponto_encontro) parts.push(`PONTO DE ENCONTRO: ${data.escolta_ponto_encontro}`);
+  if (data.escolta_contato_seguranca) parts.push(`CONTATO SEGURANÇA: ${data.escolta_contato_seguranca}`);
+  if (data.escolta_obs) parts.push(`OBS: ${data.escolta_obs}`);
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
+function parseEscoltaFromObs(obs: string | null) {
+  const result = { escolta_nome: '', escolta_cargo: '', escolta_viaturas: '', escolta_ponto_encontro: '', escolta_contato_seguranca: '', escolta_obs: '' };
+  if (!obs) return result;
+  for (const line of obs.split('\n')) {
+    if (line.startsWith('ESCOLTADO: ')) result.escolta_nome = line.slice(11);
+    else if (line.startsWith('CARGO: ')) result.escolta_cargo = line.slice(7);
+    else if (line.startsWith('VIATURAS: ')) result.escolta_viaturas = line.slice(10);
+    else if (line.startsWith('PONTO DE ENCONTRO: ')) result.escolta_ponto_encontro = line.slice(19);
+    else if (line.startsWith('CONTATO SEGURANÇA: ')) result.escolta_contato_seguranca = line.slice(19);
+    else if (line.startsWith('OBS: ')) result.escolta_obs = line.slice(5);
+  }
+  return result;
+}
+
+function generateWhatsAppText(data: any, driver: any, vehicle: any, guest: any) {
+  const lines = ['🚔 *ESCOLTA POLICIAL — FENASOJA*', ''];
+  if (data.escolta_nome) lines.push(`👤 *Escoltado:* ${data.escolta_nome}`);
+  if (data.escolta_cargo) lines.push(`🏷️ *Cargo/Função:* ${data.escolta_cargo}`);
+  lines.push(`📍 *Origem:* ${data.origem || '—'}`);
+  lines.push(`📍 *Destino:* ${data.destino || '—'}`);
+  if (data.inicio_em) {
+    const d = new Date(data.inicio_em);
+    lines.push(`📅 *Data/Hora:* ${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+  }
+  if (driver) lines.push(`🚗 *Motorista:* ${driver.nome_exibicao || ''}`);
+  if (vehicle) lines.push(`🚙 *Veículo:* ${vehicle.placa} ${vehicle.modelo || ''}`);
+  if (data.escolta_viaturas) lines.push(`🚓 *Nº Viaturas:* ${data.escolta_viaturas}`);
+  if (data.escolta_ponto_encontro) lines.push(`📌 *Ponto de Encontro:* ${data.escolta_ponto_encontro}`);
+  if (data.escolta_contato_seguranca) lines.push(`📞 *Contato Segurança:* ${data.escolta_contato_seguranca}`);
+  if (guest) lines.push(`🏨 *Hóspede:* ${guest.nome}`);
+  if (data.escolta_obs) lines.push(`📝 *Obs:* ${data.escolta_obs}`);
+  lines.push('', '_Mensagem gerada pelo sistema Fenasoja Logística_');
+  return lines.join('\n');
+}
+
 export default function TransportsPage() {
   const { transports, create, update, remove } = useTransports();
   const { members } = useOrgMembers();
