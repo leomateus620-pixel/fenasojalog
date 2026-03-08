@@ -11,47 +11,45 @@ interface StatCardProps {
   to?: string;
 }
 
-const variantStyles = {
-  default: 'bg-card',
-  primary: 'bg-primary/5 border-primary/20',
-  accent: 'bg-accent/5 border-accent/20',
-  success: 'bg-success/5 border-success/20',
-  warning: 'bg-warning/5 border-warning/20',
+const iconBg = {
+  default: 'bg-muted/60',
+  primary: 'bg-primary/12',
+  accent: 'bg-accent/12',
+  success: 'bg-success/12',
+  warning: 'bg-warning/12',
 };
 
-const iconStyles = {
-  default: 'bg-muted text-muted-foreground',
-  primary: 'bg-primary/10 text-primary',
-  accent: 'bg-accent/10 text-accent',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
+const iconColor = {
+  default: 'text-muted-foreground',
+  primary: 'text-primary',
+  accent: 'text-accent',
+  success: 'text-success',
+  warning: 'text-warning',
 };
 
 export default function StatCard({ label, value, icon, trend, variant = 'default', to }: StatCardProps) {
   const navigate = useNavigate();
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (to && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      navigate(to);
-    }
-  };
+
   return (
     <div
-      className={cn('rounded-xl border p-5 transition-shadow hover:shadow-md focus-ring', variantStyles[variant], to && 'cursor-pointer active:scale-[0.98]')}
+      className={cn(
+        'liquid-glass-card rounded-2xl p-4 transition-all',
+        to && 'cursor-pointer active:scale-[0.97]',
+      )}
       onClick={to ? () => navigate(to) : undefined}
-      onKeyDown={handleKeyDown}
       tabIndex={to ? 0 : undefined}
       role={to ? 'link' : undefined}
       aria-label={to ? `${label}: ${value}` : undefined}
+      onKeyDown={(e) => { if (to && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(to); } }}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight">{value}</p>
-          {trend && <p className="mt-1 text-xs text-muted-foreground">{trend}</p>}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+          <p className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          {trend && <p className="mt-0.5 text-[10px] text-muted-foreground">{trend}</p>}
         </div>
-        <div className={cn('rounded-lg p-2.5', iconStyles[variant])}>
-          {icon}
+        <div className={cn('rounded-xl p-2', iconBg[variant])}>
+          <div className={iconColor[variant]}>{icon}</div>
         </div>
       </div>
     </div>
