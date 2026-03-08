@@ -55,7 +55,8 @@ export function useScooters() {
   const pickup = useMutation({
     mutationFn: async ({ id, responsavel_user_id, comissao, retirada_em }: { id: string; responsavel_user_id: string; comissao?: string | null; retirada_em?: string }) => {
       const { data: before } = await (supabase as any).from('scooters').select('*').eq('id', id).single();
-      const pickupTime = retirada_em || nowSP();
+      const raw = retirada_em || nowSP();
+      const pickupTime = raw.length <= 19 ? raw + '-03:00' : raw;
       const { data, error } = await (supabase as any).from('scooters')
         .update({ status: 'em_uso', responsavel_user_id, comissao: comissao || null, retirada_em: pickupTime, devolucao_em: null })
         .eq('id', id).select().single();
@@ -73,7 +74,8 @@ export function useScooters() {
   const returnScooter = useMutation({
     mutationFn: async ({ id, devolucao_em }: { id: string; devolucao_em?: string }) => {
       const { data: before } = await (supabase as any).from('scooters').select('*').eq('id', id).single();
-      const returnTime = devolucao_em || nowSP();
+      const raw = devolucao_em || nowSP();
+      const returnTime = raw.length <= 19 ? raw + '-03:00' : raw;
       const { data, error } = await (supabase as any).from('scooters')
         .update({ status: 'disponivel', responsavel_user_id: null, devolucao_em: returnTime })
         .eq('id', id).select().single();
