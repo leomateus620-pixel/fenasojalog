@@ -934,12 +934,16 @@ export default function TransportsPage() {
 /* ═══════════════════════════════════════════════════════════════
    Transport Card — Premium Liquid Glass
    ═══════════════════════════════════════════════════════════════ */
-function TransportCard({ t, members, vehicles, guests, highlightId, highlightRef, trackingTransportId, locationTracker, setTrackingTransportId, isExpanded, onToggleExpand, onCycleStatus, onEdit, onDelete, onDetail, onPDF, getDriverCommission }: any) {
+function TransportCard({ t, members, vehicles, guests, highlightId, highlightRef, trackingTransportId, locationTracker, setTrackingTransportId, isExpanded, onToggleExpand, onCycleStatus, onEdit, onDelete, onDetail, onPDF, getDriverCommission, getGuestsForTransport }: any) {
   const sc = statusConfig[t.status] || statusConfig.pendente;
   const Icon = sc.icon;
   const driver = members.find((m: any) => m.user_id === t.motorista_user_id);
   const vehicle = vehicles.find((v: any) => v.id === t.vehicle_id);
-  const guest = guests.find((g: any) => g.id === t.guest_id);
+  const linkedGuestIds = getGuestsForTransport(t.id);
+  const transportGuests = linkedGuestIds.length > 0
+    ? linkedGuestIds.map((gid: string) => guests.find((g: any) => g.id === gid)).filter(Boolean)
+    : (t.guest_id ? [guests.find((g: any) => g.id === t.guest_id)].filter(Boolean) : []);
+  const guest = transportGuests[0] || null;
   const hasFlightInfo = t.titulo === 'Aeroporto' && (t.voo_cidade || t.voo_numero);
   const isActive = t.status === 'em_andamento';
 
