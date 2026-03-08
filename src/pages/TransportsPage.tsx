@@ -4,10 +4,12 @@ import { useVehicles } from '@/hooks/useVehicles';
 import { useGuests } from '@/hooks/useGuests';
 import { useVehicleUsage } from '@/hooks/useVehicleUsage';
 import { useCommissions } from '@/hooks/useCommissions';
+import { useLocationTracking, useTransportLocation } from '@/hooks/useLocationTracking';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane } from 'lucide-react';
+import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff } from 'lucide-react';
 import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+
+const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
 
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string; dotClass: string }> = {
   pendente: { label: 'Pendente', icon: Clock, class: 'bg-info/10 text-info', dotClass: 'bg-info' },
