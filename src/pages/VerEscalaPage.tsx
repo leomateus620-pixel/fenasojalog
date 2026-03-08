@@ -216,7 +216,7 @@ export default function VerEscalaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Escala</h1>
-          <p className="text-sm text-muted-foreground mt-1">Disponibilidade da equipe</p>
+          <p className="text-sm text-muted-foreground mt-1">Logística, Hotelaria e Turismo</p>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
@@ -228,6 +228,32 @@ export default function VerEscalaPage() {
             <Plus className="w-4 h-4 mr-1" /> Registrar Horário
           </Button>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[140px]">
+          <Label className="text-xs">Nome</Label>
+          <Input
+            placeholder="Filtrar por nome..."
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+            className="h-9"
+          />
+        </div>
+        <div className="min-w-[150px]">
+          <Label className="text-xs">Data</Label>
+          <Input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="h-9"
+          />
+        </div>
+        <Button size="sm" className="h-9" onClick={handleSearch}>
+          <Search className="w-4 h-4 mr-1" /> Pesquisar
+        </Button>
+      </div>
       </div>
 
       {/* Active schedules */}
