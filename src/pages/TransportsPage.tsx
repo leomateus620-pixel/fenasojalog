@@ -448,7 +448,7 @@ export default function TransportsPage() {
       km_devolucao: t.km_devolucao != null ? String(t.km_devolucao) : '',
       fim_em: t.fim_em?.slice(0, 16) || '',
       voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
-      voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
+      voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '', voo_chegada_data: t.voo_chegada_data || '',
       horario_saida: t.horario_saida || '',
       ...escoltaData,
     });
