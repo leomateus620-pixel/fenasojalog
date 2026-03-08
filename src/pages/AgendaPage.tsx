@@ -319,28 +319,28 @@ export default function AgendaPage() {
             <DialogTitle className="text-lg">{editingId ? 'Editar Evento' : 'Criar Evento'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Título do evento" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} className="bg-white/10 border-white/15" />
-            <Textarea placeholder="Observações (campo livre)" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} className="min-h-[80px] bg-white/10 border-white/15" />
+            <Input placeholder="Título do evento" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} className="bg-background/80 border-border" />
+            <Textarea placeholder="Observações (campo livre)" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} className="min-h-[80px] bg-background/80 border-border" />
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Início</label>
-                <Input type="datetime-local" value={form.inicio_em} onChange={(e) => setForm({ ...form, inicio_em: e.target.value })} className="bg-white/10 border-white/15" />
+                <Input type="datetime-local" value={form.inicio_em} onChange={(e) => setForm({ ...form, inicio_em: e.target.value })} className="bg-background/80 border-border" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Fim</label>
-                <Input type="datetime-local" value={form.fim_em} onChange={(e) => setForm({ ...form, fim_em: e.target.value })} className="bg-white/10 border-white/15" />
+                <Input type="datetime-local" value={form.fim_em} onChange={(e) => setForm({ ...form, fim_em: e.target.value })} className="bg-background/80 border-border" />
               </div>
             </div>
-            <Input placeholder="Local" value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })} className="bg-white/10 border-white/15" />
+            <Input placeholder="Local" value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })} className="bg-background/80 border-border" />
             <Select value={form.commission_id} onValueChange={(v) => setForm({ ...form, commission_id: v, responsavel_user_id: '' })}>
-              <SelectTrigger className="bg-white/10 border-white/15"><SelectValue placeholder="Comissão (opcional)" /></SelectTrigger>
+              <SelectTrigger className="bg-background/80 border-border"><SelectValue placeholder="Comissão (opcional)" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Todas as comissões</SelectItem>
                 {commissions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={form.responsavel_user_id} onValueChange={(v) => setForm({ ...form, responsavel_user_id: v })}>
-              <SelectTrigger className="bg-white/10 border-white/15"><SelectValue placeholder="Responsável (opcional)" /></SelectTrigger>
+              <SelectTrigger className="bg-background/80 border-border"><SelectValue placeholder="Responsável (opcional)" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Nenhum</SelectItem>
                 {members
@@ -348,7 +348,7 @@ export default function AgendaPage() {
                   .map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Input placeholder="Categoria / Tag" value={form.tipo_tag} onChange={(e) => setForm({ ...form, tipo_tag: e.target.value })} className="bg-white/10 border-white/15" />
+            <Input placeholder="Categoria / Tag" value={form.tipo_tag} onChange={(e) => setForm({ ...form, tipo_tag: e.target.value })} className="bg-background/80 border-border" />
             {!editingId && (
               <div className="flex items-center gap-2">
                 <Switch id="repetir" checked={form.repetir_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_diariamente: v })} />
