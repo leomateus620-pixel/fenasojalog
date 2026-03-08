@@ -837,11 +837,15 @@ export type Database = {
         Row: {
           created_at: string
           destino: string
+          distancia_estimada_km: number | null
+          duracao_estimada_min: number | null
           fim_em: string | null
+          fim_real_em: string | null
           guest_id: string | null
           horario_saida: string | null
           id: string
           inicio_em: string
+          inicio_real_em: string | null
           km_devolucao: number | null
           km_retirada: number | null
           motorista_user_id: string | null
@@ -850,6 +854,7 @@ export type Database = {
           origem: string
           passageiros_qtd: number | null
           prioridade: Database["public"]["Enums"]["priority_level"] | null
+          rota_polyline: string | null
           status: Database["public"]["Enums"]["transport_status"]
           tipo: string | null
           titulo: string | null
@@ -863,11 +868,15 @@ export type Database = {
         Insert: {
           created_at?: string
           destino: string
+          distancia_estimada_km?: number | null
+          duracao_estimada_min?: number | null
           fim_em?: string | null
+          fim_real_em?: string | null
           guest_id?: string | null
           horario_saida?: string | null
           id?: string
           inicio_em: string
+          inicio_real_em?: string | null
           km_devolucao?: number | null
           km_retirada?: number | null
           motorista_user_id?: string | null
@@ -876,6 +885,7 @@ export type Database = {
           origem: string
           passageiros_qtd?: number | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          rota_polyline?: string | null
           status?: Database["public"]["Enums"]["transport_status"]
           tipo?: string | null
           titulo?: string | null
@@ -889,11 +899,15 @@ export type Database = {
         Update: {
           created_at?: string
           destino?: string
+          distancia_estimada_km?: number | null
+          duracao_estimada_min?: number | null
           fim_em?: string | null
+          fim_real_em?: string | null
           guest_id?: string | null
           horario_saida?: string | null
           id?: string
           inicio_em?: string
+          inicio_real_em?: string | null
           km_devolucao?: number | null
           km_retirada?: number | null
           motorista_user_id?: string | null
@@ -902,6 +916,7 @@ export type Database = {
           origem?: string
           passageiros_qtd?: number | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          rota_polyline?: string | null
           status?: Database["public"]["Enums"]["transport_status"]
           tipo?: string | null
           titulo?: string | null
