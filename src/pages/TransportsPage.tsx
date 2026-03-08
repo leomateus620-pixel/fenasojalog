@@ -614,6 +614,24 @@ export default function TransportsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* WhatsApp Text Dialog */}
+      <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>📋 Texto para WhatsApp</DialogTitle></DialogHeader>
+          <p className="text-xs text-muted-foreground">Copie o texto abaixo e envie ao responsável pela segurança:</p>
+          <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-wrap font-mono border">{whatsappText}</div>
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(whatsappText);
+              toast.success('Texto copiado para a área de transferência!');
+            }}
+            className="w-full"
+          >
+            📋 Copiar Texto
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       {/* Transport Cards */}
       <div className="space-y-3">
         {filtered.map((t: any) => {
