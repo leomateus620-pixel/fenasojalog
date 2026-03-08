@@ -44,6 +44,33 @@ export default function VerEscalaPage() {
 
   const isAdmin = myRole === 'admin' || myRole === 'gestor';
 
+  // Filter state
+  const [filterName, setFilterName] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [appliedFilterName, setAppliedFilterName] = useState('');
+  const [appliedFilterDate, setAppliedFilterDate] = useState('');
+
+  // Find LOGÍSTICA commission
+  const logisticaCommission = commissions.find((c: any) =>
+    c.nome?.toUpperCase().includes('LOGÍSTICA') || c.nome?.toUpperCase().includes('LOGISTICA')
+  );
+
+  // Members filtered to LOGÍSTICA commission only
+  const logisticaMembers = useMemo(() => {
+    if (!logisticaCommission) return members;
+    return members.filter((m: any) => m.commission_id === logisticaCommission.id);
+  }, [members, logisticaCommission]);
+
+  const handleSearch = () => {
+    setAppliedFilterName(filterName);
+    setAppliedFilterDate(filterDate);
+    if (filterDate) {
+      const d = new Date(filterDate + 'T12:00:00');
+      setSelectedDate(d);
+      setCurrentMonth(d);
+    }
+  };
+
   // Delete shift mutation
   const deleteShift = useMutation({
     mutationFn: async (shiftId: string) => {
