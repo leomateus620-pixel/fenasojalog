@@ -67,16 +67,27 @@ function subtractMinutes(time: string, mins: number): string | null {
   return `${hh}:${mm}`;
 }
 
+/** Fixed departure buffers (in minutes before check-in) per city */
+const CHECKIN_BUFFER_MIN: Record<string, number> = {
+  'Chapecó': 330,       // 5h30
+  'Santo Ângelo': 150,  // 2h30
+  'Passo Fundo': 330,   // 5h30
+  'Porto Alegre': 510,  // 8h30
+};
+
 /** Calculate suggested departure time based on travel + buffer */
 async function calcSuggestedDeparture(cidade: string, flightTime: string, isCheckin: boolean): Promise<string | null> {
   if (!cidade || !flightTime) return null;
+  if (isCheckin) {
+    // Use fixed buffers for check-in
+    const buffer = CHECKIN_BUFFER_MIN[cidade] || 330;
+    return subtractMinutes(flightTime, buffer);
+  }
+  // For arrivals, use Google Maps travel time
   const travelMin = await fetchTravelMinutes(cidade);
-  // Fallback durations if API fails
   const fallback: Record<string, number> = { 'Chapecó': 150, 'Santo Ângelo': 50, 'Passo Fundo': 120, 'Porto Alegre': 300 };
   const duration = travelMin || fallback[cidade] || 120;
-  // Add 1h buffer for check-in
-  const totalBuffer = isCheckin ? duration + 60 : duration;
-  return subtractMinutes(flightTime, totalBuffer);
+  return subtractMinutes(flightTime, duration);
 }
 
 // Estimated round-trip durations in minutes by transport type
