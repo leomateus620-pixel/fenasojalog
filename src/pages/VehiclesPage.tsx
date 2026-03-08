@@ -274,7 +274,8 @@ export default function VehiclesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredVehicles.map((v: any) => {
             const driver = members.find((m: any) => m.user_id === v.responsavel_user_id);
-            const sc = statusConfig[v.status] || statusConfig.disponivel;
+            const vStatus = effectiveStatus[v.id] || v.status;
+            const sc = statusConfig[vStatus] || statusConfig.disponivel;
             const vehicleKm = kmByVehicle[v.id] || 0;
             const vehicleFuelCost = fuelByVehicle[v.id] || 0;
             return (
