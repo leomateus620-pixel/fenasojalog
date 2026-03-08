@@ -315,12 +315,12 @@ export default function TransportDynamicIsland({
           {(driverName || guestName) && (
             <div className="flex flex-wrap gap-2">
               {driverName && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.06] text-[11px] text-white/60">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
                   👤 {driverName.split(' ')[0]}
                 </span>
               )}
               {guestName && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.06] text-[11px] text-white/60">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
                   🎫 {guestName}
                 </span>
               )}
