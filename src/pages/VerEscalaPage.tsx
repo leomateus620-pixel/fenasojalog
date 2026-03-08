@@ -451,11 +451,11 @@ export default function VerEscalaPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Início</Label>
-                <Input type="datetime-local" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
+                <DateTimePicker value={shiftStart} onChange={setShiftStart} placeholder="Início" />
               </div>
               <div>
                 <Label>Fim</Label>
-                <Input type="datetime-local" value={shiftEnd} onChange={(e) => setShiftEnd(e.target.value)} />
+                <DateTimePicker value={shiftEnd} onChange={setShiftEnd} placeholder="Fim" />
               </div>
             </div>
             <div>

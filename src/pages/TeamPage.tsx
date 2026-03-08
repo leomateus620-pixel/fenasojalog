@@ -309,8 +309,8 @@ export default function TeamPage() {
             </Select>
             <Input placeholder="Título do turno (ex: Manhã)" value={shiftForm.titulo} onChange={(e) => setShiftForm({ ...shiftForm, titulo: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
-              <Input type="datetime-local" value={shiftForm.inicio_em} onChange={(e) => setShiftForm({ ...shiftForm, inicio_em: e.target.value })} />
-              <Input type="datetime-local" value={shiftForm.fim_em} onChange={(e) => setShiftForm({ ...shiftForm, fim_em: e.target.value })} />
+              <DateTimePicker value={shiftForm.inicio_em} onChange={(v) => setShiftForm({ ...shiftForm, inicio_em: v })} placeholder="Início" />
+              <DateTimePicker value={shiftForm.fim_em} onChange={(v) => setShiftForm({ ...shiftForm, fim_em: v })} placeholder="Fim" />
             </div>
             <Input placeholder="Local (opcional)" value={shiftForm.local} onChange={(e) => setShiftForm({ ...shiftForm, local: e.target.value })} />
             <Button onClick={handleCreateShift} className="w-full" disabled={createShift.isPending}>Criar Turno</Button>

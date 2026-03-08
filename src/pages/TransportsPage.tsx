@@ -820,7 +820,7 @@ export default function TransportsPage() {
               {members.map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="date" className="h-9 text-xs" value={filterData} onChange={(e) => setFilterData(e.target.value)} />
+          <DateTimePicker mode="date" value={filterData} onChange={setFilterData} placeholder="Data" className="h-9 text-xs" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
