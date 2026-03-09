@@ -740,11 +740,11 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
                   <p className="text-[10px] text-muted-foreground">Rota inversa: Hotel/Santa Rosa → Aeroporto {data.voo_cidade || ''}</p>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída (volta)</Label>
-                    <DateTimePicker 
-                      value={returnForm.inicio_em} 
-                      onChange={(v) => setReturnForm(prev => ({ ...prev, inicio_em: v }))} 
-                      mode="date"
-                      placeholder="Selecionar data" 
+                    <input
+                      type="datetime-local"
+                      value={returnForm.inicio_em?.slice(0, 16) || ''}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, inicio_em: e.target.value }))}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
                   </div>
                   <Input placeholder="Nº do Voo (volta)" value={returnForm.voo_numero} onChange={(e) => setReturnForm(prev => ({ ...prev, voo_numero: e.target.value }))} />
@@ -759,15 +759,6 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
                           if (suggested) setReturnForm(prev => ({ ...prev, voo_checkin: checkin, horario_saida: suggested }));
                         }
                       }} />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-1 block">Data de Chegada (volta)</Label>
-                      <DateTimePicker
-                        value={returnForm.voo_chegada_data}
-                        onChange={(v) => setReturnForm(prev => ({ ...prev, voo_chegada_data: v }))}
-                        mode="date"
-                        placeholder="Selecionar data"
-                      />
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1 block">Saída (sugerido)</Label>
