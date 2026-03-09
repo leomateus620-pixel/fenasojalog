@@ -131,6 +131,24 @@ async function calcSuggestedDeparture(cidade: string, flightTime: string, isChec
   return subtractMinutes(flightTime, buffer);
 }
 
+function ensureSPTimestamptz(value: string): string {
+  if (!value) return value;
+
+  // Already has timezone info
+  if (/[zZ]$/.test(value) || /[+-]\d{2}:\d{2}$/.test(value)) return value;
+
+  // Date only
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00-03:00`;
+
+  // datetime-local (YYYY-MM-DDTHH:MM)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00-03:00`;
+
+  // datetime without tz but with seconds
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) return `${value}-03:00`;
+
+  return value;
+}
+
 const estimatedDurationMin: Record<string, number> = {
   'Aeroporto': 120, 'Hotel': 45, 'Parque': 30, 'Centro': 40, 'Escolta Policial': 90, 'Outros': 60,
 };
@@ -327,7 +345,7 @@ export default function TransportsPage() {
   };
 
   const openCreateDialog = () => {
-    setForm({ titulo: '', origem: '', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', voo_chegada_data: '', horario_saida: '', escolta_nome: '', escolta_cargo: '', escolta_viaturas: '', escolta_ponto_encontro: '', escolta_contato_seguranca: '', escolta_obs: '' });
+    setForm({ titulo: '', origem: 'Santa Rosa', destino: '', inicio_em: nowSPLocal(), motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', voo_chegada_data: '', horario_saida: '', escolta_nome: '', escolta_cargo: '', escolta_viaturas: '', escolta_ponto_encontro: '', escolta_contato_seguranca: '', escolta_obs: '' });
     setSelectedGuests([]);
     setGuestDestinations({});
     setShowNewGuestForm(false);
@@ -338,8 +356,26 @@ export default function TransportsPage() {
   };
 
   const handleAdd = async () => {
-    if (!form.origem || !form.inicio_em) return;
-    if (selectedGuests.length === 0 && !form.destino) return;
+    const origem = (form.origem || '').trim();
+    const inicioEmRaw = form.inicio_em;
+
+    // Determine destination: use first guest's hotel or form.destino
+    const destinoRaw = selectedGuests.length > 0
+      ? (guestDestinations[selectedGuests[0]] || form.destino || guests.find((g: any) => g.id === selectedGuests[0])?.hotel_nome || '')
+      : form.destino;
+
+    const destino = (destinoRaw || '').trim();
+
+    const missing: string[] = [];
+    if (!origem) missing.push('Origem');
+    if (!inicioEmRaw) missing.push('Data/Hora saída');
+    if (!destino) missing.push('Destino (ou hotel do hóspede)');
+
+    if (missing.length) {
+      toast.error(`Preencha: ${missing.join(', ')}`);
+      return;
+    }
+
     try {
       // Fetch route estimate
       let routeData: { duration_minutes?: number; distance_km?: number; polyline?: string } = {};
@@ -349,17 +385,14 @@ export default function TransportsPage() {
         if (preview) routeData = preview;
       } catch { /* continue without route data */ }
 
-      // Determine destination: use first guest's hotel or form.destino
-      const destino = selectedGuests.length > 0
-        ? (guestDestinations[selectedGuests[0]] || form.destino || guests.find((g: any) => g.id === selectedGuests[0])?.hotel_nome || '')
-        : form.destino;
+      const inicio_em = ensureSPTimestamptz(inicioEmRaw);
 
       const result = await create.mutateAsync({
         titulo: form.titulo || null,
         guest_id: selectedGuests.length > 0 ? selectedGuests[0] : null,
-        origem: form.origem,
+        origem,
         destino,
-        inicio_em: form.inicio_em,
+        inicio_em,
         motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
         vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
         prioridade: form.prioridade,
@@ -404,8 +437,8 @@ export default function TransportsPage() {
             titulo: 'Aeroporto',
             guest_id: selectedGuests.length > 0 ? selectedGuests[0] : null,
             origem: destino || 'Santa Rosa',
-            destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : form.origem,
-            inicio_em: returnForm.inicio_em,
+            destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : origem,
+            inicio_em: ensureSPTimestamptz(returnForm.inicio_em),
             motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
             vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
             prioridade: form.prioridade,
