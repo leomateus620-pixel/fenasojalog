@@ -184,6 +184,10 @@ export default function Dashboard() {
                   <p className="text-[11px] text-muted-foreground">{t.origem} → {t.destino}</p>
                   {driver && <p className="text-[10px] text-muted-foreground mt-0.5">{driver.nome_exibicao}</p>}
                 </div>
+                <div className="text-center shrink-0">
+                  <p className="text-[9px] uppercase text-muted-foreground font-medium">Data</p>
+                  <p className="text-xs font-bold text-foreground">{rawDateShort(t.inicio_em)}</p>
+                </div>
                 {(t.voo_checkin || t.voo_chegada) && (
                   <div className="text-center shrink-0">
                     <p className="text-[9px] uppercase text-muted-foreground font-medium">{t.voo_checkin ? 'Check' : 'Voo'}</p>
