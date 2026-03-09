@@ -118,7 +118,9 @@ export default function GuestsPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent><DialogHeader><DialogTitle>Editar Hóspede</DialogTitle></DialogHeader>
           <GuestFormFields data={editForm} setData={setEditForm} />
-          <Button onClick={handleEdit} className="w-full" disabled={update.isPending}>Salvar</Button>
+          <Button onClick={handleEdit} className="w-full" disabled={update.isPending}>
+            {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar
+          </Button>
         </DialogContent>
       </Dialog>
 
