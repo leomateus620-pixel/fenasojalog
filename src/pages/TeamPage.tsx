@@ -163,15 +163,18 @@ export default function TeamPage() {
           <p className="text-sm text-muted-foreground mt-1">{members.length} membros</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar membro..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 sm:h-9 w-48 sm:w-56"
-              aria-label="Pesquisar membro por nome"
-            />
+          <div className="flex items-center gap-1.5">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar membro..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { /* already filters via searchQuery */ } }}
+                className="pl-9 h-10 sm:h-9 w-48 sm:w-56"
+                aria-label="Pesquisar membro por nome"
+              />
+            </div>
           </div>
           <Button size="sm" variant="outline" onClick={() => setCommissionOpen(true)} className="h-10 sm:h-9">
             <Users className="w-4 h-4 mr-1" /> Comissões
