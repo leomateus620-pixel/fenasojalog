@@ -293,49 +293,54 @@ export default function Dashboard() {
         emptyMsg="Nenhum membro na comissão de logística."
       >
         <div className="space-y-1.5">
-          {logisticsMembers.map((m: any) => {
-            const isInTransport = transports.some((t: any) => t.motorista_user_id === m.user_id && t.status === 'em_andamento');
+          {(() => {
+            // Pre-compute member shift data to avoid O(n*m) loops
             const now = new Date();
-            const todayStr = now.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-            const hasShiftToday = assignments.some((a: any) => {
-              if (a.member_user_id !== m.user_id || a.status === 'cancelado') return false;
-              const shift = shifts.find((s: any) => s.id === a.schedule_shift_id);
-              if (!shift) return false;
-              return shift.inicio_em?.startsWith(todayStr);
-            });
-            const isInShiftNow = assignments.some((a: any) => {
-              if (a.member_user_id !== m.user_id || a.status === 'cancelado') return false;
-              const shift = shifts.find((s: any) => s.id === a.schedule_shift_id);
-              if (!shift) return false;
-              return new Date(shift.inicio_em) <= now && new Date(shift.fim_em) >= now;
-            });
-
-            let statusLabel: string;
-            let statusClass: string;
-            if (isInTransport) {
-              statusLabel = 'Em deslocamento';
-              statusClass = 'bg-accent/15 text-accent';
-            } else if (hasShiftToday) {
-              statusLabel = 'Disponível';
-              statusClass = 'bg-success/15 text-success';
-            } else {
-              statusLabel = 'OFF';
-              statusClass = 'bg-destructive/15 text-destructive';
+            const todayStrLocal = now.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+            const memberShiftMap = new Map<string, { hasShiftToday: boolean; isInShiftNow: boolean }>();
+            
+            for (const a of assignments) {
+              if ((a as any).status === 'cancelado') continue;
+              const shift = shifts.find((s: any) => s.id === (a as any).schedule_shift_id);
+              if (!shift) continue;
+              const uid = (a as any).member_user_id;
+              const existing = memberShiftMap.get(uid) || { hasShiftToday: false, isInShiftNow: false };
+              if ((shift as any).inicio_em?.startsWith(todayStrLocal)) existing.hasShiftToday = true;
+              if (new Date((shift as any).inicio_em) <= now && new Date((shift as any).fim_em) >= now) existing.isInShiftNow = true;
+              memberShiftMap.set(uid, existing);
             }
 
-            return (
-              <div key={m.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-primary-foreground shrink-0" style={{ backgroundColor: m.avatar_color || 'hsl(var(--primary))' }}>
-                  {(m.nome_exibicao || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+            return logisticsMembers.map((m: any) => {
+              const isInTransport = transports.some((t: any) => t.motorista_user_id === m.user_id && t.status === 'em_andamento');
+              const shiftData = memberShiftMap.get(m.user_id) || { hasShiftToday: false, isInShiftNow: false };
+
+              let statusLabel: string;
+              let statusClass: string;
+              if (isInTransport) {
+                statusLabel = 'Em deslocamento';
+                statusClass = 'bg-accent/15 text-accent';
+              } else if (shiftData.hasShiftToday) {
+                statusLabel = 'Disponível';
+                statusClass = 'bg-success/15 text-success';
+              } else {
+                statusLabel = 'OFF';
+                statusClass = 'bg-destructive/15 text-destructive';
+              }
+
+              return (
+                <div key={m.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-primary-foreground shrink-0" style={{ backgroundColor: m.avatar_color || 'hsl(var(--primary))' }}>
+                    {(m.nome_exibicao || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{m.nome_exibicao}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.cargo || '—'}</p>
+                  </div>
+                  <Badge className={cn('text-[9px] px-2 py-0.5 rounded-full', statusClass)}>{statusLabel}</Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{m.nome_exibicao}</p>
-                  <p className="text-[10px] text-muted-foreground">{m.cargo || '—'}</p>
-                </div>
-                <Badge className={cn('text-[9px] px-2 py-0.5 rounded-full', statusClass)}>{statusLabel}</Badge>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </Section>
 

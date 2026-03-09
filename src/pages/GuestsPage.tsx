@@ -1,7 +1,7 @@
 import { useGuests } from '@/hooks/useGuests';
 import { useTransports } from '@/hooks/useTransports';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
-import { Hotel, Plus, Pencil, Trash2, Phone, Mail, MapPin, AlertTriangle } from 'lucide-react';
+import { Hotel, Plus, Pencil, Trash2, Phone, Mail, MapPin, AlertTriangle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -109,14 +109,18 @@ export default function GuestsPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent><DialogHeader><DialogTitle>Cadastrar Hóspede</DialogTitle></DialogHeader>
           <GuestFormFields data={form} setData={setForm} />
-          <Button onClick={handleAdd} className="w-full" disabled={create.isPending}>Cadastrar</Button>
+          <Button onClick={handleAdd} className="w-full" disabled={create.isPending}>
+            {create.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Cadastrar
+          </Button>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent><DialogHeader><DialogTitle>Editar Hóspede</DialogTitle></DialogHeader>
           <GuestFormFields data={editForm} setData={setEditForm} />
-          <Button onClick={handleEdit} className="w-full" disabled={update.isPending}>Salvar</Button>
+          <Button onClick={handleEdit} className="w-full" disabled={update.isPending}>
+            {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar
+          </Button>
         </DialogContent>
       </Dialog>
 
@@ -192,9 +196,15 @@ export default function GuestsPage() {
           );
         })}
         {guests.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <Hotel className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Nenhum hóspede cadastrado</p>
+          <div className="col-span-full text-center py-16 text-muted-foreground">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Hotel className="w-8 h-8 text-primary/50" />
+            </div>
+            <p className="text-sm font-medium">Nenhum hóspede cadastrado</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Cadastre o primeiro hóspede para gerenciar hospedagem e traslados</p>
+            <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Cadastrar Hóspede
+            </Button>
           </div>
         )}
       </div>

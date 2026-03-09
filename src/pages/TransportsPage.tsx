@@ -27,6 +27,9 @@ import { supabase } from '@/integrations/supabase/client';
 
 const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
 import TransportDynamicIsland from '@/components/TransportDynamicIsland';
+import TransportCard from '@/components/transport/TransportCard';
+import TransportDetailView from '@/components/transport/TransportDetailView';
+import TransportForm from '@/components/transport/TransportForm';
 
 /* ─── Status config ─── */
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string; dotClass: string; bgClass: string }> = {
@@ -662,336 +665,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
     printWindow.print();
   };
 
-  const renderFormFields = (data: any, setData: (d: any) => void, isEdit: boolean) => {
-    const driverCommission = data.motorista_user_id && data.motorista_user_id !== 'none'
-      ? getDriverCommission(data.motorista_user_id) : null;
-    const isConcluido = isEdit && data.status === 'concluido';
-    const vehicleList = isEdit
-      ? vehicles.filter((v: any) => v.status === 'disponivel' || v.id === data.vehicle_id)
-      : availableVehicles;
-
-    return (
-      <div className="space-y-3">
-        <Select value={data.titulo} onValueChange={(v) => setData({ ...data, titulo: v })}>
-          <SelectTrigger><SelectValue placeholder="Título (destino)" /></SelectTrigger>
-          <SelectContent>
-            {tituloOptions.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {data.titulo === 'Aeroporto' && (
-          <>
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-            <Label className="text-xs font-semibold text-foreground">Informações do Voo</Label>
-            <Select value={data.voo_cidade} onValueChange={async (v) => {
-              const updates: any = { ...data, voo_cidade: v };
-              setData(updates);
-              const flightTime = data.voo_checkin || data.voo_chegada;
-              const isCheckin = !!data.voo_checkin;
-              if (v && flightTime) {
-                const suggested = await calcSuggestedDeparture(v, flightTime, isCheckin);
-                if (suggested) setData((prev: any) => ({ ...prev, voo_cidade: v, horario_saida: suggested }));
-              }
-            }}>
-              <SelectTrigger><SelectValue placeholder="Cidade do Aeroporto" /></SelectTrigger>
-              <SelectContent>
-                {cidadeAeroportoOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input placeholder="Nº do Voo" value={data.voo_numero} onChange={(e) => setData({ ...data, voo_numero: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Check-in</Label>
-                <Input type="time" value={data.voo_checkin} onChange={async (e) => {
-                  const checkin = e.target.value;
-                  setData({ ...data, voo_checkin: checkin });
-                  if (checkin && data.voo_cidade) {
-                    const suggested = await calcSuggestedDeparture(data.voo_cidade, checkin, true);
-                    if (suggested) setData((prev: any) => ({ ...prev, voo_checkin: checkin, horario_saida: suggested }));
-                  }
-                }} />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Chegada Voo</Label>
-                <Input type="time" value={data.voo_chegada} onChange={async (e) => {
-                  const chegada = e.target.value;
-                  setData({ ...data, voo_chegada: chegada });
-                  if (chegada && data.voo_cidade && !data.voo_checkin) {
-                    const suggested = await calcSuggestedDeparture(data.voo_cidade, chegada, false);
-                    if (suggested) setData((prev: any) => ({ ...prev, voo_chegada: chegada, horario_saida: suggested }));
-                  }
-                }} />
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Saída (sugerido)</Label>
-              <Input type="time" value={data.horario_saida} onChange={(e) => setData({ ...data, horario_saida: e.target.value })} />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {data.voo_checkin ? '⏱ Tempo de viagem + 1h para check-in' : data.voo_chegada ? '⏱ Baseado no Google Maps' : 'Preencha cidade e horário do voo'}
-              </p>
-            </div>
-          </div>
-          {/* Return trip option - only in create mode */}
-          {!isEdit && (
-            <div className="space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox checked={includeReturn} onCheckedChange={(v) => setIncludeReturn(!!v)} />
-                <span className="text-xs font-semibold text-foreground">✈️ Agendar retorno ao aeroporto (volta)</span>
-              </label>
-              {includeReturn && (
-                <div className="space-y-3 pt-1">
-                  <p className="text-[10px] text-muted-foreground">Rota inversa: Hotel/Santa Rosa → Aeroporto {data.voo_cidade || ''}</p>
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída (volta)</Label>
-                    <input
-                      type="datetime-local"
-                      value={returnForm.inicio_em?.slice(0, 16) || ''}
-                      onChange={(e) => setReturnForm(prev => ({ ...prev, inicio_em: e.target.value }))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    />
-                  </div>
-                  <Input placeholder="Nº do Voo (volta)" value={returnForm.voo_numero} onChange={(e) => setReturnForm(prev => ({ ...prev, voo_numero: e.target.value }))} />
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-1 block">Check-in Voo</Label>
-                      <Input type="time" value={returnForm.voo_checkin} onChange={async (e) => {
-                        const checkin = e.target.value;
-                        setReturnForm(prev => ({ ...prev, voo_checkin: checkin }));
-                        if (checkin && data.voo_cidade) {
-                          const suggested = await calcSuggestedDeparture(data.voo_cidade, checkin, true);
-                          if (suggested) setReturnForm(prev => ({ ...prev, voo_checkin: checkin, horario_saida: suggested }));
-                        }
-                      }} />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-1 block">Saída (sugerido)</Label>
-                      <Input type="time" value={returnForm.horario_saida} onChange={(e) => setReturnForm(prev => ({ ...prev, horario_saida: e.target.value }))} />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          </>
-        )}
-
-        {data.titulo === 'Escolta Policial' && (
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-            <Label className="text-xs font-semibold text-foreground">🚔 Informações da Escolta</Label>
-            <Input placeholder="Nome do escoltado" value={data.escolta_nome} onChange={(e) => setData({ ...data, escolta_nome: e.target.value })} />
-            <Input placeholder="Cargo / Função" value={data.escolta_cargo} onChange={(e) => setData({ ...data, escolta_cargo: e.target.value })} />
-            <Input placeholder="Nº de viaturas" type="number" value={data.escolta_viaturas} onChange={(e) => setData({ ...data, escolta_viaturas: e.target.value })} />
-            <Input placeholder="Ponto de encontro" value={data.escolta_ponto_encontro} onChange={(e) => setData({ ...data, escolta_ponto_encontro: e.target.value })} />
-            <Input placeholder="Contato segurança" value={data.escolta_contato_seguranca} onChange={(e) => setData({ ...data, escolta_contato_seguranca: e.target.value })} />
-            <Input placeholder="Observações" value={data.escolta_obs} onChange={(e) => setData({ ...data, escolta_obs: e.target.value })} />
-          </div>
-        )}
-        {/* Guest selection - always multi-select */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-semibold text-foreground">Hóspedes (opcional)</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs gap-1 text-primary"
-              onClick={() => {
-                if (isEdit) {
-                  setEditShowNewGuestForm(prev => !prev);
-                  setEditNewGuestForm({ nome: '', telefone: '', email: '', hotel_nome: '', checkin_em: '', checkout_em: '', observacoes: '' });
-                } else {
-                  setShowNewGuestForm(prev => !prev);
-                  setNewGuestForm({ nome: '', telefone: '', email: '', hotel_nome: '', checkin_em: '', checkout_em: '', observacoes: '' });
-                }
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" /> Novo Hóspede
-            </Button>
-          </div>
-          {/* Inline new guest form */}
-          {(isEdit ? editShowNewGuestForm : showNewGuestForm) && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-              <p className="text-xs font-semibold text-primary">Cadastrar novo hóspede</p>
-              {(() => {
-                const gf = isEdit ? editNewGuestForm : newGuestForm;
-                const setGf = isEdit ? setEditNewGuestForm : setNewGuestForm;
-                return (
-                  <>
-                    <Input placeholder="Nome completo *" value={gf.nome} onChange={(e) => setGf({ ...gf, nome: e.target.value })} className="h-9 text-sm" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input placeholder="Telefone" value={gf.telefone} onChange={(e) => setGf({ ...gf, telefone: e.target.value })} className="h-9 text-sm" />
-                      <Input placeholder="E-mail" type="email" value={gf.email} onChange={(e) => setGf({ ...gf, email: e.target.value })} className="h-9 text-sm" />
-                    </div>
-                    <Input placeholder="Hotel" value={gf.hotel_nome} onChange={(e) => setGf({ ...gf, hotel_nome: e.target.value })} className="h-9 text-sm" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground mb-0.5 block">Check-in</label>
-                        <input
-                          type="datetime-local"
-                          value={gf.checkin_em?.slice(0, 16) || ''}
-                          onChange={(e) => setGf({ ...gf, checkin_em: e.target.value })}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground mb-0.5 block">Check-out</label>
-                        <input
-                          type="datetime-local"
-                          value={gf.checkout_em?.slice(0, 16) || ''}
-                          onChange={(e) => setGf({ ...gf, checkout_em: e.target.value })}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        />
-                      </div>
-                    </div>
-                    <Input placeholder="Observações" value={gf.observacoes} onChange={(e) => setGf({ ...gf, observacoes: e.target.value })} className="h-9 text-sm" />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        disabled={!gf.nome || create.isPending}
-                        onClick={async () => {
-                          try {
-                            const result = await createGuest.mutateAsync({
-                              nome: gf.nome,
-                              telefone: gf.telefone || null,
-                              email: gf.email || null,
-                              tipo: 'outro',
-                              hotel_nome: gf.hotel_nome || null,
-                              checkin_em: gf.checkin_em || null,
-                              checkout_em: gf.checkout_em || null,
-                              observacoes: gf.observacoes || null,
-                            });
-                            if (result?.id) {
-                              if (isEdit) {
-                                setEditGuests(prev => [...prev, result.id]);
-                                setEditShowNewGuestForm(false);
-                              } else {
-                                setSelectedGuests(prev => [...prev, result.id]);
-                                setGuestDestinations(prev => ({ ...prev, [result.id]: gf.hotel_nome || '' }));
-                                setShowNewGuestForm(false);
-                              }
-                            }
-                            toast.success('Hóspede cadastrado e selecionado');
-                          } catch (err: any) { toast.error(err.message); }
-                        }}
-                      >
-                        <Check className="w-3.5 h-3.5 mr-1" /> Salvar e Selecionar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => isEdit ? setEditShowNewGuestForm(false) : setShowNewGuestForm(false)}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-          <div className="max-h-40 overflow-y-auto rounded-lg border border-border p-2 space-y-1">
-            {guests.length === 0 && <p className="text-xs text-muted-foreground py-1">Nenhum hóspede cadastrado</p>}
-            {guests.map((g: any) => {
-              const currentSelected = isEdit ? editGuests : selectedGuests;
-              const checked = currentSelected.includes(g.id);
-              return (
-                <label key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 cursor-pointer text-sm">
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(v) => {
-                      if (isEdit) {
-                        if (v) setEditGuests(prev => [...prev, g.id]);
-                        else setEditGuests(prev => prev.filter(id => id !== g.id));
-                      } else {
-                        if (v) {
-                          setSelectedGuests(prev => [...prev, g.id]);
-                          setGuestDestinations(prev => ({ ...prev, [g.id]: g.hotel_nome || '' }));
-                        } else {
-                          setSelectedGuests(prev => prev.filter(id => id !== g.id));
-                          setGuestDestinations(prev => { const n = { ...prev }; delete n[g.id]; return n; });
-                        }
-                      }
-                    }}
-                  />
-                  <span className="flex-1">{g.nome}</span>
-                  {g.hotel_nome && <span className="text-xs text-muted-foreground">{g.hotel_nome}</span>}
-                </label>
-              );
-            })}
-          </div>
-          {!isEdit && selectedGuests.length > 1 && (
-            <p className="text-[10px] text-muted-foreground">
-              {selectedGuests.length} hóspedes selecionados — todos no mesmo transporte
-            </p>
-          )}
-          {isEdit && editGuests.length > 1 && (
-            <p className="text-[10px] text-muted-foreground">
-              {editGuests.length} hóspedes vinculados a este transporte
-            </p>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Origem" value={data.origem} onChange={(e) => setData({ ...data, origem: e.target.value })} />
-          <Input placeholder="Destino" value={data.destino} onChange={(e) => setData({ ...data, destino: e.target.value })} />
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída</Label>
-          <input
-            type="datetime-local"
-            value={data.inicio_em?.slice(0, 16) || ''}
-            onChange={(e) => setData({ ...data, inicio_em: e.target.value })}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Select value={data.vehicle_id} onValueChange={(v) => setData({ ...data, vehicle_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Veículo" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nenhum</SelectItem>
-              {vehicleList.map((v: any) => {
-                const exId = isEdit ? data.id : undefined;
-                const conflictInfo = data.inicio_em ? getVehicleConflictInfo(v.id, data.inicio_em, exId) : null;
-                const isBusy = !!conflictInfo && v.id !== data.vehicle_id;
-                return (
-                  <SelectItem key={v.id} value={v.id} disabled={isBusy}>
-                    {v.placa} {v.modelo || ''}{conflictInfo ? ` (${conflictInfo})` : ''}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-          <Select value={data.motorista_user_id} onValueChange={(v) => setData({ ...data, motorista_user_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Motorista" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nenhum</SelectItem>
-              {members.map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        {driverCommission && (
-          <p className="text-xs text-muted-foreground">Comissão: <span className="font-medium text-foreground">{driverCommission}</span></p>
-        )}
-        <Input placeholder="KM Retirada (odômetro)" type="number" value={data.km_retirada} onChange={(e) => setData({ ...data, km_retirada: e.target.value })} />
-        {isConcluido && (
-          <>
-            <Input placeholder="KM Devolução (odômetro)" type="number" value={data.km_devolucao} onChange={(e) => setData({ ...data, km_devolucao: e.target.value })} />
-            <div>
-              <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora devolução</Label>
-              <input
-                type="datetime-local"
-                value={data.fim_em?.slice(0, 16) || ''}
-                onChange={(e) => setData({ ...data, fim_em: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
+  // Form fields are now in TransportForm component
 
   return (
     <div className="space-y-4 pb-24">
@@ -1034,7 +708,31 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             <DialogTitle>Novo Transporte</DialogTitle>
             <DialogDescription>Agende uma nova viagem</DialogDescription>
           </DialogHeader>
-          {renderFormFields(form, setForm, false)}
+          <TransportForm
+            data={form}
+            setData={setForm}
+            isEdit={false}
+            guests={guests}
+            members={members}
+            vehicles={vehicles}
+            selectedGuests={selectedGuests}
+            setSelectedGuests={setSelectedGuests}
+            guestDestinations={guestDestinations}
+            setGuestDestinations={setGuestDestinations}
+            showNewGuestForm={showNewGuestForm}
+            setShowNewGuestForm={setShowNewGuestForm}
+            newGuestForm={newGuestForm}
+            setNewGuestForm={setNewGuestForm}
+            onCreateGuest={(d) => createGuest.mutateAsync(d)}
+            createGuestPending={createGuest.isPending}
+            includeReturn={includeReturn}
+            setIncludeReturn={setIncludeReturn}
+            returnForm={returnForm}
+            setReturnForm={setReturnForm}
+            getDriverCommission={getDriverCommission}
+            getVehicleConflictInfo={getVehicleConflictInfo}
+            availableVehicles={availableVehicles}
+          />
           <Button onClick={handleAdd} className="w-full" disabled={create.isPending}>
             {create.isPending ? 'Salvando...' : 'Agendar Transporte'}
           </Button>
@@ -1100,7 +798,24 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             <DialogTitle>{editForm.status === 'concluido' ? 'Finalizar Viagem' : 'Editar Transporte'}</DialogTitle>
             <DialogDescription>{editForm.status === 'concluido' ? 'Preencha os dados finais da viagem' : 'Atualize os dados do transporte'}</DialogDescription>
           </DialogHeader>
-          {renderFormFields(editForm, (d) => setEditForm({ ...d, status: editForm.status }), true)}
+          <TransportForm
+            data={editForm}
+            setData={(d) => setEditForm({ ...d, status: editForm.status })}
+            isEdit={true}
+            guests={guests}
+            members={members}
+            vehicles={vehicles}
+            selectedGuests={editGuests}
+            setSelectedGuests={setEditGuests}
+            showNewGuestForm={editShowNewGuestForm}
+            setShowNewGuestForm={setEditShowNewGuestForm}
+            newGuestForm={editNewGuestForm}
+            setNewGuestForm={setEditNewGuestForm}
+            onCreateGuest={(d) => createGuest.mutateAsync(d)}
+            createGuestPending={createGuest.isPending}
+            getDriverCommission={getDriverCommission}
+            getVehicleConflictInfo={getVehicleConflictInfo}
+          />
           <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -1176,8 +891,6 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Transport Card — Premium Liquid Glass
    ═══════════════════════════════════════════════════════════════ */
 function TransportCard({ t, members, vehicles, guests, highlightId, highlightRef, trackingTransportId, locationTracker, setTrackingTransportId, isExpanded, onToggleExpand, onCycleStatus, onEdit, onDelete, onDetail, onPDF, getDriverCommission, getGuestsForTransport }: any) {
   const sc = statusConfig[t.status] || statusConfig.pendente;

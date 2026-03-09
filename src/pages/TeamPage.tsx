@@ -8,7 +8,7 @@ import { useTransports } from '@/hooks/useTransports';
 import { useSchedules } from '@/hooks/useSchedules';
 import { useCurrentOrg } from '@/hooks/useCurrentOrg';
 import { Badge } from '@/components/ui/badge';
-import { Plus, CalendarDays, Pencil, Trash2, UserPlus, Loader2, Users, Search } from 'lucide-react';
+import { Plus, CalendarDays, Pencil, Trash2, UserPlus, Loader2, Users, Search, UserCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -163,15 +163,18 @@ export default function TeamPage() {
           <p className="text-sm text-muted-foreground mt-1">{members.length} membros</p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar membro..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 sm:h-9 w-48 sm:w-56"
-              aria-label="Pesquisar membro por nome"
-            />
+          <div className="flex items-center gap-1.5">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar membro..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { /* already filters via searchQuery */ } }}
+                className="pl-9 h-10 sm:h-9 w-48 sm:w-56"
+                aria-label="Pesquisar membro por nome"
+              />
+            </div>
           </div>
           <Button size="sm" variant="outline" onClick={() => setCommissionOpen(true)} className="h-10 sm:h-9">
             <Users className="w-4 h-4 mr-1" /> Comissões
@@ -270,7 +273,9 @@ export default function TeamPage() {
                 {commissions.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button onClick={handleEdit} className="w-full">Salvar</Button>
+            <Button onClick={handleEdit} className="w-full" disabled={updateMember.isPending}>
+              {updateMember.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -461,9 +466,15 @@ export default function TeamPage() {
             })}
             {members.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                  <UserPlus className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhum membro cadastrado</p>
+                <TableCell colSpan={8} className="text-center py-16 text-muted-foreground">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <UserCheck className="w-8 h-8 text-primary/50" />
+                  </div>
+                  <p className="text-sm font-medium">Nenhum membro cadastrado</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Adicione membros à equipe para gerenciar escalas e tarefas</p>
+                  <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}>
+                    <UserPlus className="w-4 h-4 mr-1" /> Adicionar Membro
+                  </Button>
                 </TableCell>
               </TableRow>
             )}
