@@ -720,7 +720,12 @@ export default function TransportsPage() {
                   <p className="text-[10px] text-muted-foreground">Rota inversa: Hotel/Santa Rosa → Aeroporto {data.voo_cidade || ''}</p>
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1 block">Data/Hora saída (volta)</Label>
-                    <DateTimePicker value={returnForm.inicio_em} onChange={(v) => setReturnForm(prev => ({ ...prev, inicio_em: v }))} placeholder="Data/Hora saída volta" />
+                    <DateTimePicker 
+                      value={returnForm.inicio_em} 
+                      onChange={(v) => setReturnForm(prev => ({ ...prev, inicio_em: v }))} 
+                      mode="date"
+                      placeholder="Selecionar data" 
+                    />
                   </div>
                   <Input placeholder="Nº do Voo (volta)" value={returnForm.voo_numero} onChange={(e) => setReturnForm(prev => ({ ...prev, voo_numero: e.target.value }))} />
                   <div className="grid grid-cols-2 gap-3">
