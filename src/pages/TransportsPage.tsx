@@ -708,7 +708,31 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             <DialogTitle>Novo Transporte</DialogTitle>
             <DialogDescription>Agende uma nova viagem</DialogDescription>
           </DialogHeader>
-          {renderFormFields(form, setForm, false)}
+          <TransportForm
+            data={form}
+            setData={setForm}
+            isEdit={false}
+            guests={guests}
+            members={members}
+            vehicles={vehicles}
+            selectedGuests={selectedGuests}
+            setSelectedGuests={setSelectedGuests}
+            guestDestinations={guestDestinations}
+            setGuestDestinations={setGuestDestinations}
+            showNewGuestForm={showNewGuestForm}
+            setShowNewGuestForm={setShowNewGuestForm}
+            newGuestForm={newGuestForm}
+            setNewGuestForm={setNewGuestForm}
+            onCreateGuest={(d) => createGuest.mutateAsync(d)}
+            createGuestPending={createGuest.isPending}
+            includeReturn={includeReturn}
+            setIncludeReturn={setIncludeReturn}
+            returnForm={returnForm}
+            setReturnForm={setReturnForm}
+            getDriverCommission={getDriverCommission}
+            getVehicleConflictInfo={getVehicleConflictInfo}
+            availableVehicles={availableVehicles}
+          />
           <Button onClick={handleAdd} className="w-full" disabled={create.isPending}>
             {create.isPending ? 'Salvando...' : 'Agendar Transporte'}
           </Button>
