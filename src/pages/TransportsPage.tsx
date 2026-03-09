@@ -798,7 +798,24 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             <DialogTitle>{editForm.status === 'concluido' ? 'Finalizar Viagem' : 'Editar Transporte'}</DialogTitle>
             <DialogDescription>{editForm.status === 'concluido' ? 'Preencha os dados finais da viagem' : 'Atualize os dados do transporte'}</DialogDescription>
           </DialogHeader>
-          {renderFormFields(editForm, (d) => setEditForm({ ...d, status: editForm.status }), true)}
+          <TransportForm
+            data={editForm}
+            setData={(d) => setEditForm({ ...d, status: editForm.status })}
+            isEdit={true}
+            guests={guests}
+            members={members}
+            vehicles={vehicles}
+            selectedGuests={editGuests}
+            setSelectedGuests={setEditGuests}
+            showNewGuestForm={editShowNewGuestForm}
+            setShowNewGuestForm={setEditShowNewGuestForm}
+            newGuestForm={editNewGuestForm}
+            setNewGuestForm={setEditNewGuestForm}
+            onCreateGuest={(d) => createGuest.mutateAsync(d)}
+            createGuestPending={createGuest.isPending}
+            getDriverCommission={getDriverCommission}
+            getVehicleConflictInfo={getVehicleConflictInfo}
+          />
           <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
