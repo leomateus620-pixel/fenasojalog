@@ -440,20 +440,23 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           } catch { /* silent */ }
 
           const returnResult = await create.mutateAsync({
-            titulo: 'Aeroporto',
-            origem: destino || 'Santa Rosa',
-            destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : origem,
-            inicio_em: ensureSPTimestamptz(returnForm.inicio_em),
-            motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-            vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-            prioridade: form.prioridade,
-            voo_cidade: form.voo_cidade || null,
-            voo_numero: returnForm.voo_numero || null,
-            voo_checkin: returnForm.voo_checkin || null,
-            horario_saida: returnForm.horario_saida || null,
-            distancia_estimada_km: returnRouteData.distance_km || null,
-            duracao_estimada_min: returnRouteData.duration_minutes || null,
-            rota_polyline: returnRouteData.polyline || null,
+            transport: {
+              titulo: 'Aeroporto',
+              origem: destino || 'Santa Rosa',
+              destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : origem,
+              inicio_em: ensureSPTimestamptz(returnForm.inicio_em),
+              motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+              vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+              prioridade: form.prioridade,
+              voo_cidade: form.voo_cidade || null,
+              voo_numero: returnForm.voo_numero || null,
+              voo_checkin: returnForm.voo_checkin || null,
+              horario_saida: returnForm.horario_saida || null,
+              distancia_estimada_km: returnRouteData.distance_km || null,
+              duracao_estimada_min: returnRouteData.duration_minutes || null,
+              rota_polyline: returnRouteData.polyline || null,
+            },
+            guestIds: selectedGuests,
           });
 
           if (selectedGuests.length > 0 && returnResult?.id) {
