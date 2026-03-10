@@ -2,7 +2,7 @@ import { useTransports } from '@/hooks/useTransports';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useGuests } from '@/hooks/useGuests';
-import { useVehicleUsage } from '@/hooks/useVehicleUsage';
+
 import { useCommissions } from '@/hooks/useCommissions';
 import { useLocationTracking, useTransportLocation } from '@/hooks/useLocationTracking';
 import { useAuth } from '@/hooks/useAuth';
@@ -247,11 +247,9 @@ export default function TransportsPage() {
   const { members } = useOrgMembers();
   const { vehicles } = useVehicles();
   const { guests, create: createGuest } = useGuests();
-  const { createUsage } = useVehicleUsage();
-  const { update: updateVehicle } = useVehicles();
   const { commissions } = useCommissions();
   const { user } = useAuth();
-  const { getGuestsForTransport, setGuestsForTransport } = useTransportGuests();
+  const { getGuestsForTransport } = useTransportGuests();
   const [trackingTransportId, _setTrackingTransportId] = useState<string | null>(() => {
     try { return localStorage.getItem('fenasoja_tracking_transport'); } catch { return null; }
   });
@@ -398,29 +396,27 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       const inicio_em = ensureSPTimestamptz(inicioEmRaw);
 
       const result = await create.mutateAsync({
-        titulo: form.titulo || null,
-        origem,
-        destino,
-        inicio_em,
-        motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-        vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-        prioridade: form.prioridade,
-        km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
-        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
-        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
-        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
-        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
-        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
-        observacoes: buildEscoltaObs(form),
-        distancia_estimada_km: routeData.distance_km || null,
-        duracao_estimada_min: routeData.duration_minutes || null,
-        rota_polyline: routeData.polyline || null,
+        transport: {
+          titulo: form.titulo || null,
+          origem,
+          destino,
+          inicio_em,
+          motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+          vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+          prioridade: form.prioridade,
+          km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+          voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+          voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+          voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+          voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+          horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
+          observacoes: buildEscoltaObs(form),
+          distancia_estimada_km: routeData.distance_km || null,
+          duracao_estimada_min: routeData.duration_minutes || null,
+          rota_polyline: routeData.polyline || null,
+        },
+        guestIds: selectedGuests,
       });
-
-      // Save all guests to junction table
-      if (selectedGuests.length > 0 && result?.id) {
-        try { await setGuestsForTransport.mutateAsync({ transportId: result.id, guestIds: selectedGuests }); } catch { /* silent */ }
-      }
 
       if (form.titulo === 'Escolta Policial') {
         const driver = members.find((m: any) => m.user_id === form.motorista_user_id);
@@ -442,25 +438,26 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           } catch { /* silent */ }
 
           const returnResult = await create.mutateAsync({
-            titulo: 'Aeroporto',
-            origem: destino || 'Santa Rosa',
-            destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : origem,
-            inicio_em: ensureSPTimestamptz(returnForm.inicio_em),
-            motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-            vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-            prioridade: form.prioridade,
-            voo_cidade: form.voo_cidade || null,
-            voo_numero: returnForm.voo_numero || null,
-            voo_checkin: returnForm.voo_checkin || null,
-            horario_saida: returnForm.horario_saida || null,
-            distancia_estimada_km: returnRouteData.distance_km || null,
-            duracao_estimada_min: returnRouteData.duration_minutes || null,
-            rota_polyline: returnRouteData.polyline || null,
+            transport: {
+              titulo: 'Aeroporto',
+              origem: destino || 'Santa Rosa',
+              destino: form.voo_cidade ? `Aeroporto ${form.voo_cidade}` : origem,
+              inicio_em: ensureSPTimestamptz(returnForm.inicio_em),
+              motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+              vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+              prioridade: form.prioridade,
+              voo_cidade: form.voo_cidade || null,
+              voo_numero: returnForm.voo_numero || null,
+              voo_checkin: returnForm.voo_checkin || null,
+              horario_saida: returnForm.horario_saida || null,
+              distancia_estimada_km: returnRouteData.distance_km || null,
+              duracao_estimada_min: returnRouteData.duration_minutes || null,
+              rota_polyline: returnRouteData.polyline || null,
+            },
+            guestIds: selectedGuests,
           });
 
-          if (selectedGuests.length > 0 && returnResult?.id) {
-            try { await setGuestsForTransport.mutateAsync({ transportId: returnResult.id, guestIds: selectedGuests }); } catch { /* silent */ }
-          }
+          // guests handled by edge function via guestIds in create
         } catch { /* silent - don't fail the main transport */ }
       }
 
@@ -500,8 +497,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       const currentTransport = transports.find((t: any) => t.id === editId);
       const statusChanged = currentTransport && currentTransport.status !== editForm.status;
 
-      const updatePayload: any = {
-        id: editId,
+      const updates: any = {
         titulo: editForm.titulo || null,
         origem: editForm.origem,
         destino: editForm.destino,
@@ -523,29 +519,31 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
 
       // Save fim_real_em when completing
       if (statusChanged && editForm.status === 'concluido') {
-        updatePayload.fim_real_em = nowSP();
+        updates.fim_real_em = nowSP();
       }
 
-      await update.mutateAsync(updatePayload);
-
-      // Sync junction table
-      try { await setGuestsForTransport.mutateAsync({ transportId: editId, guestIds: editGuests }); } catch { /* silent */ }
-
+      // Build vehicleUsage for edge function
+      let vehicleUsage = null;
       if (statusChanged && editForm.status === 'concluido' && editForm.km_retirada && editForm.km_devolucao && editForm.vehicle_id && editForm.vehicle_id !== 'none') {
-        try {
-          const kmSaida = Number(editForm.km_retirada);
-          const kmChegada = Number(editForm.km_devolucao);
-          await createUsage.mutateAsync({
-            vehicle_id: editForm.vehicle_id,
-            responsavel_user_id: editForm.motorista_user_id && editForm.motorista_user_id !== 'none' ? editForm.motorista_user_id : null,
-            km_saida: kmSaida,
-            km_chegada: kmChegada,
-            km_rodados: kmChegada - kmSaida,
-            devolucao_em: editForm.fim_em || nowSP(),
-          });
-          await updateVehicle.mutateAsync({ id: editForm.vehicle_id, km_atual: kmChegada });
-        } catch { /* silent */ }
+        const kmSaida = Number(editForm.km_retirada);
+        const kmChegada = Number(editForm.km_devolucao);
+        vehicleUsage = {
+          vehicle_id: editForm.vehicle_id,
+          responsavel_user_id: editForm.motorista_user_id && editForm.motorista_user_id !== 'none' ? editForm.motorista_user_id : null,
+          km_saida: kmSaida,
+          km_chegada: kmChegada,
+          km_rodados: kmChegada - kmSaida,
+          devolucao_em: editForm.fim_em || nowSP(),
+        };
       }
+
+      await update.mutateAsync({
+        id: editId,
+        updates,
+        expectedUpdatedAt: currentTransport?.updated_at,
+        guestIds: editGuests,
+        vehicleUsage,
+      });
 
       setEditOpen(false);
       toast.success('Transporte atualizado');
@@ -583,7 +581,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
         return;
       }
       // Starting trip — save inicio_real_em
-      await update.mutateAsync({ id: t.id, status: newStatus, inicio_real_em: nowSP() });
+      await update.mutateAsync({ id: t.id, updates: { status: newStatus, inicio_real_em: nowSP() } });
       if (newStatus === 'em_andamento') {
         setTrackingTransportId(t.id);
         toast.success('Viagem iniciada — localização ativada');
