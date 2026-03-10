@@ -247,11 +247,9 @@ export default function TransportsPage() {
   const { members } = useOrgMembers();
   const { vehicles } = useVehicles();
   const { guests, create: createGuest } = useGuests();
-  const { createUsage } = useVehicleUsage();
-  const { update: updateVehicle } = useVehicles();
   const { commissions } = useCommissions();
   const { user } = useAuth();
-  const { getGuestsForTransport, setGuestsForTransport } = useTransportGuests();
+  const { getGuestsForTransport } = useTransportGuests();
   const [trackingTransportId, _setTrackingTransportId] = useState<string | null>(() => {
     try { return localStorage.getItem('fenasoja_tracking_transport'); } catch { return null; }
   });
