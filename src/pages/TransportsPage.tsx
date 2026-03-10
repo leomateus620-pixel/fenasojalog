@@ -398,29 +398,27 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       const inicio_em = ensureSPTimestamptz(inicioEmRaw);
 
       const result = await create.mutateAsync({
-        titulo: form.titulo || null,
-        origem,
-        destino,
-        inicio_em,
-        motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
-        vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
-        prioridade: form.prioridade,
-        km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
-        voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
-        voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
-        voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
-        voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
-        horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
-        observacoes: buildEscoltaObs(form),
-        distancia_estimada_km: routeData.distance_km || null,
-        duracao_estimada_min: routeData.duration_minutes || null,
-        rota_polyline: routeData.polyline || null,
+        transport: {
+          titulo: form.titulo || null,
+          origem,
+          destino,
+          inicio_em,
+          motorista_user_id: form.motorista_user_id && form.motorista_user_id !== 'none' ? form.motorista_user_id : null,
+          vehicle_id: form.vehicle_id && form.vehicle_id !== 'none' ? form.vehicle_id : null,
+          prioridade: form.prioridade,
+          km_retirada: form.km_retirada ? Number(form.km_retirada) : null,
+          voo_cidade: form.titulo === 'Aeroporto' ? form.voo_cidade || null : null,
+          voo_numero: form.titulo === 'Aeroporto' ? form.voo_numero || null : null,
+          voo_checkin: form.titulo === 'Aeroporto' ? form.voo_checkin || null : null,
+          voo_chegada: form.titulo === 'Aeroporto' ? form.voo_chegada || null : null,
+          horario_saida: form.titulo === 'Aeroporto' ? form.horario_saida || null : null,
+          observacoes: buildEscoltaObs(form),
+          distancia_estimada_km: routeData.distance_km || null,
+          duracao_estimada_min: routeData.duration_minutes || null,
+          rota_polyline: routeData.polyline || null,
+        },
+        guestIds: selectedGuests,
       });
-
-      // Save all guests to junction table
-      if (selectedGuests.length > 0 && result?.id) {
-        try { await setGuestsForTransport.mutateAsync({ transportId: result.id, guestIds: selectedGuests }); } catch { /* silent */ }
-      }
 
       if (form.titulo === 'Escolta Policial') {
         const driver = members.find((m: any) => m.user_id === form.motorista_user_id);
