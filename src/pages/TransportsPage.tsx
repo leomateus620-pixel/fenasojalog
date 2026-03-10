@@ -501,8 +501,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       const currentTransport = transports.find((t: any) => t.id === editId);
       const statusChanged = currentTransport && currentTransport.status !== editForm.status;
 
-      const updatePayload: any = {
-        id: editId,
+      const updates: any = {
         titulo: editForm.titulo || null,
         origem: editForm.origem,
         destino: editForm.destino,
@@ -524,29 +523,31 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
 
       // Save fim_real_em when completing
       if (statusChanged && editForm.status === 'concluido') {
-        updatePayload.fim_real_em = nowSP();
+        updates.fim_real_em = nowSP();
       }
 
-      await update.mutateAsync(updatePayload);
-
-      // Sync junction table
-      try { await setGuestsForTransport.mutateAsync({ transportId: editId, guestIds: editGuests }); } catch { /* silent */ }
-
+      // Build vehicleUsage for edge function
+      let vehicleUsage = null;
       if (statusChanged && editForm.status === 'concluido' && editForm.km_retirada && editForm.km_devolucao && editForm.vehicle_id && editForm.vehicle_id !== 'none') {
-        try {
-          const kmSaida = Number(editForm.km_retirada);
-          const kmChegada = Number(editForm.km_devolucao);
-          await createUsage.mutateAsync({
-            vehicle_id: editForm.vehicle_id,
-            responsavel_user_id: editForm.motorista_user_id && editForm.motorista_user_id !== 'none' ? editForm.motorista_user_id : null,
-            km_saida: kmSaida,
-            km_chegada: kmChegada,
-            km_rodados: kmChegada - kmSaida,
-            devolucao_em: editForm.fim_em || nowSP(),
-          });
-          await updateVehicle.mutateAsync({ id: editForm.vehicle_id, km_atual: kmChegada });
-        } catch { /* silent */ }
+        const kmSaida = Number(editForm.km_retirada);
+        const kmChegada = Number(editForm.km_devolucao);
+        vehicleUsage = {
+          vehicle_id: editForm.vehicle_id,
+          responsavel_user_id: editForm.motorista_user_id && editForm.motorista_user_id !== 'none' ? editForm.motorista_user_id : null,
+          km_saida: kmSaida,
+          km_chegada: kmChegada,
+          km_rodados: kmChegada - kmSaida,
+          devolucao_em: editForm.fim_em || nowSP(),
+        };
       }
+
+      await update.mutateAsync({
+        id: editId,
+        updates,
+        expectedUpdatedAt: currentTransport?.updated_at,
+        guestIds: editGuests,
+        vehicleUsage,
+      });
 
       setEditOpen(false);
       toast.success('Transporte atualizado');
