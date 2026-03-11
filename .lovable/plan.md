@@ -1,44 +1,24 @@
 
+# Fase 5 — Arquitetura ✅ Concluída
 
-# Redesign da Tela de Login — Liquid Glass com Background Fenasoja 2026
+## 5.4 Triggers de validação no PostgreSQL ✅
+- `validate_transport()` — valida origem/destino obrigatórios, auto-preenche fim_real_em
+- `validate_vehicle_usage()` — valida km_chegada >= km_saida
+- `validate_guest()` — valida nome obrigatório
+- `set_updated_at()` triggers garantidos em todas as 12 tabelas principais
 
-## Visão Geral
-Redesign completo da `LoginPage.tsx` usando a imagem do cartaz Fenasoja 2026 como fundo fullscreen, com o formulário de login dentro de um card "liquid glass" texturizado centralizado. A logo será exibida horizontalmente com o texto "Fenasoja Logística" em destaque abaixo, estilo glass.
+## 5.1 Edge function `transport-lifecycle` ✅
+- Centraliza create/update/delete de transportes no backend
+- Inclui: criação de evento+schedule+shift, cleanup de eventos, vehicle_usage, audit log
+- `useTransports.ts` simplificado — chama edge function em vez de múltiplas queries
 
-## Mudanças
+## 5.2 Optimistic locking ✅
+- Update envia `expectedUpdatedAt` para a edge function
+- Edge function retorna 409 se registro foi modificado por outro usuário
+- Frontend mostra toast com botão "Recarregar"
 
-### 1. Copiar imagem de fundo para o projeto
-- Copiar `user-uploads://ChatGPT_Image_11_de_mar._de_2026_16_31_16.png` → `src/assets/fenasoja-bg-2026.png`
-
-### 2. Redesign `src/pages/LoginPage.tsx`
-- **Background**: Imagem fullscreen com `object-cover`, overlay escuro sutil para contraste
-- **Card central**: Liquid glass card com `backdrop-blur-xl`, bordas translúcidas, sombra suave
-- **Logo**: Exibida maior, horizontal, sem fundo colorido
-- **Título**: "Fenasoja Logística" grande e bold, com efeito glass (texto semi-transparente branco com text-shadow)
-- **Subtítulo**: "Comissão de Logística" em texto glass menor
-- **Inputs**: Estilo glass com fundo semi-transparente, bordas sutis, placeholder legível
-- **Botão**: Verde primário com efeito hover, `active:scale-[0.97]`
-- **Rodapé**: Texto "Acesso restrito" em branco/glass
-
-### Layout
-```text
-┌─────────────────────────────────┐
-│     BG IMAGE (fullscreen)       │
-│  ┌───────────────────────────┐  │
-│  │    LIQUID GLASS CARD      │  │
-│  │                           │  │
-│  │      [LOGO horizontal]   │  │
-│  │   Fenasoja Logística      │  │
-│  │   Comissão de Logística   │  │
-│  │                           │  │
-│  │   [  Email input       ]  │  │
-│  │   [  Senha input       ]  │  │
-│  │   [     Entrar         ]  │  │
-│  │                           │  │
-│  │   Acesso restrito...      │  │
-│  └───────────────────────────┘  │
-└─────────────────────────────────┘
-```
-
-Nenhuma mudança funcional — apenas visual. O `useAuth`, `signIn`, e lógica de erro permanecem idênticos.
-
+## 5.3 Service worker + persistência offline ✅
+- `public/sw.js` — cache de assets estáticos, network-first para navegação
+- Service worker registrado em `main.tsx`
+- React Query cache persistido em localStorage via `@tanstack/react-query-persist-client`
+- Dados sobrevivem ao refresh do browser (leitura offline dos últimos dados)
