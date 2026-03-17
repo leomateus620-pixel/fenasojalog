@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Navigation, MapPinOff, Clock, ArrowRight, Ruler, Timer, Square, Play, Eye, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTransportLocation } from '@/hooks/useLocationTracking';
+import { supabase } from '@/integrations/supabase/client';
 
 const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
 
