@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Navigation, MapPinOff, Clock, ArrowRight, Ruler, Timer, Square, Play, Eye, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTransportLocation } from '@/hooks/useLocationTracking';
+import { supabase } from '@/integrations/supabase/client';
 
 const DriverLocationMap = lazy(() => import('@/components/DriverLocationMap'));
 
@@ -99,11 +100,16 @@ export default function TransportDynamicIsland({
 
     (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${session?.access_token || ''}`,
+            },
             body: JSON.stringify({
               origin_lat: location.latitude,
               origin_lng: location.longitude,

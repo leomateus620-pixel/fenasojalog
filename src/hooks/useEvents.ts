@@ -11,7 +11,7 @@ export function useEvents() {
     queryKey: ['events', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await (supabase as any).from('events').select('*').eq('org_id', orgId).order('inicio_em');
+      const { data } = await (supabase as any).from('events').select('*').eq('org_id', orgId).order('inicio_em').limit(1000);
       return data || [];
     },
     enabled: !!orgId,

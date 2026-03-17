@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff, Route, Timer, Ruler, Play, Square, History, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn, rawTime, rawDateShort, nowSP, nowSPLocal } from '@/lib/utils';
+import { cn, rawTime, rawDateShort, nowSP, nowSPLocal, ensureSPOffset } from '@/lib/utils';
 import { useState, lazy, Suspense, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -69,11 +69,16 @@ function getDestCoords(t: any): { lat: number; lng: number } | null {
 async function fetchTravelMinutes(cidade: string): Promise<number | null> {
   try {
     const destination = `Aeroporto_${cidade}`;
+    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
         body: JSON.stringify({ origin_lat: SANTA_ROSA_LAT, origin_lng: SANTA_ROSA_LNG, destination }),
       }
     );
@@ -89,11 +94,16 @@ async function fetchTravelMinutes(cidade: string): Promise<number | null> {
 async function fetchRoutePreview(destKey: string): Promise<{ duration_minutes: number; distance_km: number; polyline?: string } | null> {
   try {
     const dest = knownDestCoords[destKey] || knownDestCoords['Outros'];
+    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
         body: JSON.stringify({
           mode: 'ROUTE_PREVIEW',
           origin_lat: SANTA_ROSA_LAT,
@@ -135,23 +145,8 @@ async function calcSuggestedDeparture(cidade: string, flightTime: string, isChec
   return subtractMinutes(flightTime, buffer);
 }
 
-function ensureSPTimestamptz(value: string): string {
-  if (!value) return value;
-
-  // Already has timezone info
-  if (/[zZ]$/.test(value) || /[+-]\d{2}:\d{2}$/.test(value)) return value;
-
-  // Date only
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00-03:00`;
-
-  // datetime-local (YYYY-MM-DDTHH:MM)
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return `${value}:00-03:00`;
-
-  // datetime without tz but with seconds
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) return `${value}-03:00`;
-
-  return value;
-}
+// Use unified ensureSPOffset from utils (DATA-01 fix)
+const ensureSPTimestamptz = ensureSPOffset;
 
 const estimatedDurationMin: Record<string, number> = {
   'Aeroporto': 120, 'Hotel': 45, 'Parque': 30, 'Centro': 40, 'Escolta Policial': 90, 'Outros': 60,
@@ -259,9 +254,12 @@ export default function TransportsPage() {
   }, []);
   const locationTracker = useLocationTracking(trackingTransportId);
 
+  const locationTrackerRef = useRef(locationTracker);
+  locationTrackerRef.current = locationTracker;
+
   useEffect(() => {
-    if (trackingTransportId && !locationTracker.isTracking) {
-      locationTracker.startTracking();
+    if (trackingTransportId && !locationTrackerRef.current.isTracking) {
+      locationTrackerRef.current.startTracking();
     }
   }, [trackingTransportId]);
 
@@ -458,7 +456,10 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           });
 
           // guests handled by edge function via guestIds in create
-        } catch { /* silent - don't fail the main transport */ }
+        } catch (returnErr: any) {
+          console.error('Failed to create return trip:', returnErr);
+          toast.warning('Ida agendada, mas houve erro ao criar a volta. Tente criar manualmente.');
+        }
       }
 
       setForm({ titulo: '', origem: '', destino: '', inicio_em: '', motorista_user_id: '', vehicle_id: '', prioridade: 'media', km_retirada: '', voo_cidade: '', voo_numero: '', voo_checkin: '', voo_chegada: '', horario_saida: '', escolta_nome: '', escolta_cargo: '', escolta_viaturas: '', escolta_ponto_encontro: '', escolta_contato_seguranca: '', escolta_obs: '' });
