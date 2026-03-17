@@ -11,7 +11,7 @@ export function useTransports() {
     queryKey: ['transports', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await (supabase as any).from('transports').select('*').eq('org_id', orgId).order('inicio_em', { ascending: false });
+      const { data } = await (supabase as any).from('transports').select('*').eq('org_id', orgId).order('inicio_em', { ascending: false }).limit(1000);
       return data || [];
     },
     enabled: !!orgId,

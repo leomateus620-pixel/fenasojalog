@@ -12,7 +12,7 @@ export function useTasks() {
     queryKey: ['tasks', orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await (supabase as any).from('tasks').select('*').eq('org_id', orgId).order('due_em', { ascending: true });
+      const { data } = await (supabase as any).from('tasks').select('*').eq('org_id', orgId).order('due_em', { ascending: true }).limit(1000);
       return data || [];
     },
     enabled: !!orgId,
