@@ -304,7 +304,6 @@ export default function Dashboard() {
           shifts={shifts}
           transports={transports}
         />
-        </div>
       </Section>
 
       {/* ─── Tarefas Pendentes ─── */}
