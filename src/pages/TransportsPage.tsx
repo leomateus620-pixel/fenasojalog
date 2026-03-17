@@ -244,9 +244,12 @@ export default function TransportsPage() {
   }, []);
   const locationTracker = useLocationTracking(trackingTransportId);
 
+  const locationTrackerRef = useRef(locationTracker);
+  locationTrackerRef.current = locationTracker;
+
   useEffect(() => {
-    if (trackingTransportId && !locationTracker.isTracking) {
-      locationTracker.startTracking();
+    if (trackingTransportId && !locationTrackerRef.current.isTracking) {
+      locationTrackerRef.current.startTracking();
     }
   }, [trackingTransportId]);
 
