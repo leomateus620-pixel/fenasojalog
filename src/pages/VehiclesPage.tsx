@@ -614,6 +614,82 @@ function VehicleDetailContent({ vehicle, members, userId, kmTotal, fuelCostTotal
         <FileText className="w-3.5 h-3.5 mr-1.5" /> Gerar Relatório PDF
       </Button>
 
+      {/* Document upload */}
+      <div className="rounded-xl liquid-glass-card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Documento do Veículo</p>
+            <p className="text-[10px] text-muted-foreground">CRLV, Seguro ou outro documento em PDF</p>
+          </div>
+        </div>
+
+        {vehicle.documento_url ? (
+          <div className="flex items-center gap-2">
+            <a
+              href={vehicle.documento_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/15 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Eye className="w-4 h-4" />
+              Ver documento PDF
+            </a>
+            <label className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-dashed border-muted-foreground/30 text-xs text-muted-foreground cursor-pointer hover:bg-foreground/5 transition-colors">
+              <Upload className="w-3.5 h-3.5" />
+              Substituir
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.type !== 'application/pdf') { toast.error('Apenas arquivos PDF são aceitos'); return; }
+                  setDocUploading(true);
+                  try {
+                    const url = await uploadDocument(f, vehicle.id);
+                    await updateVehicle.mutateAsync({ id: vehicle.id, documento_url: url });
+                    toast.success('Documento atualizado');
+                  } catch (err: any) { toast.error(err.message || 'Erro ao enviar'); }
+                  setDocUploading(false);
+                }}
+              />
+            </label>
+          </div>
+        ) : (
+          <label className={cn(
+            "flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-primary/25 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors",
+            docUploading && "opacity-60 pointer-events-none"
+          )}>
+            <Upload className="w-5 h-5 text-primary" />
+            <div>
+              <p className="text-xs font-medium text-foreground">{docUploading ? 'Enviando...' : 'Enviar documento PDF'}</p>
+              <p className="text-[10px] text-muted-foreground">Clique para selecionar o arquivo</p>
+            </div>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                if (f.type !== 'application/pdf') { toast.error('Apenas arquivos PDF são aceitos'); return; }
+                setDocUploading(true);
+                try {
+                  const url = await uploadDocument(f, vehicle.id);
+                  await updateVehicle.mutateAsync({ id: vehicle.id, documento_url: url });
+                  toast.success('Documento enviado com sucesso');
+                } catch (err: any) { toast.error(err.message || 'Erro ao enviar'); }
+                setDocUploading(false);
+              }}
+            />
+          </label>
+        )}
+      </div>
+
       {/* Retirada / Devolução */}
       {openUsage ? (
         <div className="rounded-xl border border-info/30 bg-info/5 p-4 space-y-3">
