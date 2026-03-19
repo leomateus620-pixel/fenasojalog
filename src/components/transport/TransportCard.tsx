@@ -1,9 +1,10 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Check, Clock, X, Pencil, Trash2, FileText, Navigation, Play, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Clock, X, Pencil, Trash2, FileText, Navigation, Play, Square, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react';
 import { cn, rawTime, rawDateShort } from '@/lib/utils';
 import TransportDynamicIsland from '@/components/TransportDynamicIsland';
+import { buildTripMessage, buildWhatsAppUrl, isValidPhone } from '@/lib/whatsapp';
 
 const statusConfig: Record<string, { label: string; icon: typeof Check; class: string; dotClass: string; bgClass: string }> = {
   pendente: { label: 'Pendente', icon: Clock, class: 'text-info', dotClass: 'bg-info', bgClass: 'bg-info/10 border-info/20' },
