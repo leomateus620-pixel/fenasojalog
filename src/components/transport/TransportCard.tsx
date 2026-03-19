@@ -174,6 +174,25 @@ export default function TransportCard({ t, members, vehicles, guests, highlightI
               </Badge>
             </div>
           )}
+          {isActive && guest?.telefone && isValidPhone(guest.telefone) && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-10 text-xs rounded-xl gap-1.5 text-[hsl(142,70%,40%)] border-[hsl(142,70%,40%)]/30 hover:bg-[hsl(142,70%,40%)]/10"
+              onClick={() => {
+                const msg = buildTripMessage({
+                  guestName: guest.nome,
+                  driverName: driver?.nome_exibicao || 'Motorista',
+                  destino: t.destino,
+                  titulo: t.titulo,
+                });
+                window.open(buildWhatsAppUrl(guest.telefone, msg), '_blank');
+              }}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              Hóspede
+            </Button>
+          )}
           <Button size="icon" variant="ghost" className="h-10 w-10 shrink-0 rounded-xl" onClick={onEdit}>
             <Pencil className="w-4 h-4" />
           </Button>
