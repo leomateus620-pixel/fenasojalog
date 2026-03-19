@@ -901,6 +901,13 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           {detailTransport && <TransportDetailView t={detailTransport} members={members} vehicles={vehicles} guests={guests} getDriverCommission={getDriverCommission} getGuestsForTransport={getGuestsForTransport} onPDF={() => generatePDF(detailTransport)} />}
         </DialogContent>
       </Dialog>
+
+      {/* ─── Start Trip WhatsApp Dialog ─── */}
+      <StartTripDialog
+        open={startTripDialogOpen}
+        onOpenChange={setStartTripDialogOpen}
+        whatsappData={startTripWhatsappData}
+      />
     </div>
   );
 }
