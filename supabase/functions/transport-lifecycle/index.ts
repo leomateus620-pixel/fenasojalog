@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
       return await handleCreate(admin, user.id, payload);
     } else if (action === "update") {
       return await handleUpdate(admin, user.id, payload);
+    } else if (action === "start") {
+      return await handleStart(admin, user.id, payload);
     } else if (action === "delete") {
       return await handleDelete(admin, user.id, payload);
     } else {
