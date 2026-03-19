@@ -585,11 +585,22 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
         setEditOpen(true);
         return;
       }
-      // Starting trip — save inicio_real_em
-      await update.mutateAsync({ id: t.id, updates: { status: newStatus, inicio_real_em: nowSP() } });
+      // Starting trip — use start mutation with backend validation
       if (newStatus === 'em_andamento') {
-        setTrackingTransportId(t.id);
-        toast.success('Viagem iniciada — localização ativada');
+        try {
+          const result = await start.mutateAsync({ id: t.id });
+          // Set up tracking
+          setTrackingTransportId(t.id);
+          toast.success('Viagem iniciada — localização ativada');
+          // Show WhatsApp dialog
+          if (result?.whatsapp) {
+            setStartTripWhatsappData(result.whatsapp);
+            setStartTripDialogOpen(true);
+          }
+        } catch {
+          // Error already handled by onError in the mutation
+        }
+        return;
       }
     }
   };
