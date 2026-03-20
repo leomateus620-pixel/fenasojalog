@@ -344,8 +344,8 @@ export default function AgendaPage() {
           </div>
           <p className="text-sm font-medium text-foreground">Nenhum evento neste dia</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">Cadastre a programação oficial para que a equipe acompanhe a agenda da feira.</p>
-          <Button size="sm" variant="outline" onClick={openCreate} className="mt-4 bg-white/10 backdrop-blur border-white/15">
-            <Plus className="w-4 h-4 mr-1" /> Criar evento
+          <Button size="sm" onClick={openCreate} className="mt-4 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform">
+            <Plus className="w-4 h-4" /> Criar evento
           </Button>
         </div>
       )}
