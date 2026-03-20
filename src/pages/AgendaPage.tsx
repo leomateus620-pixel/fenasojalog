@@ -284,10 +284,10 @@ export default function AgendaPage() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Agenda oficial de eventos Fenasoja</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => generateAgendaPDF(selectedDate, dayEvents, grouped, members, commissions)} className="bg-white/12 backdrop-blur-xl border border-white/20 text-foreground hover:bg-white/20 shadow-sm gap-1.5" disabled={dayEvents.length === 0}>
+          <Button size="sm" variant="outline" onClick={() => generateAgendaPDF(selectedDate, dayEvents, grouped, members, commissions)} className="h-10 sm:h-9 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform" disabled={dayEvents.length === 0}>
             <FileDown className="w-4 h-4" /> PDF
           </Button>
-          <Button size="sm" onClick={openCreate} className="bg-white/12 backdrop-blur-xl border border-white/20 text-foreground hover:bg-white/20 shadow-sm gap-1.5">
+          <Button size="sm" onClick={openCreate} className="h-10 sm:h-9 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform">
             <Plus className="w-4 h-4" /> Novo Evento
           </Button>
         </div>
@@ -344,8 +344,8 @@ export default function AgendaPage() {
           </div>
           <p className="text-sm font-medium text-foreground">Nenhum evento neste dia</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">Cadastre a programação oficial para que a equipe acompanhe a agenda da feira.</p>
-          <Button size="sm" variant="outline" onClick={openCreate} className="mt-4 bg-white/10 backdrop-blur border-white/15">
-            <Plus className="w-4 h-4 mr-1" /> Criar evento
+          <Button size="sm" onClick={openCreate} className="mt-4 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform">
+            <Plus className="w-4 h-4" /> Criar evento
           </Button>
         </div>
       )}
