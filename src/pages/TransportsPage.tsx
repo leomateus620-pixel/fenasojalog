@@ -717,10 +717,10 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
 
       {/* ─── Create Dialog ─── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Transporte</DialogTitle>
-            <DialogDescription>Agende uma nova viagem</DialogDescription>
+            <DialogDescription>Preencha os dados da viagem para agendar o transporte</DialogDescription>
           </DialogHeader>
           <TransportForm
             data={form}
@@ -747,7 +747,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             getVehicleConflictInfo={getVehicleConflictInfo}
             availableVehicles={availableVehicles}
           />
-          <Button onClick={handleAdd} className="w-full" disabled={create.isPending}>
+          <Button onClick={handleAdd} className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all" disabled={create.isPending}>
             {create.isPending ? 'Salvando...' : 'Agendar Transporte'}
           </Button>
         </DialogContent>
