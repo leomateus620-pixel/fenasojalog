@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Check, Clock, X, Eye, Navigation, FileText, Route, History } from 'lucide-react';
+import { Check, Clock, X, Eye, Navigation, FileText, Route, History, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const statusConfig: Record<string, { label: string; class: string; bgClass: string }> = {
