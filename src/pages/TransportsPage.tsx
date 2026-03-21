@@ -763,7 +763,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             getVehicleConflictInfo={getVehicleConflictInfo}
             availableVehicles={availableVehicles}
           />
-          <Button onClick={handleAdd} className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all" disabled={create.isPending}>
+          <Button onClick={handleAdd} className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all" disabled={create.isPending || isSubmittingRef.current}>
             {create.isPending ? 'Salvando...' : 'Agendar Transporte'}
           </Button>
         </DialogContent>
