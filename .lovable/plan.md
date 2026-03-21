@@ -1,88 +1,62 @@
 
 
-# Plano: Filtro de motoristas por comissão + Redesign premium dos dialogs
+# Plano: Edição de informações de voo + Correção do bug de triplicação
 
-## Tarefa 1: Motoristas apenas da comissão de Logística para Aeroporto
+## Tarefa 1: Permitir edição das informações de voo
 
-### Problema atual
-O `TransportForm` exibe TODOS os membros na lista de motoristas, independente do tipo de transporte. Para transportes ao Aeroporto, apenas membros da comissão "LOGÍSTICA, HOTELARIA E TURISMO" devem aparecer.
+### Problema
+No `TransportDetailView`, as informações de voo (cidade, número, check-in, chegada, horário saída) são exibidas apenas como leitura. No `editForm`/`openEditDlg` os campos de voo já são carregados (linhas 492-494), e o `handleEditSave` já salva os dados de voo (linhas 517-521). O formulário de edição (`TransportForm` com `isEdit=true`) já renderiza a seção de voo quando `titulo === 'Aeroporto'`.
 
-### Mudanças
-**Arquivo:** `src/components/transport/TransportForm.tsx`
+### Diagnóstico
+A edição de voo JÁ FUNCIONA no dialog de edição (ícone de lápis). Porém, no `TransportDetailView` (dialog de visualização - ícone de olho), não há opção de editar. A solução é garantir que o botão "Editar" no `TransportDetailView` leve ao dialog de edição, ou adicionar edição inline dos campos de voo diretamente na visualização.
 
-- Na seção "Motorista e Veículo" (linha 358-363), adicionar filtro condicional:
-  - Se `data.titulo === 'Aeroporto'`: filtrar `members` para exibir apenas os que possuem `commission_nome` contendo "LOGÍSTICA" (case-insensitive)
-  - Caso contrário: exibir todos os membros normalmente
-- Adicionar nota visual quando o filtro está ativo: "Motoristas da comissão de Logística" em texto pequeno
+### Solução
+Adicionar um botão "Editar Voo" no `TransportDetailView` na seção de informações de voo, que ao clicar, abre o dialog de edição com a aba de voo já expandida. Isso mantém a consistência do fluxo existente.
 
----
+**Arquivo:** `src/components/transport/TransportDetailView.tsx`
+- Adicionar prop `onEdit` (callback para abrir dialog de edição)
+- Na seção "Informações do Voo", adicionar botão "Editar" ao lado do título
+- O botão chama `onEdit` que abre `openEditDlg(t)` no `TransportsPage`
 
-## Tarefa 2: Redesign premium Liquid Glass dos dialogs
-
-### Objetivo
-Atualizar o componente base `DialogContent` e as instâncias dos dialogs para visual premium com textura, profundidade e bom contraste. Mobile-first.
-
-### Mudanças no componente base
-**Arquivo:** `src/components/ui/dialog.tsx`
-
-- Atualizar `DialogContent` classes:
-  - Trocar `bg-background` por `bg-card/95 backdrop-blur-2xl border-border/40`
-  - Adicionar `rounded-2xl` e `shadow-2xl`
-  - Mobile: `max-h-[95dvh]` para melhor uso de tela
-  - Adicionar sombra interna sutil via `shadow-[...]`
-- Atualizar `DialogOverlay`:
-  - Trocar `bg-black/80` por `bg-black/60 backdrop-blur-sm` para efeito glass
-- Atualizar `DialogHeader`:
-  - Padding inferior e separador visual
-- Botão de fechar: estilizar com `rounded-full bg-muted/50 hover:bg-muted` para visual premium
-
-### Dialogs específicos a atualizar (ajustes de className inline)
-
-1. **Novo Transporte** (`TransportsPage.tsx` linha 720)
-   - Adicionar classe `sm:max-w-md` e descrição mais clara
-
-2. **Editar/Finalizar Transporte** (`TransportsPage.tsx` linha 809)
-   - Manter `max-h-[90vh]`, adicionar glass styling
-
-3. **Cadastrar Hóspede** (`GuestsPage.tsx` linha 109)
-   - Adicionar `sm:max-w-md`, descrição contextual "Preencha os dados do convidado"
-
-4. **Editar Hóspede** (`GuestsPage.tsx` linha 118)
-   - Mesma atualização
-
-5. **Adicionar Veículo** (`VehiclesPage.tsx` linha 349)
-   - Já tem `liquid-glass-card`, manter consistente
-
-6. **Editar Veículo** (`VehiclesPage.tsx` linha 373)
-   - Mesma atualização
-
-7. **Criar/Editar Evento** (`AgendaPage.tsx` linha 453)
-   - Já tem `bg-card/95 backdrop-blur-xl`, alinhar com novo padrão base
-
-8. **WhatsApp Dialog** (`TransportsPage.tsx` linha 849)
-   - Adicionar glass styling
-
-### Botões de ação nos dialogs
-- Todos os botões primários de submit: `h-11 rounded-xl font-semibold shadow-sm bg-primary hover:bg-primary/90 active:scale-[0.97] transition-all`
-- Consistência visual em todos os dialogs
-
-### Inputs nos dialogs
-- Todos inputs dentro de dialogs: `bg-background/60 border-border/50 focus:border-primary/50` para efeito glass com bom contraste
-- Height padronizado: `h-11` para touch targets adequados
+**Arquivo:** `src/pages/TransportsPage.tsx`
+- Passar `onEdit={() => { setDetailOpen(false); openEditDlg(t); }}` ao `TransportDetailView`
 
 ---
 
-## Resumo de arquivos a editar
+## Tarefa 2: Correção do bug de triplicação de transportes
 
-1. `src/components/ui/dialog.tsx` — redesign base do componente
-2. `src/components/transport/TransportForm.tsx` — filtro de motoristas para Aeroporto
-3. `src/pages/TransportsPage.tsx` — classes dos dialogs
-4. `src/pages/GuestsPage.tsx` — classes dos dialogs + descrições
-5. `src/pages/VehiclesPage.tsx` — alinhamento visual
-6. `src/pages/AgendaPage.tsx` — alinhamento visual
+### Diagnóstico
+O bug de transportes duplicados/triplicados tem duas causas raiz:
 
-## Segurança
-- Nenhuma lógica de negócio é alterada
-- Filtro de motoristas é apenas visual (a validação de permissão já existe no backend)
-- Todos os fluxos existentes preservados
+1. **Sem proteção contra double-submit**: O botão "Agendar Transporte" usa `disabled={create.isPending}`, mas `create.isPending` volta a `false` após o primeiro `mutateAsync` resolver. Se o usuário clicar rápido, ou se houver um re-render entre a resolução e o fechamento do dialog, a função pode ser chamada novamente.
+
+2. **`invalidateAll` no `onSuccess` causa re-render durante `handleAdd`**: A mutation `create` tem `onSuccess: invalidateAll`, que invalida TODAS as queries. Quando o primeiro `create.mutateAsync` resolve, `invalidateAll` dispara, causando re-render de toda a página. Se o dialog ainda estiver aberto e o form não foi resetado, o botão fica habilitado novamente.
+
+### Solução
+
+**Arquivo:** `src/pages/TransportsPage.tsx`
+- Adicionar flag `useRef` (`isSubmitting`) para prevenir chamadas duplicadas de `handleAdd`
+- No início de `handleAdd`: verificar `if (isSubmitting.current) return; isSubmitting.current = true;`
+- No final (success e error): `isSubmitting.current = false;`
+- Usar `isSubmitting` no `disabled` do botão também
+- Fechar o dialog (`setOpen(false)`) ANTES da criação do retorno, mas DEPOIS da criação da ida
+- Resetar o form imediatamente após a primeira criação bem-sucedida
+
+**Arquivo:** `src/hooks/useTransports.ts`
+- Nenhuma alteração necessária — o problema é no frontend
+
+### Verificação no GuestsPage
+O `GuestsPage` não contribui para o bug de triplicação de transportes. A criação de hóspedes no formulário de transporte (`onCreateGuest`) adiciona o hóspede ao array `selectedGuests`, mas não cria transporte. O vínculo hóspede-transporte acontece apenas no `handleAdd` via `guestIds`.
+
+---
+
+## Resumo de arquivos
+
+1. `src/components/transport/TransportDetailView.tsx` — adicionar botão "Editar Voo" e prop `onEdit`
+2. `src/pages/TransportsPage.tsx` — passar `onEdit` ao detail view + adicionar guard `isSubmitting` no `handleAdd`
+
+## Preservação
+- Nenhuma lógica de negócio alterada
+- Fluxo de edição existente reutilizado
+- Nenhuma mudança no backend
 
