@@ -12,7 +12,7 @@ const statusConfig: Record<string, { label: string; class: string; bgClass: stri
   cancelado: { label: 'Cancelado', class: 'text-destructive', bgClass: 'bg-destructive/10 border-destructive/20' },
 };
 
-export default function TransportDetailView({ t, members, vehicles, guests, getDriverCommission, getGuestsForTransport, onPDF }: any) {
+export default function TransportDetailView({ t, members, vehicles, guests, getDriverCommission, getGuestsForTransport, onPDF, onEdit }: any) {
   const sc = statusConfig[t.status] || statusConfig.pendente;
   const driver = members.find((m: any) => m.user_id === t.motorista_user_id);
   const vehicle = vehicles.find((v: any) => v.id === t.vehicle_id);
