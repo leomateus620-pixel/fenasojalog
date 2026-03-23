@@ -404,19 +404,19 @@ export default function Dashboard() {
       </Section>
 
       {/* ─── Atalhos Rápidos ─── */}
-      <div className="liquid-glass-card rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-foreground mb-3">Atalhos Rápidos</h2>
+      <div className="liquid-glass-card rounded-2xl p-5 gold-accent">
+        <h2 className="text-sm font-bold text-foreground mb-3 tracking-tight">Atalhos Rápidos</h2>
         <div className="grid grid-cols-5 gap-2">
           {shortcuts.map(({ to, icon: Icon, label }) => (
             <button
               key={to}
               onClick={() => navigate(to)}
-              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-muted/60 active:scale-[0.95] transition-all focus-ring"
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-primary/5 active:scale-[0.95] transition-all focus-ring"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground leading-tight text-center">{label}</span>
+              <span className="text-[10px] font-semibold text-muted-foreground leading-tight text-center">{label}</span>
             </button>
           ))}
         </div>
