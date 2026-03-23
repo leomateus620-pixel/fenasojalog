@@ -1,33 +1,39 @@
 
 
-# Plano: Corrigir menu de detalhes do veículo (esticado/cortado) + visual premium
+# Plano: Centralizar e corrigir menu de detalhes do veículo
 
 ## Problema
-O dialog de detalhes do veículo (`VehicleDetailContent`) contém muito conteudo (metricas, PDF, upload documento, retirada/devoluçao, abas de utilizaçao e combustivel). No mobile o conteudo estoura o viewport e fica cortado/inacessivel. No desktop tambem fica excessivamente longo.
+O `DialogContent` no `VehicleDetailModal` usa `overflow-hidden` que anula o `overflow-y-auto` do componente base. O dialog cresce com o conteúdo, ultrapassa o viewport e fica cortado embaixo. Também usa Drawer no mobile, mas o usuário quer centralizado em ambas as plataformas.
 
-## Soluçao
+## Correção
 
-### 1. Trocar Dialog por Drawer no mobile, manter Dialog no desktop
-**Arquivo:** `src/pages/VehiclesPage.tsx` (linhas 420-443)
+### Arquivo: `src/pages/VehiclesPage.tsx`
 
-- Usar `useIsMobile()` para detectar plataforma
-- **Mobile**: usar `Drawer` (desliza de baixo) com `max-h-[85dvh]` e scroll interno — resolve o problema de corte
-- **Desktop**: manter `Dialog` com `max-h-[85vh]` e scroll interno ajustado
+**1. Simplificar `VehicleDetailModal` — usar apenas Dialog (sem Drawer)**
+- Remover toda a lógica de `isMobile` e branch de `Drawer`
+- Usar apenas `Dialog` com `DialogContent`
 
-### 2. Reorganizar VehicleDetailContent para ser mais compacto
-**Arquivo:** `src/pages/VehiclesPage.tsx` (linhas 601-980)
+**2. Corrigir o DialogContent**
+- Trocar `className="sm:max-w-lg p-0 overflow-hidden"` por `className="sm:max-w-lg max-h-[85dvh] p-0 flex flex-col"`
+- O `max-h-[85dvh]` limita a altura do dialog
+- O `flex flex-col` permite o header fixo e body scrollável
 
-- Metricas no topo: manter grid 3 colunas mas com padding reduzido
-- Seçao de documento: collapsar por padrao, mostrar apenas se já tem doc ou se clicar "Adicionar"
-- Seçoes retirada/devoluçao e tabs: manter mas com espaçamento otimizado
-- Aplicar visual liquid glass premium consistente em todas as seçoes internas
+**3. Corpo scrollável interno**
+- Header (`DialogHeader`) fica fixo no topo com `shrink-0`
+- Body envolto em `div` com `overflow-y-auto flex-1 min-h-0 px-5 pb-5`
+- Remover o wrapper antigo de `bodyContent` com `style={{ maxHeight: ... }}`
 
-### 3. Aplicar visual liquid glass premium ao menu
-- Header do dialog/drawer com titulo + badge status mais destacado
-- Metricas com glass cards refinados
-- Botoes e tabs com visual premium atualizado
-- Bordas, sombras e fundos alinhados com a paleta Fenasoja
+**4. Visual liquid glass premium**
+- `DialogContent`: adicionar `premium-surface` ou `bg-card/95 backdrop-blur-2xl`
+- Header com borda inferior sutil `border-b border-border/20`
+- Scroll suave com `scroll-smooth`
+
+## Resultado esperado
+- Dialog centralizado na tela (desktop e mobile)
+- Conteúdo longo scrollável internamente
+- Nunca ultrapassa o viewport
+- Visual premium consistente
 
 ## Arquivos a editar
-1. `src/pages/VehiclesPage.tsx` — dialog de detalhes (drawer no mobile + visual premium)
+1. `src/pages/VehiclesPage.tsx` — VehicleDetailModal (linhas 467-539)
 
