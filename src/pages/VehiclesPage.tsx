@@ -221,11 +221,17 @@ export default function VehiclesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard icon={<Gauge className="w-4 h-4" />} label="KM Rodados" value={`${formatKm(totalKm)} km`} variant="primary" />
-          <KpiCard icon={<TrendingUp className="w-4 h-4" />} label="Custo Estimado" value={formatCurrency(metrics.custoEstimado)} sub="R$ 0,65/km" variant="accent" />
-          <KpiCard icon={<DollarSign className="w-4 h-4" />} label="Custo Real" value={formatCurrency(metrics.custoReal)} sub="Abastecimentos" variant="warning" />
-          <KpiCard icon={<Car className="w-4 h-4" />} label="Disponíveis" value={String(metrics.disponivel)} sub={`${metrics.emUso} em uso`} variant="success" />
-          <KpiCard icon={<Wrench className="w-4 h-4" />} label="Manutenção" value={String(metrics.manutencao)} variant="default" />
+          {[
+            { icon: <Gauge className="w-4 h-4" />, label: "KM Rodados", value: `${formatKm(totalKm)} km`, variant: "primary" as const },
+            { icon: <TrendingUp className="w-4 h-4" />, label: "Custo Estimado", value: formatCurrency(metrics.custoEstimado), sub: "R$ 0,65/km", variant: "accent" as const },
+            { icon: <DollarSign className="w-4 h-4" />, label: "Custo Real", value: formatCurrency(metrics.custoReal), sub: "Abastecimentos", variant: "warning" as const },
+            { icon: <Car className="w-4 h-4" />, label: "Disponíveis", value: String(metrics.disponivel), sub: `${metrics.emUso} em uso`, variant: "success" as const },
+            { icon: <Wrench className="w-4 h-4" />, label: "Manutenção", value: String(metrics.manutencao), variant: "default" as const },
+          ].map((kpi, i) => (
+            <div key={kpi.label} className="animate-fade-in" style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'backwards' }}>
+              <KpiCard {...kpi} />
+            </div>
+          ))}
         </div>
       )}
 
@@ -272,7 +278,7 @@ export default function VehiclesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredVehicles.map((v: any) => {
+          {filteredVehicles.map((v: any, i: number) => {
             const driver = members.find((m: any) => m.user_id === v.responsavel_user_id);
             const vStatus = effectiveStatus[v.id] || v.status;
             const sc = statusConfig[vStatus] || statusConfig.disponivel;
@@ -281,7 +287,8 @@ export default function VehiclesPage() {
             return (
               <div
                 key={v.id}
-                className="liquid-glass-card rounded-2xl p-4 transition-all active:scale-[0.98] cursor-pointer hover:shadow-md"
+                className="liquid-glass-card rounded-2xl p-4 cursor-pointer active:scale-[0.98] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 animate-fade-in"
+                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'backwards' }}
                 onClick={() => { setDetailVehicle(v); setDetailOpen(true); }}
               >
                 <div className="flex items-start justify-between mb-3">
