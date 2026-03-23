@@ -52,15 +52,15 @@ function Section({ title, icon: Icon, badge, children, onSeeAll, loading, empty,
   onSeeAll?: () => void; loading?: boolean; empty?: boolean; emptyMsg?: string;
 }) {
   return (
-    <div className="liquid-glass-card rounded-2xl p-4">
+    <div className="liquid-glass-card rounded-2xl p-5 gold-accent">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <h2 className="text-sm font-bold flex items-center gap-2 text-foreground tracking-tight">
           <Icon className="w-4 h-4 text-primary" aria-hidden /> {title}
         </h2>
         <div className="flex items-center gap-2">
-          {badge !== undefined && <Badge variant="secondary" className="text-[10px] font-medium">{badge}</Badge>}
+          {badge !== undefined && <Badge variant="secondary" className="text-[10px] font-semibold">{badge}</Badge>}
           {onSeeAll && (
-            <button onClick={onSeeAll} className="text-[10px] text-primary font-medium flex items-center gap-0.5 hover:underline">
+            <button onClick={onSeeAll} className="text-[10px] text-gold font-semibold flex items-center gap-0.5 hover:underline transition-colors">
               Ver tudo <ArrowRight className="w-3 h-3" />
             </button>
           )}
@@ -73,9 +73,9 @@ function Section({ title, icon: Icon, badge, children, onSeeAll, loading, empty,
           <Skeleton className="h-12 rounded-xl" />
         </div>
       ) : empty ? (
-        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-          <AlertCircle className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-xs">{emptyMsg || 'Nenhum item no momento.'}</p>
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <AlertCircle className="w-8 h-8 mb-2 opacity-25" />
+          <p className="text-xs font-medium">{emptyMsg || 'Nenhum item no momento.'}</p>
         </div>
       ) : children}
     </div>
@@ -206,8 +206,8 @@ export default function Dashboard() {
     <div className="space-y-5 pb-8">
       {/* ─── Header ─── */}
       <div className="px-1">
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">{getGreeting()} 👋</h1>
-        <p className="text-xs text-muted-foreground mt-0.5 capitalize">{formatDateBR()}</p>
+        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">{getGreeting()} 👋</h1>
+        <p className="text-xs text-muted-foreground mt-0.5 capitalize font-medium">{formatDateBR()}</p>
       </div>
 
       {/* ─── Stat Cards 2x2 ─── */}
@@ -403,19 +403,19 @@ export default function Dashboard() {
       </Section>
 
       {/* ─── Atalhos Rápidos ─── */}
-      <div className="liquid-glass-card rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-foreground mb-3">Atalhos Rápidos</h2>
+      <div className="liquid-glass-card rounded-2xl p-5 gold-accent">
+        <h2 className="text-sm font-bold text-foreground mb-3 tracking-tight">Atalhos Rápidos</h2>
         <div className="grid grid-cols-5 gap-2">
           {shortcuts.map(({ to, icon: Icon, label }) => (
             <button
               key={to}
               onClick={() => navigate(to)}
-              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-muted/60 active:scale-[0.95] transition-all focus-ring"
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-primary/5 active:scale-[0.95] transition-all focus-ring"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground leading-tight text-center">{label}</span>
+              <span className="text-[10px] font-semibold text-muted-foreground leading-tight text-center">{label}</span>
             </button>
           ))}
         </div>
