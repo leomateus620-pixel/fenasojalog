@@ -1,39 +1,44 @@
 
+Plano de correção definitiva (menu de veículos mobile + desktop)
 
-# Plano: Centralizar e corrigir menu de detalhes do veículo
+Diagnóstico confirmado
+- O modal está “ancorado” em `top: 50%` e, em cenários com animação/transform, perde o deslocamento correto de centralização, ficando baixo e cortado.
+- No mobile, o clique no card pode abrir e fechar no mesmo gesto (interação fora do conteúdo), dando impressão de que “não abre”.
+- Há warning de `ref` no `Badge` que indica componente base fora do padrão Radix (não é a causa principal do corte, mas precisa corrigir para robustez).
 
-## Problema
-O `DialogContent` no `VehicleDetailModal` usa `overflow-hidden` que anula o `overflow-y-auto` do componente base. O dialog cresce com o conteúdo, ultrapassa o viewport e fica cortado embaixo. Também usa Drawer no mobile, mas o usuário quer centralizado em ambas as plataformas.
+Do I know what the issue is?
+- Sim: contrato de modal não está resiliente (centralização + scroll + interação touch).
 
-## Correção
+Arquivos e implementação
 
-### Arquivo: `src/pages/VehiclesPage.tsx`
+1) `src/components/ui/dialog.tsx` (correção estrutural global)
+- Remover centralização dependente de `translate(-50%, -50%)`.
+- Adotar container de viewport seguro (`fixed inset-0 grid place-items-center p-3 sm:p-6`) e conteúdo com:
+  - `w-[min(96vw,42rem)]`
+  - `max-h-[min(88dvh,52rem)]`
+  - `overflow-hidden flex flex-col`
+- Manter visual liquid glass premium.
+- Ajustar z-index do overlay/content para ficar sempre acima de sidebar e elementos fixos.
 
-**1. Simplificar `VehicleDetailModal` — usar apenas Dialog (sem Drawer)**
-- Remover toda a lógica de `isMobile` e branch de `Drawer`
-- Usar apenas `Dialog` com `DialogContent`
+2) `src/pages/VehiclesPage.tsx` (correção funcional do menu)
+- Criar `openVehicleDetail(vehicle)` com abertura desacoplada do gesto (RAF/micro-delay) para evitar fechamento imediato no mobile.
+- No `VehicleDetailModal`, travar contrato:
+  - header fixo (`shrink-0`)
+  - corpo com `flex-1 min-h-0 overflow-y-auto overscroll-contain`.
+- Impedir fechamento acidental no primeiro toque externo (`onPointerDownOutside`/`onInteractOutside` controlado).
+- Garantir limpeza de estado ao fechar (`detailVehicle`).
 
-**2. Corrigir o DialogContent**
-- Trocar `className="sm:max-w-lg p-0 overflow-hidden"` por `className="sm:max-w-lg max-h-[85dvh] p-0 flex flex-col"`
-- O `max-h-[85dvh]` limita a altura do dialog
-- O `flex flex-col` permite o header fixo e body scrollável
+3) `src/components/ui/badge.tsx` (hardening)
+- Migrar `Badge` para `React.forwardRef` para eliminar warning e evitar problemas de integração com primitives.
 
-**3. Corpo scrollável interno**
-- Header (`DialogHeader`) fica fixo no topo com `shrink-0`
-- Body envolto em `div` com `overflow-y-auto flex-1 min-h-0 px-5 pb-5`
-- Remover o wrapper antigo de `bodyContent` com `style={{ maxHeight: ... }}`
+4) Prevenção de erro semelhante (“aprendizado” aplicado)
+- Padronizar “modal seguro” como regra do projeto (dialog base resiliente + body scroll interno).
+- Aplicar o mesmo padrão aos modais longos já existentes (ex.: históricos de recursos) para evitar regressão futura.
 
-**4. Visual liquid glass premium**
-- `DialogContent`: adicionar `premium-surface` ou `bg-card/95 backdrop-blur-2xl`
-- Header com borda inferior sutil `border-b border-border/20`
-- Scroll suave com `scroll-smooth`
-
-## Resultado esperado
-- Dialog centralizado na tela (desktop e mobile)
-- Conteúdo longo scrollável internamente
-- Nunca ultrapassa o viewport
-- Visual premium consistente
-
-## Arquivos a editar
-1. `src/pages/VehiclesPage.tsx` — VehicleDetailModal (linhas 467-539)
-
+Validação (obrigatória após implementar)
+- Testar em 390x844, 768x1024 e 1366x768:
+  - abrir detalhe do 1º, do meio e do último veículo;
+  - confirmar centralização real (vertical e horizontal);
+  - confirmar ausência de corte;
+  - confirmar rolagem interna completa;
+  - confirmar que abre no mobile em toque único sem sumir.
