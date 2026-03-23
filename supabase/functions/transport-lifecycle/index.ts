@@ -355,6 +355,10 @@ async function handleDelete(admin: any, userId: string, payload: any) {
     console.error("[transport-lifecycle] Failed to cleanup events on delete:", e);
   }
 
+  // Delete dependent records first to avoid FK violations
+  await admin.from("transport_guests").delete().eq("transport_id", id);
+  await admin.from("transport_locations").delete().eq("transport_id", id);
+
   const { error } = await admin.from("transports").delete().eq("id", id);
   if (error) return err(error.message);
 

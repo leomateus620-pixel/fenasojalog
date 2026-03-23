@@ -89,6 +89,9 @@ export function useTransports() {
     mutationFn: async (id: string) => {
       await invokeLifecycle('delete', { id, orgId });
     },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Erro ao excluir transporte');
+    },
     onSuccess: invalidateAll,
   });
 
