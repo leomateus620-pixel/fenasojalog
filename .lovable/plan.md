@@ -1,44 +1,57 @@
 
-Plano de correção definitiva (menu de veículos mobile + desktop)
-
-Diagnóstico confirmado
-- O modal está “ancorado” em `top: 50%` e, em cenários com animação/transform, perde o deslocamento correto de centralização, ficando baixo e cortado.
-- No mobile, o clique no card pode abrir e fechar no mesmo gesto (interação fora do conteúdo), dando impressão de que “não abre”.
-- Há warning de `ref` no `Badge` que indica componente base fora do padrão Radix (não é a causa principal do corte, mas precisa corrigir para robustez).
+Problema confirmado (reproduzido):
+- Ao abrir modais de “Novo/Adicionar/Nova Tarefa/Novo Hóspede”, o overlay aparece e o conteúdo do modal fica invisível inicialmente.
+- Em “Veículos”, ao clicar no card, o detalhe abre de forma inconsistente (às vezes não aparece, às vezes aparece com comportamento instável).
 
 Do I know what the issue is?
-- Sim: contrato de modal não está resiliente (centralização + scroll + interação touch).
+- Sim.
 
-Arquivos e implementação
+Causa raiz:
+1) `src/components/ui/dialog.tsx` está com contrato global frágil para todos os modais (posicionamento/stacking/animação), o que gera overlay visível com conteúdo não renderizado corretamente em alguns cenários.
+2) `src/pages/VehiclesPage.tsx` tem fluxo de abertura do detalhe suscetível a corrida de evento (click + open/close), causando não abertura intermitente.
 
-1) `src/components/ui/dialog.tsx` (correção estrutural global)
-- Remover centralização dependente de `translate(-50%, -50%)`.
-- Adotar container de viewport seguro (`fixed inset-0 grid place-items-center p-3 sm:p-6`) e conteúdo com:
-  - `w-[min(96vw,42rem)]`
-  - `max-h-[min(88dvh,52rem)]`
-  - `overflow-hidden flex flex-col`
-- Manter visual liquid glass premium.
-- Ajustar z-index do overlay/content para ficar sempre acima de sidebar e elementos fixos.
+Plano de correção (implementação):
+1. Padronizar um “Dialog seguro” global em `src/components/ui/dialog.tsx`
+- Ajustar centralização para padrão estável (viewport-centered robusto).
+- Garantir hierarquia de camadas explícita (overlay abaixo, conteúdo acima).
+- Remover dependências de classes que podem deixar o conteúdo visualmente invisível na abertura.
+- Manter limite de viewport e estrutura `flex-col` com scroll interno previsível.
 
-2) `src/pages/VehiclesPage.tsx` (correção funcional do menu)
-- Criar `openVehicleDetail(vehicle)` com abertura desacoplada do gesto (RAF/micro-delay) para evitar fechamento imediato no mobile.
-- No `VehicleDetailModal`, travar contrato:
-  - header fixo (`shrink-0`)
-  - corpo com `flex-1 min-h-0 overflow-y-auto overscroll-contain`.
-- Impedir fechamento acidental no primeiro toque externo (`onPointerDownOutside`/`onInteractOutside` controlado).
-- Garantir limpeza de estado ao fechar (`detailVehicle`).
+2. Corrigir abertura do detalhe de veículo em `src/pages/VehiclesPage.tsx`
+- Criar handler determinístico `openVehicleDetail(vehicle)` sem fluxo ambíguo.
+- Simplificar `onOpenChange` e limpar estado no fechamento (`detailVehicle`).
+- Remover interceptações excessivas de outside interaction que podem conflitar com a abertura.
+- Preservar header fixo + body com `overflow-y-auto` para não cortar conteúdo.
 
-3) `src/components/ui/badge.tsx` (hardening)
-- Migrar `Badge` para `React.forwardRef` para eliminar warning e evitar problemas de integração com primitives.
+3. Blindar modais de formulários longos (responsividade real)
+- Revisar `DialogContent` em:
+  - `src/pages/TransportsPage.tsx`
+  - `src/pages/GuestsPage.tsx`
+  - `src/pages/ChecklistPage.tsx`
+- Aplicar padrão: altura máxima de viewport + área interna rolável (sem estourar desktop/mobile).
 
-4) Prevenção de erro semelhante (“aprendizado” aplicado)
-- Padronizar “modal seguro” como regra do projeto (dialog base resiliente + body scroll interno).
-- Aplicar o mesmo padrão aos modais longos já existentes (ex.: históricos de recursos) para evitar regressão futura.
+4. “Aprendizado” para evitar regressão
+- Consolidar no projeto um padrão único de modal: camada, tamanho, scroll e fechamento.
+- Reaplicar o mesmo padrão em todos os pontos “Novo/Adicionar/Editar”.
+- Documentar no código (comentário curto no `dialog.tsx`) o contrato obrigatório do modal.
 
-Validação (obrigatória após implementar)
-- Testar em 390x844, 768x1024 e 1366x768:
-  - abrir detalhe do 1º, do meio e do último veículo;
-  - confirmar centralização real (vertical e horizontal);
-  - confirmar ausência de corte;
-  - confirmar rolagem interna completa;
-  - confirmar que abre no mobile em toque único sem sumir.
+Testes (obrigatórios após implementar):
+1) Desktop (1366x768) e viewport atual:
+- Abrir: Novo Transporte, Adicionar Veículo, Nova Tarefa, Novo Hóspede, detalhe de veículo.
+- Verificar: modal visível imediatamente, centralizado, sem corte, com scroll interno funcional.
+
+2) Mobile (390x844 e 375x812):
+- Repetir todos os fluxos acima com toque único.
+- Verificar: abre sempre na primeira interação, sem tela “vazia”/overlay sem conteúdo.
+
+3) Regressão:
+- Fechar/reabrir modais em sequência.
+- Alternar entre páginas e abrir modais novamente.
+- Confirmar consistência visual e fluidez sem travas.
+
+Arquivos foco:
+- `src/components/ui/dialog.tsx` (correção global principal)
+- `src/pages/VehiclesPage.tsx` (detalhe do veículo e fluxo de abertura)
+- `src/pages/TransportsPage.tsx` (modal “Novo/Editar”)
+- `src/pages/GuestsPage.tsx` (modal “Novo/Editar hóspede”)
+- `src/pages/ChecklistPage.tsx` (modal “Nova tarefa”)
