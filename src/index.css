@@ -273,6 +273,18 @@ input::placeholder, textarea::placeholder {
 .stat-accent-success { border-left: 3px solid hsl(var(--success)); }
 .stat-accent-warning { border-left: 3px solid hsl(var(--warning)); }
 
+/* Page transition — GPU-friendly fade + micro-slide */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-in {
+  animation: page-in 220ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in { animation: none; }
+}
+
 /* Sidebar gold accents */
 .sidebar-gold-bar {
   position: relative;
