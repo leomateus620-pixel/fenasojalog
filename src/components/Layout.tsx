@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import Sidebar from './Sidebar';
 import OfflineBanner from './OfflineBanner';
+import PageTransition from './PageTransition';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Menu } from 'lucide-react';
 
@@ -45,7 +46,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           paddingTop: isMobile ? 56 : 16,
         }}
       >
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
     </div>
   );
