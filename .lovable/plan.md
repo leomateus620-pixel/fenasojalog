@@ -1,78 +1,51 @@
 
 
-# Transições de Página + Otimização do Login
+# Substituir Atalhos Rápidos por 2 Cards de Acesso Externo
 
-## Escopo 1 — Transições entre páginas
+## O que muda
 
-### Abordagem
-Criar um componente `PageTransition` que envolve o conteúdo de cada rota dentro do `Layout`, aplicando uma animação CSS sutil de fade + micro-slide vertical (opacity + translateY) na montagem. Sem biblioteca extra — apenas CSS + React key baseado na rota.
+Remover o bloco "Atalhos Rápidos" (linhas 36-47 e 405-422 do Dashboard) e substituir por 2 cards informativos premium.
 
-### Implementação
+## Implementação
 
-**1. `src/components/PageTransition.tsx`** (novo)
-- Componente wrapper que usa `useLocation().pathname` como `key` para forçar remount a cada navegação.
-- Aplica classe CSS de animação `animate-page-in` na montagem.
-- Respeita `prefers-reduced-motion` (sem animação quando ativado).
+### 1. Copiar o PDF da Rede Hoteleira
+- Copiar `user-uploads://Rede_Hoteleira_1.pdf` para `public/docs/rede-hoteleira.pdf`
+- Servido estaticamente, abre em nova aba
 
-**2. `src/index.css`** — adicionar keyframe
-```css
-@keyframes page-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-page-in {
-  animation: page-in 220ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animate-page-in { animation: none; }
-}
-```
+### 2. Refatorar `src/pages/Dashboard.tsx`
+- Remover array `shortcuts` (linhas 36-47)
+- Remover imports não mais usados (`Hotel`, `ClipboardList`, `Settings`, `Bike`)
+- Substituir bloco "Atalhos Rápidos" (linhas 405-422) por novo bloco com 2 cards:
 
-**3. `src/components/Layout.tsx`**
-- Envolver `{children}` com `<PageTransition>` dentro do `<main>`.
+**Card 1 — Rede Hoteleira**
+- Ícone: `Hotel` (lucide)
+- Título: "Rede Hoteleira"
+- Subtítulo: "Hotéis da região da Grande Santa Rosa"
+- Descrição: "Consulte o PDF com a rede hoteleira disponível para apoio logístico e hospedagem."
+- Badge: "PDF"
+- Ação: `window.open('/docs/rede-hoteleira.pdf', '_blank')` — abre em nova aba
+- Visual: ícone com fundo `bg-primary/10`, badge indicando tipo PDF
 
-Resultado: transição leve de 220ms, GPU-friendly (opacity + transform), sem reflow.
+**Card 2 — Autorizações de Retirada**
+- Ícone: `ClipboardList` (lucide)
+- Título: "Autorizações de Retirada"
+- Subtítulo: "Veículos e patinetes elétricos"
+- Descrição: "Acesse a planilha utilizada pelas comissões para definir os responsáveis autorizados por data e turno."
+- Badge: "Planilha"
+- Ação: `window.open('https://docs.google.com/spreadsheets/d/1I0ESjrZWvpT5dQZrdTvYnIPtpY8SYJVP33fy4Yt0Cf0/edit?gid=0#gid=0', '_blank', 'noopener,noreferrer')`
+- Visual: ícone com fundo `bg-gold/10`, badge indicando tipo Planilha
 
----
+### 3. Layout dos cards
+- Desktop: `grid grid-cols-2 gap-4` (lado a lado)
+- Mobile: `grid grid-cols-1 gap-3` (empilhados)
+- Cada card: `liquid-glass-card rounded-2xl p-5`, hover com `hover:bg-muted/60`, micro-animação `active:scale-[0.98]`, cursor pointer
+- Diferenciação visual: Card 1 usa acento primary (verde), Card 2 usa acento gold (dourado)
+- Botão CTA discreto com ícone `ExternalLink` indicando abertura externa
 
-## Escopo 2 — Otimização da tela de login
+### Arquivos
+1. `public/docs/rede-hoteleira.pdf` — copiar asset
+2. `src/pages/Dashboard.tsx` — substituir bloco de atalhos
 
-### Problemas identificados
-1. Imagens PNG importadas via Vite como módulo JS — carregam com o bundle, bloqueiam render.
-2. Background usa `<img>` tag com `absolute inset-0` — funcional mas sem loading progressivo.
-3. `min-h-screen` no container pode causar saltos no mobile (100vh vs dvh).
-4. `backdrop-filter: blur(28px)` nos inputs é desnecessário (já tem no card pai) — custo extra de compositing.
-
-### Implementação
-
-**1. `src/pages/LoginPage.tsx`** — refatorar background
-- Trocar `<img>` tags por CSS `background-image` no container raiz com `bg-cover bg-center bg-fixed bg-no-repeat`.
-- Usar `min-h-[100dvh]` em vez de `min-h-screen`.
-- Adicionar estado `imageLoaded` com `<link rel="preload">` ou `new Image()` para fade-in progressivo do fundo.
-- Remover `backdrop-filter` dos inputs (herdam do card).
-- Manter card com `will-change: transform` para isolar compositing.
-
-**2. Estratégia de carregamento progressivo**
-- Container inicia com background color sólido escuro (cor dominante da imagem).
-- Ao carregar a imagem via JS `new Image()`, aplica fade-in do background com transição CSS `opacity 500ms`.
-- Resultado: formulário visível instantaneamente, imagem aparece suavemente.
-
-**3. Estabilidade visual mobile**
-- Container: `fixed inset-0` em vez de `min-h-[100dvh]` para o wrapper do background — imune a barras do navegador.
-- Conteúdo: `min-h-[100dvh]` com `overflow-y-auto` para o container do formulário.
-- Remover `overflow-hidden` do container pai (causa corte em teclado virtual).
-
----
-
-## Arquivos a editar
-1. `src/components/PageTransition.tsx` — **criar** (wrapper de transição)
-2. `src/components/Layout.tsx` — envolver children com PageTransition
-3. `src/index.css` — adicionar keyframe `page-in`
-4. `src/pages/LoginPage.tsx` — refatorar background para CSS + loading progressivo + dvh
-
-## Riscos mitigados
-- Nenhuma lógica de negócio alterada
-- Nenhum componente de modal/dialog tocado
-- Animação usa apenas `opacity` + `transform` (GPU)
-- Fallback automático para `prefers-reduced-motion`
+### Riscos
+- Nenhum — apenas substitui um bloco visual estático por outro, sem tocar em lógica de negócio
 
