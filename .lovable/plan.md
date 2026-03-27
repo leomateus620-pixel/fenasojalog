@@ -1,42 +1,31 @@
 
 
-# Atualizar Distâncias de Rotas com Valores Reais
+# Exibir Rota Completa: Partida → Destino → Retorno
 
 ## O que muda
 
-Atualizar o mapeamento estático de distâncias em `src/lib/utils.ts` com os valores reais fornecidos pelo usuário (ida e volta):
-
-| Rota | Valor atual (ida×2) | Novo valor (ida e volta) |
-|---|---|---|
-| Santo Ângelo | 110 km | 142,6 km |
-| Chapecó | 370 km | 630 km |
-| Passo Fundo | 420 km | 560 km |
-| Porto Alegre | 980 km | 1.024 km |
+Atualmente a rota é exibida como `Origem → Destino` (ex: "Santa Rosa → Prefeito Mantei"). O usuário quer o formato completo `Partida → Destino → Retorno` (ex: "Santa Rosa → Prefeito Mantei → Santa Rosa"), mostrando que o motorista volta à origem.
 
 ## Implementação
 
-Alterar `KNOWN_DISTANCES_KM` para armazenar valores de **ida e volta** diretamente (em vez de ida × 2) e renomear para `KNOWN_ROUNDTRIP_KM`. Remover a multiplicação `* 2` em `getRoundTripKm`.
+### 1. `src/components/TransportDynamicIsland.tsx`
 
-```typescript
-const KNOWN_ROUNDTRIP_KM: Record<string, number> = {
-  'Aeroporto_Chapecó': 630,
-  'Aeroporto_Santo Ângelo': 143,
-  'Aeroporto_Passo Fundo': 560,
-  'Aeroporto_Porto Alegre': 1024,
-  'Parque': 6,
-  'Hotel': 4,
-  'Centro': 4,
-  'Escolta Policial': 4,
-};
+Atualizar 3 locais onde a rota é exibida:
 
-export function getRoundTripKm(...): number | null {
-  ...
-  const km = KNOWN_ROUNDTRIP_KM[key];
-  if (km === undefined || km === 0) return null;
-  return km; // já é ida e volta
-}
-```
+- **Linha 162** (cancelado): `{t.origem} → {t.destino}` → `{t.origem} → {t.destino} → {t.origem}`
+- **Linhas 207-211** (expandido): Adicionar terceiro span com `→ {t.origem}` após destino
+- **Linha 436** (mapa fullscreen): sem mudança (já usa labels separados)
 
-## Arquivo alterado
-- `src/lib/utils.ts` — atualizar mapa de distâncias e remover `* 2`
+### 2. `src/components/transport/TransportCard.tsx`
+
+- **Linha 68**: `${t.origem} → ${t.destino}` → `${t.origem} → ${t.destino} → ${t.origem}`
+
+### 3. `src/components/transport/TransportDetailView.tsx`
+
+Verificar e atualizar qualquer exibição de rota no mesmo padrão.
+
+## Arquivos alterados
+1. `src/components/TransportDynamicIsland.tsx` — rota completa com retorno
+2. `src/components/transport/TransportCard.tsx` — fallback de título com retorno
+3. `src/components/transport/TransportDetailView.tsx` — se houver exibição de rota
 
