@@ -1,105 +1,62 @@
 
 
-# Corrigir Solicitação de Permissão de Localização ao Iniciar Viagem
+# Mostrar KM Ida e Volta em Cada Transporte
 
-## Diagnóstico
-
-Analisando o fluxo completo:
-
-1. Quando o motorista clica "Iniciar", `cycleStatus` chama `setTrackingTransportId(t.id)` (linha 610)
-2. Um `useEffect` (linha 262) detecta a mudança e chama `locationTrackerRef.current.startTracking()`
-3. `startTracking` chama `navigator.geolocation.watchPosition()`
-
-**Problema principal**: O `startTracking` chama `watchPosition` que internamente usa `updateLocation`, mas `updateLocation` depende de `transportId` via closure. Quando o `useEffect` dispara, o `locationTrackerRef` pode ter a versão de `startTracking` que capturou o `transportId` anterior (null), fazendo com que `updateLocation` retorne silenciosamente sem salvar no banco — o GPS obtém a posição mas ela nunca é persistida.
-
-**Problema secundário**: Se a permissão de localização foi negada anteriormente pelo browser, o `watchPosition` retorna erro imediatamente sem mostrar o prompt novamente. O usuário vê "Permissão de localização negada" sem saber como resolver.
+## Contexto
+A tabela `transports` já possui a coluna `distancia_estimada_km`, mas não está sendo populada nem exibida. O sistema já tem a edge function `estimate-return` que usa Google Routes API para calcular distâncias reais.
 
 ## Solução
 
-### 1. Corrigir race condition no `useLocationTracking.ts`
-
-Usar refs para `transportId`, `orgId` e `user` dentro de `updateLocation` para evitar closures obsoletas:
-
-```typescript
-const transportIdRef = useRef(transportId);
-const orgIdRef = useRef(orgId);
-const userRef = useRef(user);
-
-useEffect(() => { transportIdRef.current = transportId; }, [transportId]);
-useEffect(() => { orgIdRef.current = orgId; }, [orgId]);
-useEffect(() => { userRef.current = user; }, [user]);
-
-const updateLocation = useCallback(async (pos: GeolocationPosition) => {
-  const tid = transportIdRef.current;
-  const oid = orgIdRef.current;
-  const u = userRef.current;
-  if (!tid || !oid || !u) return;
-  // ... rest uses tid, oid, u
-}, []); // No dependencies — always fresh via refs
-```
-
-Isso garante que `updateLocation` sempre usa os valores mais recentes, mesmo que `startTracking` tenha sido criado com uma closure anterior.
-
-### 2. Verificar permissão antes de iniciar tracking
-
-Adicionar verificação de permissão no `startTracking` usando `navigator.permissions.query()`:
+### 1. Mapa de distâncias conhecidas (fallback estático)
+Criar um mapa de distâncias conhecidas de ida (Santa Rosa → destino) no arquivo `src/lib/utils.ts` para uso imediato sem chamada à API:
 
 ```typescript
-const startTracking = useCallback(async () => {
-  if (!navigator.geolocation) {
-    setState(prev => ({ ...prev, error: 'Geolocalização não suportada' }));
-    return;
-  }
+const KNOWN_DISTANCES_KM: Record<string, number> = {
+  'Aeroporto_Chapecó': 185,
+  'Aeroporto_Santo Ângelo': 55,
+  'Aeroporto_Passo Fundo': 210,
+  'Aeroporto_Porto Alegre': 490,
+  'Parque': 3,
+  'Hotel': 2,
+  'Centro': 2,
+  'Escolta Policial': 2,
+  'Outros': 0,
+};
 
-  // Check permission state first
-  try {
-    const perm = await navigator.permissions.query({ name: 'geolocation' });
-    if (perm.state === 'denied') {
-      setState(prev => ({
-        ...prev,
-        error: 'Localização bloqueada. Acesse as configurações do navegador para permitir.',
-      }));
-      return;
-    }
-  } catch { /* Some browsers don't support permissions API — proceed anyway */ }
-
-  setState(prev => ({ ...prev, isTracking: true, error: null }));
-  // watchPosition...
-}, []);
+export function getRoundTripKm(titulo: string, vooCidade?: string): number | null {
+  const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : titulo;
+  const oneWay = KNOWN_DISTANCES_KM[key];
+  if (oneWay === undefined || oneWay === 0) return null;
+  return oneWay * 2;
+}
 ```
 
-### 3. Melhorar UX de erro no `TransportDynamicIsland.tsx`
+### 2. Exibir KM no TransportCard (`src/components/transport/TransportCard.tsx`)
+Na linha da rota (Dynamic Island, linha que mostra "Santa Rosa → Passo Fundo"), adicionar o KM ida+volta:
 
-Quando o erro é de permissão negada, mostrar instruções claras com botão de retry:
+- Priorizar `t.distancia_estimada_km` (salvo no banco) se existir
+- Fallback: usar `getRoundTripKm(t.titulo, t.voo_cidade)`
+- Exibir como chip nos info chips: `🛣️ ~420 km (ida e volta)`
 
-```tsx
-{trackingError && (
-  <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20">
-    <div className="flex items-center gap-2 text-xs text-destructive">
-      <MapPinOff className="w-3.5 h-3.5" />
-      <span>{trackingError}</span>
-    </div>
-    <button onClick={() => locationTracker.startTracking()} className="text-[10px] text-accent underline text-left">
-      Tentar novamente
-    </button>
-  </div>
-)}
-```
+### 3. Calcular e salvar KM ao criar transporte (`src/components/transport/TransportForm.tsx`)
+No formulário, quando o título e cidade são selecionados:
 
-### 4. Tornar `startTracking` async no `TransportsPage.tsx`
+- Mostrar label informativo com o KM estimado ida+volta
+- O valor será passado como `distancia_estimada_km` no payload de criação
 
-Atualizar o `useEffect` para chamar como async, já que agora `startTracking` é async:
-
-```typescript
-useEffect(() => {
-  if (trackingTransportId && !locationTrackerRef.current.isTracking) {
-    locationTrackerRef.current.startTracking();
-  }
-}, [trackingTransportId]);
-```
+### 4. Salvar no payload de criação (`src/pages/TransportsPage.tsx`)
+Ao submeter o formulário de criação, incluir `distancia_estimada_km` calculado via `getRoundTripKm()`.
 
 ## Arquivos alterados
+1. `src/lib/utils.ts` — adicionar `getRoundTripKm()`
+2. `src/components/transport/TransportCard.tsx` — exibir chip de KM ida+volta
+3. `src/components/transport/TransportForm.tsx` — mostrar KM estimado no form
+4. `src/pages/TransportsPage.tsx` — incluir `distancia_estimada_km` no payload
 
-1. `src/hooks/useLocationTracking.ts` — refs para valores frescos + verificação de permissão + startTracking async
-2. `src/components/TransportDynamicIsland.tsx` — UX de erro melhorada com retry
+## Validação
+- Valores baseados em distâncias reais Google Maps (Santa Rosa–RS)
+- Sem chamadas extras à API (usa mapa estático para performance)
+- Transportes existentes com `distancia_estimada_km` salvo usam o valor do banco
+- Transportes sem valor salvo usam fallback estático
+- "Outros" sem cidade conhecida não mostra KM (evita números genéricos)
 
