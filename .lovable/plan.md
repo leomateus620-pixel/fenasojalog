@@ -1,60 +1,63 @@
 
 
-# Corrigir Mapa Leaflet no Menu Transportes
+# Corrigir Mapa de Localização nos Transportes
 
-## Diagnóstico
+## Problemas identificados
 
-O mapa Leaflet não renderiza corretamente porque é inicializado enquanto seu container ainda está animando (transição `maxHeight: 0 → 450px` no Dynamic Island). Quando o Leaflet calcula o tamanho dos tiles, o container tem dimensões incorretas — resultando em tiles cinzas, mapa deslocado ou parcialmente renderizado.
-
-## Causa raiz
-
-No `TransportDynamicIsland.tsx`, o mapa está dentro de um `div` com transição CSS de `maxHeight`. O Leaflet inicializa via `useEffect` antes da animação terminar, capturando dimensões erradas. Não há chamada a `map.invalidateSize()` após o container se estabilizar.
+1. **Dynamic Island começa fechado** — mesmo para viagens "em_andamento", o `expanded` inicia como `false`. O usuário precisa clicar para ver o mapa.
+2. **Sem mapa antes da localização chegar** — o mapa só aparece quando `location` não é null (dados do GPS já inseridos no banco). Há um delay entre iniciar a viagem e o GPS retornar a primeira posição.
+3. **Sem rota sugerida visual** — quando não há polyline salva, o mapa mostra apenas o ponto do motorista sem rota ao destino.
 
 ## Solução
 
-Adicionar `invalidateSize()` no `DriverLocationMap.tsx` com dois mecanismos:
+### 1. Auto-expandir Dynamic Island para viagens ativas
+No `TransportDynamicIsland.tsx`, iniciar `expanded` como `true` quando `t.status === 'em_andamento'`:
 
-1. **Timer após montagem** — chamar `invalidateSize()` com delay de 600ms (após a animação de 500ms do Dynamic Island terminar)
-2. **ResizeObserver** — observar o container do mapa e chamar `invalidateSize()` sempre que suas dimensões mudarem
-
-### Alteração em `src/components/DriverLocationMap.tsx`
-
-No `useEffect` principal (linha 25-110), após criar o mapa, adicionar:
-
-```typescript
-// Após L.map(...) ser criado:
-setTimeout(() => {
-  mapInstanceRef.current?.invalidateSize();
-}, 600);
+```tsx
+const [expanded, setExpanded] = useState(isActive);
 ```
 
-E no `useEffect` de cleanup (linha 112-122), adicionar um `ResizeObserver`:
-
-```typescript
+E adicionar um `useEffect` para expandir automaticamente quando o status mudar para ativo:
+```tsx
 useEffect(() => {
-  const container = mapRef.current;
-  if (!container) return;
-
-  const observer = new ResizeObserver(() => {
-    mapInstanceRef.current?.invalidateSize();
-  });
-  observer.observe(container);
-
-  return () => {
-    observer.disconnect();
-    mapInstanceRef.current?.remove();
-    mapInstanceRef.current = null;
-    markerRef.current = null;
-    circleRef.current = null;
-    polylineRef.current = null;
-    destMarkerRef.current = null;
-  };
-}, []);
+  if (isActive) setExpanded(true);
+}, [isActive]);
 ```
 
-### Arquivo
-- `src/components/DriverLocationMap.tsx` — adicionar `invalidateSize()` com timer + ResizeObserver
+### 2. Mostrar mapa com destino enquanto localização não chega
+Na área do mapa (linha 241-287), quando `isActive` mas `location` é null, mostrar um mapa estático com o destino e uma mensagem "Aguardando GPS...":
 
-### Riscos
-- Nenhum — `invalidateSize()` é idempotente e sem efeitos colaterais, apenas recalcula dimensões internas do Leaflet
+```tsx
+{isActive && !location && destCoords ? (
+  <Suspense fallback={...}>
+    <div className="relative">
+      <DriverLocationMap
+        latitude={destCoords[0]}
+        longitude={destCoords[1]}
+        className="h-[160px] relative"
+        routePolyline={routePolyline}
+        destLatLng={destCoords}
+        destLabel={t.destino}
+      />
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px] rounded-2xl">
+        <span className="flex items-center gap-2 bg-card/90 px-3 py-1.5 rounded-full text-xs font-medium">
+          <Navigation className="w-3.5 h-3.5 animate-pulse text-accent" />
+          Obtendo localização do motorista...
+        </span>
+      </div>
+    </div>
+  </Suspense>
+) : null}
+```
+
+### 3. Gerar rota em linha reta como fallback visual
+No `DriverLocationMap.tsx`, quando não há `routePolyline` mas há `destLatLng` e posição do motorista, desenhar uma linha direta (sem polyline da API) entre os dois pontos para dar feedback visual imediato.
+
+## Arquivos alterados
+1. `src/components/TransportDynamicIsland.tsx` — auto-expand + mapa fallback enquanto GPS carrega
+2. `src/components/DriverLocationMap.tsx` — linha reta fallback quando não há polyline
+
+## Riscos
+- Nenhum impacto em lógica de negócio
+- O auto-expand não afeta viagens pendentes ou concluídas
 
