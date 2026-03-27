@@ -1,62 +1,42 @@
 
 
-# Mostrar KM Ida e Volta em Cada Transporte
+# Corrigir Cálculo de KM por Rotas Reais (Google Routes API)
 
-## Contexto
-A tabela `transports` já possui a coluna `distancia_estimada_km`, mas não está sendo populada nem exibida. O sistema já tem a edge function `estimate-return` que usa Google Routes API para calcular distâncias reais.
+## Diagnóstico
+
+O sistema já possui a edge function `estimate-return` que chama a Google Routes API para calcular distâncias por rota. Porém, dois problemas impedem o funcionamento:
+
+1. **A Routes API está desabilitada no Google Cloud** — os logs mostram erro 403: "Routes API has not been used in project 193287871715 before or it is disabled". A chave `GOOGLE_MAPS_API_KEY` existe mas a API não está ativada.
+
+2. **Inconsistência ida vs ida+volta** — quando a API funciona, `fetchRoutePreview` retorna `distance_km` de ida (one-way), mas o campo `distancia_estimada_km` deveria armazenar o total ida+volta. O código atual salva `routeData.distance_km` diretamente (one-way) enquanto o fallback `getRoundTripKm()` retorna ida+volta (multiplicado por 2).
 
 ## Solução
 
-### 1. Mapa de distâncias conhecidas (fallback estático)
-Criar um mapa de distâncias conhecidas de ida (Santa Rosa → destino) no arquivo `src/lib/utils.ts` para uso imediato sem chamada à API:
+### 1. Ativar a Google Routes API (ação do usuário)
+O usuário precisa acessar o Google Cloud Console e ativar a "Routes API" no projeto associado à chave. Sem isso, todas as chamadas retornam 403.
+
+### 2. Corrigir multiplicação ida+volta no `TransportsPage.tsx`
+Quando `fetchRoutePreview` retorna `distance_km` (one-way), multiplicar por 2 para armazenar como ida+volta:
 
 ```typescript
-const KNOWN_DISTANCES_KM: Record<string, number> = {
-  'Aeroporto_Chapecó': 185,
-  'Aeroporto_Santo Ângelo': 55,
-  'Aeroporto_Passo Fundo': 210,
-  'Aeroporto_Porto Alegre': 490,
-  'Parque': 3,
-  'Hotel': 2,
-  'Centro': 2,
-  'Escolta Policial': 2,
-  'Outros': 0,
-};
-
-export function getRoundTripKm(titulo: string, vooCidade?: string): number | null {
-  const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : titulo;
-  const oneWay = KNOWN_DISTANCES_KM[key];
-  if (oneWay === undefined || oneWay === 0) return null;
-  return oneWay * 2;
-}
+distancia_estimada_km: routeData.distance_km 
+  ? Math.round(routeData.distance_km * 2) 
+  : getRoundTripKm(form.titulo, form.voo_cidade) || null,
 ```
 
-### 2. Exibir KM no TransportCard (`src/components/transport/TransportCard.tsx`)
-Na linha da rota (Dynamic Island, linha que mostra "Santa Rosa → Passo Fundo"), adicionar o KM ida+volta:
+Aplicar no payload de criação principal (linha ~429) e no return trip (linha ~476).
 
-- Priorizar `t.distancia_estimada_km` (salvo no banco) se existir
-- Fallback: usar `getRoundTripKm(t.titulo, t.voo_cidade)`
-- Exibir como chip nos info chips: `🛣️ ~420 km (ida e volta)`
+### 3. Atualizar exibição no `TransportForm.tsx`
+Chamar `fetchRoutePreview` ao selecionar título/cidade e mostrar a distância real da API (multiplicada por 2) em vez do mapa estático. Se a API falhar, usar o fallback estático.
 
-### 3. Calcular e salvar KM ao criar transporte (`src/components/transport/TransportForm.tsx`)
-No formulário, quando o título e cidade são selecionados:
-
-- Mostrar label informativo com o KM estimado ida+volta
-- O valor será passado como `distancia_estimada_km` no payload de criação
-
-### 4. Salvar no payload de criação (`src/pages/TransportsPage.tsx`)
-Ao submeter o formulário de criação, incluir `distancia_estimada_km` calculado via `getRoundTripKm()`.
+### 4. Manter fallback estático em `getRoundTripKm`
+Manter os valores estáticos como fallback seguro para quando a API estiver indisponível. Os valores atuais já são baseados em distâncias rodoviárias reais (não linha reta).
 
 ## Arquivos alterados
-1. `src/lib/utils.ts` — adicionar `getRoundTripKm()`
-2. `src/components/transport/TransportCard.tsx` — exibir chip de KM ida+volta
-3. `src/components/transport/TransportForm.tsx` — mostrar KM estimado no form
-4. `src/pages/TransportsPage.tsx` — incluir `distancia_estimada_km` no payload
+1. `src/pages/TransportsPage.tsx` — multiplicar `distance_km * 2` nos payloads de criação
+2. `src/components/transport/TransportForm.tsx` — buscar distância da API ao selecionar destino
+3. `src/components/transport/TransportCard.tsx` — sem mudanças (já exibe `distancia_estimada_km` corretamente)
 
-## Validação
-- Valores baseados em distâncias reais Google Maps (Santa Rosa–RS)
-- Sem chamadas extras à API (usa mapa estático para performance)
-- Transportes existentes com `distancia_estimada_km` salvo usam o valor do banco
-- Transportes sem valor salvo usam fallback estático
-- "Outros" sem cidade conhecida não mostra KM (evita números genéricos)
+## Pré-requisito
+O usuário precisa ativar a **Routes API** no Google Cloud Console: `https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=193287871715`
 
