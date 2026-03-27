@@ -1,92 +1,73 @@
 
 
-# Relatório do Sistema — Novo Menu + PDF Completo
+# Relatório do Sistema Automático — E-mail Diário 7h e 19h
 
-## Visao Geral
+## O que será feito
 
-Criar uma nova pagina `/system-report` acessivel pelo menu lateral (secao Sistema, abaixo de Configuracoes), que permite ao usuario selecionar um periodo e gerar um PDF completo com todos os dados do sistema naquele intervalo, servindo como backup operacional.
+Criar um fluxo automatizado que gera o Relatório do Sistema 2x ao dia (7:00 e 19:00 BRT) e envia por e-mail para `leomateus620@gmail.com` e `fenasojalog@gmail.com`.
+
+## Pré-requisito: Infraestrutura de E-mail
+
+Para enviar e-mails a partir do sistema, é necessário configurar um domínio de e-mail. Isso será feito automaticamente como primeiro passo — o sistema configurará a infraestrutura de envio de e-mails e criará o template do relatório.
+
+**Sem um domínio de e-mail configurado, não é possível enviar e-mails.** Após a configuração, será necessário aguardar a verificação DNS (pode levar até 72h), mas a estrutura pode ser montada imediatamente.
 
 ## Arquitetura
 
-**Client-side** — todos os dados ja existem nos hooks. A pagina reutiliza os hooks existentes (`useTransports`, `useVehicles`, `useGuests`, `useEvents`, `useTasks`, `useElectricCarts`, `useScooters`, `useSchedules`, `useFuelRecords`, `useVehicleUsage`, `useTransportGuests`, `useOrgMembers`) e filtra por periodo. O PDF e gerado client-side com `jspdf` + `jspdf-autotable` (ja instalados).
-
-Nao e necessario edge function, migracao de banco ou hooks novos.
-
-## Modulos cobertos no relatorio
-
-| Modulo | Tabela/Hook | Campos de data para filtro |
-|---|---|---|
-| Transportes | `transports` | `inicio_em`, `created_at`, `updated_at` |
-| Veiculos | `vehicles` | `created_at`, `updated_at` |
-| Uso de Veiculos | `vehicle_usage` | `retirada_em`, `created_at` |
-| Abastecimentos | `fuel_records` | `created_at` |
-| Hospedes | `guests` | `checkin_em`, `checkout_em`, `created_at` |
-| Transport-Hospedes | `transport_guests` | `created_at` |
-| Agenda/Eventos | `events` | `inicio_em`, `created_at` |
-| Tarefas | `tasks` | `due_em`, `created_at`, `updated_at` |
-| Carrinhos Eletricos | `electric_carts` | `created_at`, `updated_at` |
-| Patinetes | `scooters` | `created_at`, `updated_at` |
-| Escalas | `schedules` + `schedule_shifts` + `shift_assignments` | `data_inicio`, `created_at` |
-| Equipe | `org_members` | `created_at` |
-
-## Regra de filtro por periodo (Modo Completo)
-
-Um registro entra no relatorio se **qualquer** campo de data relevante cai dentro do intervalo selecionado (created_at, updated_at, data operacional). Isso garante cobertura maxima para contingencia.
-
-## Implementacao — Arquivos
-
-### 1. `src/lib/generateSystemReportPdf.ts` (novo)
-
-Funcao `generateSystemReportPdf(payload)` que recebe todos os dados filtrados e gera o PDF com:
-- Capa (titulo, periodo, data geracao, usuario)
-- Resumo executivo (totais por modulo, criados/alterados)
-- Metadados do relatorio (filtros, ID unico, timezone)
-- Secoes por modulo (resumo + tabela detalhada com todos os campos)
-- Secao de inconsistencias/alertas
-- Nota metodologica
-- Rodape com paginacao
-
-### 2. `src/lib/systemReportCollector.ts` (novo)
-
-Modulo puro que recebe os arrays de dados dos hooks + periodo e retorna:
-- Dados filtrados por modulo
-- Contagens (criados, alterados, ativos)
-- Inconsistencias detectadas (campos nulos criticos, vinculos quebrados)
-- Resumo executivo
-
-### 3. `src/pages/SystemReportPage.tsx` (novo)
-
-Pagina com:
-- Cabecalho explicativo
-- Seletores de data inicial/final (DatePicker)
-- Tipo de relatorio (Completo / Por modulos)
-- Checkboxes de modulos (quando "por modulos")
-- Pre-visualizacao (contagens por modulo antes de gerar)
-- Botao "Gerar PDF"
-- Feedback de progresso
-
-### 4. `src/App.tsx` — adicionar rota `/system-report`
-
-### 5. `src/components/Sidebar.tsx` — adicionar item na secao Sistema:
+```text
+pg_cron (7:00 / 19:00 BRT)
+   ↓
+Edge Function: send-system-report
+   ↓
+1. Consulta todas as tabelas (transports, vehicles, guests, events, tasks, etc.)
+2. Filtra dados do dia atual
+3. Monta relatório HTML estruturado (mesmo conteúdo do PDF)
+4. Envia e-mail via send-transactional-email para os 2 destinatários
 ```
-{ to: '/system-report', icon: FileText, label: 'Relatório do Sistema' }
-```
+
+## Implementação
+
+### 1. Configurar infraestrutura de e-mail
+- Setup do domínio de e-mail
+- Criar template de e-mail `system-report` (React Email)
+- Deploy das funções de e-mail
+
+### 2. Criar Edge Function `send-system-report/index.ts`
+- Usa cliente admin do Supabase para consultar todas as tabelas
+- Coleta dados filtrados pelo dia atual (created_at, updated_at dentro do dia)
+- Monta payload resumido com totais por módulo
+- Invoca `send-transactional-email` para cada destinatário com o template `system-report`
+- Destinatários hardcoded: `leomateus620@gmail.com`, `fenasojalog@gmail.com`
+
+### 3. Agendar com pg_cron
+- Criar 2 jobs cron:
+  - `send-system-report-morning`: `0 10 * * *` (10:00 UTC = 7:00 BRT)
+  - `send-system-report-evening`: `0 22 * * *` (22:00 UTC = 19:00 BRT)
+- Cada job faz HTTP POST para a Edge Function
+
+### 4. Teste manual
+- Invocar a Edge Function imediatamente após deploy para validar o fluxo
+
+## Template do e-mail (React Email)
+
+O e-mail conterá:
+- Título: "Relatório do Sistema — [data]"
+- Resumo: total de registros, módulos contemplados
+- Tabela por módulo: nome, total de registros, criados, alterados
+- Seção de inconsistências (se houver)
+- Nota: "Relatório gerado automaticamente às [hora]"
 
 ## Arquivos criados/alterados
 
-| Arquivo | Acao |
+| Arquivo | Ação |
 |---|---|
-| `src/lib/systemReportCollector.ts` | Criar — logica de coleta e filtro |
-| `src/lib/generateSystemReportPdf.ts` | Criar — geracao PDF |
-| `src/pages/SystemReportPage.tsx` | Criar — pagina principal |
-| `src/App.tsx` | Editar — adicionar rota |
-| `src/components/Sidebar.tsx` | Editar — adicionar menu |
+| `supabase/functions/send-system-report/index.ts` | Criar — edge function de coleta + envio |
+| `supabase/functions/_shared/transactional-email-templates/system-report.tsx` | Criar — template do e-mail |
+| `supabase/functions/_shared/transactional-email-templates/registry.ts` | Editar — registrar template |
+| Infraestrutura de e-mail | Setup automático via ferramentas |
+| pg_cron jobs | Inserir via SQL |
 
-## O que NAO muda
+## Limitação importante
 
-- Nenhuma alteracao em paginas existentes
-- Nenhuma migracao de banco
-- Nenhuma edge function nova
-- Nenhuma alteracao em hooks existentes
-- Nenhuma dependencia nova (jspdf ja instalado)
+O PDF não pode ser anexado ao e-mail (Lovable não suporta anexos). O relatório será enviado como **conteúdo HTML no corpo do e-mail**, com a mesma estrutura e dados do PDF. O PDF continua disponível para download manual na página do sistema.
 
