@@ -1,4 +1,5 @@
 import { useTransports } from '@/hooks/useTransports';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import StartTripDialog from '@/components/transport/StartTripDialog';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useVehicles } from '@/hooks/useVehicles';
