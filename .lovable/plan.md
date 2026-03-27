@@ -1,42 +1,42 @@
 
 
-# Corrigir Cálculo de KM por Rotas Reais (Google Routes API)
+# Atualizar Distâncias de Rotas com Valores Reais
 
-## Diagnóstico
+## O que muda
 
-O sistema já possui a edge function `estimate-return` que chama a Google Routes API para calcular distâncias por rota. Porém, dois problemas impedem o funcionamento:
+Atualizar o mapeamento estático de distâncias em `src/lib/utils.ts` com os valores reais fornecidos pelo usuário (ida e volta):
 
-1. **A Routes API está desabilitada no Google Cloud** — os logs mostram erro 403: "Routes API has not been used in project 193287871715 before or it is disabled". A chave `GOOGLE_MAPS_API_KEY` existe mas a API não está ativada.
+| Rota | Valor atual (ida×2) | Novo valor (ida e volta) |
+|---|---|---|
+| Santo Ângelo | 110 km | 142,6 km |
+| Chapecó | 370 km | 630 km |
+| Passo Fundo | 420 km | 560 km |
+| Porto Alegre | 980 km | 1.024 km |
 
-2. **Inconsistência ida vs ida+volta** — quando a API funciona, `fetchRoutePreview` retorna `distance_km` de ida (one-way), mas o campo `distancia_estimada_km` deveria armazenar o total ida+volta. O código atual salva `routeData.distance_km` diretamente (one-way) enquanto o fallback `getRoundTripKm()` retorna ida+volta (multiplicado por 2).
+## Implementação
 
-## Solução
-
-### 1. Ativar a Google Routes API (ação do usuário)
-O usuário precisa acessar o Google Cloud Console e ativar a "Routes API" no projeto associado à chave. Sem isso, todas as chamadas retornam 403.
-
-### 2. Corrigir multiplicação ida+volta no `TransportsPage.tsx`
-Quando `fetchRoutePreview` retorna `distance_km` (one-way), multiplicar por 2 para armazenar como ida+volta:
+Alterar `KNOWN_DISTANCES_KM` para armazenar valores de **ida e volta** diretamente (em vez de ida × 2) e renomear para `KNOWN_ROUNDTRIP_KM`. Remover a multiplicação `* 2` em `getRoundTripKm`.
 
 ```typescript
-distancia_estimada_km: routeData.distance_km 
-  ? Math.round(routeData.distance_km * 2) 
-  : getRoundTripKm(form.titulo, form.voo_cidade) || null,
+const KNOWN_ROUNDTRIP_KM: Record<string, number> = {
+  'Aeroporto_Chapecó': 630,
+  'Aeroporto_Santo Ângelo': 143,
+  'Aeroporto_Passo Fundo': 560,
+  'Aeroporto_Porto Alegre': 1024,
+  'Parque': 6,
+  'Hotel': 4,
+  'Centro': 4,
+  'Escolta Policial': 4,
+};
+
+export function getRoundTripKm(...): number | null {
+  ...
+  const km = KNOWN_ROUNDTRIP_KM[key];
+  if (km === undefined || km === 0) return null;
+  return km; // já é ida e volta
+}
 ```
 
-Aplicar no payload de criação principal (linha ~429) e no return trip (linha ~476).
-
-### 3. Atualizar exibição no `TransportForm.tsx`
-Chamar `fetchRoutePreview` ao selecionar título/cidade e mostrar a distância real da API (multiplicada por 2) em vez do mapa estático. Se a API falhar, usar o fallback estático.
-
-### 4. Manter fallback estático em `getRoundTripKm`
-Manter os valores estáticos como fallback seguro para quando a API estiver indisponível. Os valores atuais já são baseados em distâncias rodoviárias reais (não linha reta).
-
-## Arquivos alterados
-1. `src/pages/TransportsPage.tsx` — multiplicar `distance_km * 2` nos payloads de criação
-2. `src/components/transport/TransportForm.tsx` — buscar distância da API ao selecionar destino
-3. `src/components/transport/TransportCard.tsx` — sem mudanças (já exibe `distancia_estimada_km` corretamente)
-
-## Pré-requisito
-O usuário precisa ativar a **Routes API** no Google Cloud Console: `https://console.developers.google.com/apis/api/routes.googleapis.com/overview?project=193287871715`
+## Arquivo alterado
+- `src/lib/utils.ts` — atualizar mapa de distâncias e remover `* 2`
 
