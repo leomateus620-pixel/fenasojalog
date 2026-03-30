@@ -3,7 +3,19 @@ import { useTransports } from '@/hooks/useTransports';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
 import { Hotel, Plus, Pencil, Trash2, Phone, Mail, MapPin, AlertTriangle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, ensureSPOffset } from '@/lib/utils';
+
+/** Convert a UTC ISO string from the DB to a datetime-local value in SP timezone */
+function utcToSPLocal(iso: string): string {
+  const d = new Date(iso);
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -61,8 +73,8 @@ export default function GuestsPage() {
         email: form.email || null,
         tipo: form.tipo,
         hotel_nome: form.hotel_nome || null,
-        checkin_em: form.checkin_em || null,
-        checkout_em: form.checkout_em || null,
+        checkin_em: form.checkin_em ? ensureSPOffset(form.checkin_em) : null,
+        checkout_em: form.checkout_em ? ensureSPOffset(form.checkout_em) : null,
         observacoes: form.observacoes || null,
       });
       setForm(emptyForm);
@@ -75,8 +87,8 @@ export default function GuestsPage() {
     setEditId(g.id);
     setEditForm({
       nome: g.nome, telefone: g.telefone || '', email: g.email || '', tipo: g.tipo || 'outro',
-      hotel_nome: g.hotel_nome || '', checkin_em: g.checkin_em?.slice(0, 16) || '',
-      checkout_em: g.checkout_em?.slice(0, 16) || '', observacoes: g.observacoes || '',
+      hotel_nome: g.hotel_nome || '', checkin_em: g.checkin_em ? utcToSPLocal(g.checkin_em) : '',
+      checkout_em: g.checkout_em ? utcToSPLocal(g.checkout_em) : '', observacoes: g.observacoes || '',
     });
     setEditOpen(true);
   };
@@ -86,7 +98,7 @@ export default function GuestsPage() {
       await update.mutateAsync({
         id: editId, nome: editForm.nome, telefone: editForm.telefone || null,
         email: editForm.email || null, tipo: editForm.tipo, hotel_nome: editForm.hotel_nome || null,
-        checkin_em: editForm.checkin_em || null, checkout_em: editForm.checkout_em || null,
+        checkin_em: editForm.checkin_em ? ensureSPOffset(editForm.checkin_em) : null, checkout_em: editForm.checkout_em ? ensureSPOffset(editForm.checkout_em) : null,
         observacoes: editForm.observacoes || null,
       });
       setEditOpen(false);
