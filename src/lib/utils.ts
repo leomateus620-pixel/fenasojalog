@@ -49,18 +49,20 @@ export function ensureSPOffset(datetimeLocal: string): string {
   return datetimeLocal + getSPOffset();
 }
 
-/** Extract time HH:MM from ISO string without timezone conversion */
+/** Extract time HH:MM from ISO string, converted to São Paulo timezone */
 export function rawTime(iso: string | null | undefined): string {
   if (!iso) return '-';
-  const t = iso.replace('T', ' ').slice(11, 16);
-  return t || '-';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
 }
 
-/** Extract date DD/MM from ISO string without timezone conversion */
+/** Extract date DD/MM from ISO string, converted to São Paulo timezone */
 export function rawDateShort(iso: string | null | undefined): string {
   if (!iso) return '';
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return `${d}/${m}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
 }
 
 /** Extract weekday from ISO date without timezone conversion */
