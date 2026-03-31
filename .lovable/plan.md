@@ -1,63 +1,61 @@
 
 
-# Reset + Teste Completo do Fluxo de Retirada/Devolução de Veículos
+# Correção do Fuso Horário na Exibição de Transportes
 
-## Problemas Identificados no Código
+## Problema
 
-1. **Odômetro não atualiza na retirada**: `handleRetirada` não atualiza `vehicle.km_atual` com o KM de saída. O odômetro só atualiza após devolução. Isso causa inconsistência visual durante o uso.
+Duas funções usam abordagens diferentes para interpretar `inicio_em`:
 
-2. **Custo Estimado ausente nos cards individuais**: Os cards dos veículos mostram "Custo Real" (abastecimentos), mas não mostram o Custo Estimado (KM × R$ 0,65) por veículo.
+1. `rawTime()` — extrai HH:MM diretamente da string ISO sem conversão → mostra horário UTC
+2. `estimateReturnTime()` — usa `new Date()` que converte para fuso local → mostra horário BRT
 
-3. **Invalidação incompleta**: `createUsage` não invalida `['vehicles']`, então após retirada o card pode não refletir o status imediatamente.
+Resultado: Saída mostra 20:30 (UTC) e Retorno mostra 18:30 (BRT+1h), quando deveria ser Saída 17:30 e Retorno 18:30.
 
-## Plano de Execução
+## Causa Raiz
 
-### 1. Migração SQL — Reset completo dos dados de uso
+O `inicio_em` está sendo salvo como `2026-03-31T20:30:00+00:00` (UTC) quando deveria ser `2026-03-31T20:30:00-03:00` (ou `2026-03-31T23:30:00+00:00`). Isso significa que `ensureSPOffset` não está sendo aplicado corretamente ao salvar, OU o usuário digitou 20:30 querendo dizer 20:30 BRT mas foi salvo como 20:30 UTC.
 
-```sql
--- Deletar todos os registros de uso
-DELETE FROM vehicle_usage;
+## Correção
 
--- Limpar KM dos transportes (zerar histórico de KM)
-UPDATE transports SET km_retirada = NULL, km_devolucao = NULL;
+### 1. `src/lib/utils.ts` — Trocar `rawTime()` para converter para SP
 
--- Resetar odômetro de todos os veículos para 0
-UPDATE vehicles SET km_atual = 0;
-```
+Ao invés de extrair o horário bruto da string ISO, usar `toLocaleTimeString` com `timeZone: 'America/Sao_Paulo'`:
 
-### 2. Fix: Atualizar odômetro na retirada (`VehiclesPage.tsx`)
-
-No `handleRetirada`, adicionar `km_atual: Number(kmSaida)` no `updateVehicle`:
 ```typescript
-await updateVehicle.mutateAsync({
-  id: vehicle.id,
-  status: 'em_uso',
-  km_atual: Number(kmSaida),  // ← NOVO
-  responsavel_user_id: ...
-});
+export function rawTime(iso: string | null | undefined): string {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
 ```
 
-### 3. Fix: Invalidar queries de veículos após criar usage (`useVehicleUsage.ts`)
+### 2. `src/lib/utils.ts` — Trocar `rawDateShort()` para converter para SP
 
-No `createUsage.onSuccess`, adicionar invalidação de `['vehicles']`.
+Mesma lógica, usar `Intl.DateTimeFormat` com timezone SP para extrair dia/mês corretos:
 
-### 4. Fix: Mostrar Custo Estimado por veículo nos cards (`VehiclesPage.tsx`)
+```typescript
+export function rawDateShort(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
+```
 
-Substituir "Custo Real" no grid de 3 colunas do card por "Custo Est." calculado como `vehicleKm * 0.65`, mantendo Custo Real visível nos detalhes.
+### 3. Verificar `ensureSPOffset` no save de transportes
 
-### 5. Teste manual do fluxo completo
+Confirmar que `ensureSPOffset` está sendo aplicado em `inicio_em` e `fim_em` no `handleCreate` e `handleEdit` do `TransportsPage.tsx`. Se não estiver, adicionar.
 
-Após implementação, testar no browser:
-- Confirmar dashboard zerado (0 km, R$ 0,00)
-- Retirar 3 veículos com KM diferentes
-- Devolver e verificar cálculos
-- Confirmar totais do dashboard
+### 4. Corrigir dados existentes no banco
+
+Migração SQL para ajustar transportes cujo `inicio_em` foi salvo sem offset correto (se aplicável — verificar se o transporte recém-criado precisa de correção).
 
 ## Arquivos Alterados
 
 | Arquivo | Ação |
 |---|---|
-| SQL migration | Reset de vehicle_usage, transports KM, vehicles km_atual |
-| `src/pages/VehiclesPage.tsx` | Fix odômetro na retirada + Custo Estimado nos cards |
-| `src/hooks/useVehicleUsage.ts` | Fix invalidação de vehicles no createUsage |
+| `src/lib/utils.ts` | Editar — `rawTime` e `rawDateShort` com conversão SP |
+| `src/pages/TransportsPage.tsx` | Verificar/corrigir `ensureSPOffset` no save |
+| SQL migration (se necessário) | Corrigir dados existentes |
 
