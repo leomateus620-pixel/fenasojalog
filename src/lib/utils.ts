@@ -49,40 +49,44 @@ export function ensureSPOffset(datetimeLocal: string): string {
   return datetimeLocal + getSPOffset();
 }
 
-/** Extract time HH:MM from ISO string without timezone conversion */
+/** Extract time HH:MM from ISO string, converted to São Paulo timezone */
 export function rawTime(iso: string | null | undefined): string {
   if (!iso) return '-';
-  const t = iso.replace('T', ' ').slice(11, 16);
-  return t || '-';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
 }
 
-/** Extract date DD/MM from ISO string without timezone conversion */
+/** Extract date DD/MM from ISO string, converted to São Paulo timezone */
 export function rawDateShort(iso: string | null | undefined): string {
   if (!iso) return '';
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return `${d}/${m}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
 }
 
-/** Extract weekday from ISO date without timezone conversion */
+/** Extract weekday from ISO date, converted to São Paulo timezone */
 export function rawWeekday(iso: string | null | undefined): string {
   if (!iso) return '';
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  const date = new Date(Number(y), Number(m) - 1, Number(d));
-  return date.toLocaleDateString('pt-BR', { weekday: 'short' });
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'America/Sao_Paulo' });
 }
 
-/** Extract day from ISO date without timezone conversion */
+/** Extract day from ISO date, converted to São Paulo timezone */
 export function rawDay(iso: string | null | undefined): string {
   if (!iso) return '';
-  return iso.slice(8, 10);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', timeZone: 'America/Sao_Paulo' });
 }
 
-/** Extract month short from ISO date without timezone conversion */
+/** Extract month short from ISO date, converted to São Paulo timezone */
 export function rawMonthShort(iso: string | null | undefined): string {
   if (!iso) return '';
-  const [y, m] = iso.slice(0, 10).split('-');
-  const date = new Date(Number(y), Number(m) - 1, 1);
-  return date.toLocaleDateString('pt-BR', { month: 'short' });
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'America/Sao_Paulo' });
 }
 
 /** Known round-trip distances in km from Santa Rosa to common destinations */
