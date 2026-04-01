@@ -62,9 +62,16 @@ export function useVehicles() {
     const path = `${orgId}/${vehicleId}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('vehicle-documents').upload(path, file);
     if (error) throw error;
-    const { data } = supabase.storage.from('vehicle-documents').getPublicUrl(path);
-    return data.publicUrl;
+    return path;
   };
 
-  return { vehicles, isLoading, create, update, remove, uploadDocument };
+  const getDocumentUrl = async (storagePath: string): Promise<string> => {
+    const { data, error } = await supabase.storage
+      .from('vehicle-documents')
+      .createSignedUrl(storagePath, 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  };
+
+  return { vehicles, isLoading, create, update, remove, uploadDocument, getDocumentUrl };
 }
