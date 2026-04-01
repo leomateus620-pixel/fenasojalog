@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -423,14 +423,15 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function BigStat({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return (
-    <div className="text-center p-3 rounded-xl bg-muted/30">
+const BigStat = React.forwardRef<HTMLDivElement, { label: string; value: string; accent: string }>(
+  ({ label, value, accent }, ref) => (
+    <div ref={ref} className="text-center p-3 rounded-xl bg-muted/30">
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
       <p className={`text-xl font-bold text-${accent}`}>{value}</p>
     </div>
-  );
-}
+  )
+);
+BigStat.displayName = 'BigStat';
 
 function fmtDate(d: string): string {
   const [y, m, day] = d.split('-');
