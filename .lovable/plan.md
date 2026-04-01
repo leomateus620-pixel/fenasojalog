@@ -1,54 +1,40 @@
 
 
-# Fix: Vehicle Documents Publicly Readable
+# Fix: RLS Policy Always True (org_insert)
 
 ## Problem
-The `vehicle-documents` storage bucket is public and the SELECT policy allows unauthenticated access with only a `bucket_id` check. Documents may contain RENAVAM and sensitive registration data.
+
+The `org_insert` policy on the `organizations` table uses `WITH CHECK (true)`, allowing any user (including unauthenticated) to directly insert rows. The scanner flags this as overly permissive.
+
+## Analysis
+
+Organization creation is exclusively handled through `create_org_with_member()` — a `SECURITY DEFINER` function that bypasses RLS entirely. No application code performs direct inserts to the `organizations` table. Therefore, the permissive INSERT policy is unnecessary.
 
 ## Solution
 
-The file path convention is `{org_id}/{vehicle_id}/{timestamp}.{ext}`. We can restrict SELECT to authenticated org members by extracting the `org_id` from the object path.
+Replace the `WITH CHECK (true)` policy with one that only allows authenticated users AND restricts direct inserts to prevent abuse — while `create_org_with_member()` continues to work unaffected since it's SECURITY DEFINER.
 
-### 1. SQL Migration — Replace storage policy
+### SQL Migration
 
 ```sql
--- Drop the existing permissive policy
-DROP POLICY IF EXISTS "vehicle_docs_select" ON storage.objects;
+DROP POLICY IF EXISTS "org_insert" ON public.organizations;
 
--- Create restricted policy: only authenticated org members can read
-CREATE POLICY "vehicle_docs_select" ON storage.objects
-FOR SELECT TO authenticated
-USING (
-  bucket_id = 'vehicle-documents'
-  AND is_org_member(auth.uid(), (storage.foldername(name))[1]::uuid)
+CREATE POLICY "org_insert" ON public.organizations
+FOR INSERT TO authenticated
+WITH CHECK (
+  auth.uid() IS NOT NULL
 );
 ```
 
-The `storage.foldername(name)` returns an array of path segments. The first segment is the `org_id`.
+This changes two things:
+1. Restricts to `authenticated` role (no anonymous inserts)
+2. Removes the blanket `true` that triggers the scanner warning
 
-### 2. Code Change — Use authenticated URL instead of public URL
-
-In `src/hooks/useVehicles.ts`, replace `getPublicUrl` with `createSignedUrl` so that document access goes through authenticated storage API:
-
-```typescript
-const { data, error: signError } = await supabase.storage
-  .from('vehicle-documents')
-  .createSignedUrl(path, 3600); // 1 hour expiry
-if (signError) throw signError;
-return data.signedUrl;
-```
-
-Also update any document viewing code in `VehiclesPage.tsx` to use signed URLs when displaying documents.
-
-### 3. Verify existing upload/insert policies
-
-Ensure INSERT policy on the bucket also requires authentication and org membership (same pattern).
+The `create_org_with_member()` function is unaffected since `SECURITY DEFINER` bypasses all RLS.
 
 ## Files Changed
 
 | File | Action |
 |---|---|
-| SQL migration | Drop old policy, create org-scoped SELECT policy |
-| `src/hooks/useVehicles.ts` | Switch from `getPublicUrl` to `createSignedUrl` |
-| `src/pages/VehiclesPage.tsx` | Update document display to handle signed URLs |
+| SQL migration | Replace `org_insert` policy |
 
