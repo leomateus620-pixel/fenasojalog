@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff, Route, Timer, Ruler, Play, Square, History, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn, rawTime, rawDateShort, nowSP, nowSPLocal, ensureSPOffset, getRoundTripKm } from '@/lib/utils';
+import { cn, rawTime, rawDateShort, nowSP, nowSPLocal, ensureSPOffset, getRoundTripKm, getDateSP } from '@/lib/utils';
 import { useState, lazy, Suspense, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -627,7 +627,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
 
   const filtered = sorted.filter((t: any) => {
     if (filterMotorista && filterMotorista !== 'all' && t.motorista_user_id !== filterMotorista) return false;
-    if (filterData && t.inicio_em && !t.inicio_em.startsWith(filterData)) return false;
+    if (filterData && t.inicio_em && getDateSP(t.inicio_em) !== filterData) return false;
     if (filterStatus && filterStatus !== 'all' && t.status !== filterStatus) return false;
     if (filterSearch) {
       const q = filterSearch.toLowerCase();

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Plus, MapPin, User, Pencil, Trash2, Users, Sun, Sunset, Moon, CalendarOff, FileDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { cn, rawTime, todaySP, rawDay, rawWeekday, rawMonthShort } from '@/lib/utils';
+import { cn, rawTime, todaySP, getDateSP, parseDateKey } from '@/lib/utils';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -24,9 +24,7 @@ const emptyForm = { titulo: '', descricao: '', inicio_em: '', fim_em: '', local:
 
 /* ── helpers ──────────────────────────────────────────── */
 
-function getDateSP(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-}
+// getDateSP is now imported from utils
 
 function getShift(iso: string): 'manha' | 'tarde' | 'noite' {
   const d = new Date(iso);
@@ -154,17 +152,17 @@ export default function AgendaPage() {
       .filter((e: any) => e.tipo_tag !== 'transporte')
       .map((e: any) => ({ ...e, _source: 'event' as const }));
 
-    // Active transports (not completed/cancelled)
-    const activeTransports = transports
-      .filter((t: any) => t.status !== 'concluido' && t.status !== 'cancelado')
+    // All transports (exclude only cancelado; prefix cancelled label if needed later)
+    const allTransports = transports
+      .filter((t: any) => t.status !== 'cancelado')
       .map((t: any) => {
-        const driver = t.motorista_user_id ? members.find((m: any) => m.user_id === t.motorista_user_id) : null;
         const guestIds = getGuestsForTransport(t.id);
         const guestNames = guestIds.map((gid: string) => guests.find((g: any) => g.id === gid)?.nome).filter(Boolean);
+        const statusPrefix = t.status === 'concluido' ? '✅ ' : '';
 
         return {
           id: t.id,
-          titulo: `Transporte: ${t.titulo || ''} ${t.origem} → ${t.destino}`.trim(),
+          titulo: `${statusPrefix}Transporte: ${t.titulo || ''} ${t.origem} → ${t.destino}`.trim(),
           descricao: guestNames.length ? `Hóspedes: ${guestNames.join(', ')}` : null,
           inicio_em: t.inicio_em,
           fim_em: t.fim_em || t.inicio_em,
@@ -176,8 +174,8 @@ export default function AgendaPage() {
         };
       });
 
-    return [...regularEvents, ...activeTransports];
-  }, [events, transports, members, guests, getGuestsForTransport]);
+    return [...regularEvents, ...allTransports];
+  }, [events, transports, guests, getGuestsForTransport]);
 
   /* ── dates ── */
   const dates: string[] = useMemo(() => {
@@ -316,9 +314,9 @@ export default function AgendaPage() {
                   : 'bg-white/10 backdrop-blur-lg border-white/15 text-foreground hover:bg-white/20'
               )}
             >
-              <span className="text-[10px] uppercase font-medium tracking-wide opacity-80">{rawWeekday(d)}</span>
-              <span className="text-lg font-bold leading-tight">{rawDay(d)}</span>
-              <span className="text-[10px] uppercase opacity-70">{rawMonthShort(d)}</span>
+              <span className="text-[10px] uppercase font-medium tracking-wide opacity-80">{parseDateKey(d).toLocaleDateString('pt-BR', { weekday: 'short' })}</span>
+              <span className="text-lg font-bold leading-tight">{parseDateKey(d).toLocaleDateString('pt-BR', { day: '2-digit' })}</span>
+              <span className="text-[10px] uppercase opacity-70">{parseDateKey(d).toLocaleDateString('pt-BR', { month: 'short' })}</span>
               {isToday && <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-current opacity-60" />}
             </button>
           );
