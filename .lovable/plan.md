@@ -1,63 +1,80 @@
 
+# Correção do splash pós-login para ficar realmente funcional
 
-# Splash Screen 3D — "Nosso Ouro Vem do Campo"
+## Diagnóstico mais provável
 
-## Visão Geral
+Pelo código atual, o problema não parece ser da autenticação em si, e sim do splash:
 
-Criar um componente `SplashScreen` que exibe a imagem oficial da Fenasoja 2026 com animação 3D cinematográfica por exatamente 3 segundos após o login. A animação usa CSS 3D transforms com perspective, rotação, escala e iluminação para criar um efeito "wow".
+1. O `SplashScreen` começa a contar os 3 segundos imediatamente, sem esperar a arte carregar.
+2. O card depende do `<img>` para ter dimensão visual. Se a imagem demorar ou falhar naquele instante, o usuário vê só o fundo/partículas.
+3. Isso explica o relato de “tela de animação travada e sem nada”: o backdrop aparece, mas o card principal não fica garantido.
 
-## Fluxo
+## Correção proposta
 
-1. Usuário faz login no `LoginPage`
-2. `AuthGuard` detecta `user` autenticado
-3. Antes de renderizar os `children`, exibe o `SplashScreen` por 3s
-4. Após 3s, fade-out elegante e mostra o app normalmente
-5. Splash só aparece no login (não em refresh — controlado via `sessionStorage`)
+### 1. Garantir pré-carregamento da arte antes da animação
+Ajustar o fluxo para o splash só iniciar quando a imagem estiver pronta:
+- pré-carregar a imagem ainda no `LoginPage`
+- reforçar no `SplashScreen` com estado `isReady`
+- iniciar o cronômetro de 3s apenas depois do asset estar carregado/decodificado
 
-## Arquivos
+Resultado: os 3 segundos passam a ser “3 segundos com o card visível”, não “3 segundos tentando carregar”.
 
-### 1. Copiar imagem uploaded → `src/assets/fenasoja-splash-2026.png`
+### 2. Dar tamanho fixo e presença visual ao card
+Refatorar o `SplashScreen` para o card não depender do `<img>` para existir:
+- usar um container com `width`, `max-width`, `aspect-ratio` e `min-height`
+- aplicar a arte como camada interna estável
+- manter fallback visual elegante mesmo se houver atraso de imagem
 
-### 2. Novo: `src/components/SplashScreen.tsx`
+Resultado: mesmo em carga lenta, o usuário vê um card real, centralizado e responsivo.
 
-Componente fullscreen com fundo escuro (#0a1a0a) e a imagem centralizada com animação 3D:
+### 3. Tornar a animação mais robusta e fluida
+Ajustar a sequência do splash para evitar sensação de travamento:
+- entrada curta e impactante
+- fase central com flutuação 3D suave
+- saída limpa e precisa
+- manter aceleração por GPU (`transform`, `opacity`)
+- reduzir efeitos que possam esconder o card no primeiro frame
 
-**Sequência de animação (3s total, CSS keyframes):**
-- **0-0.8s**: Card entra com perspectiva 3D — começa rotacionado (rotateY -25deg, rotateX 15deg, scale 0.3, opacity 0) e revela com spring-like easing
-- **0.8-2.2s**: Card "flutua" com micro-rotações suaves (rotateY oscila ±5deg, rotateX ±3deg) + reflexo de luz que desliza pela superfície (pseudo-element com gradiente branco translúcido animado)
-- **2.2-3.0s**: Card faz zoom-in suave (scale 1 → 1.15) com fade-out elegante
+Também vou revisar o `z-index`, `opacity` inicial e a ordem das camadas para o brilho e partículas não competirem com a arte principal.
 
-**Efeitos visuais:**
-- `perspective: 1200px` no container
-- `transform-style: preserve-3d` no card
-- Sombra dinâmica que acompanha a rotação (box-shadow muda com a animação)
-- Reflexo/brilho deslizante (pseudo-element `::after` com gradiente linear branco translúcido, animado com translateX)
-- Partículas douradas sutis flutuando ao fundo (4-6 círculos com animação de drift)
-- Borda glass sutil no card (border com rgba branco)
+### 4. Blindar o fluxo no `AuthGuard`
+Ajustar o gatilho do splash para ficar previsível:
+- mostrar splash apenas quando houver transição real para usuário autenticado
+- impedir reexecução indevida em refresh
+- só encerrar o splash quando a sequência completa terminar corretamente
 
-**Responsividade:**
-- Desktop: imagem max-width 420px
-- Mobile: imagem max-width 85vw, max-height 75vh
-- `object-fit: contain` para manter proporções
+## Arquivos a ajustar
 
-### 3. Editar: `src/components/AuthGuard.tsx`
+- `src/components/SplashScreen.tsx`
+  - adicionar preload/ready state
+  - iniciar a animação só após a arte estar pronta
+  - trocar a estrutura para card com dimensões fixas e fallback visual
 
-Adicionar estado `showSplash` que:
-- Ativa quando `user` existe E `sessionStorage` não tem flag `fenasoja-splash-shown`
-- Renderiza `<SplashScreen onComplete={...} />` em vez dos children
-- No `onComplete` (após 3s), seta flag no sessionStorage e mostra o app
-- No refresh da página, splash não aparece (flag já existe)
+- `src/components/AuthGuard.tsx`
+  - reforçar a lógica de exibição pós-login
+  - evitar corrida entre autenticação e splash
 
-### 4. Editar: `src/index.css`
+- `src/pages/LoginPage.tsx`
+  - pré-carregar a arte do splash enquanto o usuário está na tela de login
 
-Adicionar keyframes CSS para as animações 3D:
-- `@keyframes splash-card-enter` — entrada 3D com rotação
-- `@keyframes splash-card-float` — flutuação suave
-- `@keyframes splash-card-exit` — zoom + fade out
-- `@keyframes splash-shine` — reflexo de luz deslizante
-- `@keyframes splash-particle` — partículas douradas flutuantes
+- `src/index.css`
+  - refinar keyframes e estilos do card
+  - garantir responsividade e visibilidade imediata do conteúdo
 
-## Resultado
+## Resultado esperado
 
-Após o login, o usuário verá um card 3D cinematográfico da Fenasoja 2026 com a imagem oficial, flutuando com reflexos de luz e partículas douradas por 3 segundos, antes de entrar no dashboard.
+Depois da correção:
+- ao fazer login, o card aparecerá de fato
+- ele será exibido por 3 segundos visíveis e completos
+- não haverá mais tela “vazia” com animação no fundo
+- funcionará bem em desktop e mobile
+- a experiência ficará premium, mas estável e confiável
 
+## Validação que vou considerar na implementação
+
+- login em sessão nova
+- login em desktop
+- login em mobile
+- imagem carregando normalmente
+- cenário de carregamento lento
+- splash aparecendo uma vez por sessão sem travar a entrada no sistema
