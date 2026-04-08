@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Clock, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -139,25 +139,52 @@ export function DateTimePicker({
     </Button>
   );
 
+  const compactCalendarClassNames = {
+    months: "flex flex-col sm:flex-row space-y-2 sm:space-x-2 sm:space-y-0",
+    month: "space-y-2",
+    caption: "flex justify-center pt-0.5 relative items-center",
+    caption_label: "text-xs font-medium",
+    nav: "space-x-1 flex items-center",
+    nav_button: cn(
+      buttonVariants({ variant: "outline" }),
+      "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100",
+    ),
+    nav_button_previous: "absolute left-0.5",
+    nav_button_next: "absolute right-0.5",
+    table: "w-full border-collapse space-y-0.5",
+    head_row: "flex",
+    head_cell: "text-muted-foreground rounded-md w-7 font-normal text-[0.65rem]",
+    row: "flex w-full mt-1",
+    cell: "h-7 w-7 text-center text-xs p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+    day: cn(buttonVariants({ variant: "ghost" }), "h-7 w-7 p-0 font-normal text-xs aria-selected:opacity-100"),
+    day_range_end: "day-range-end",
+    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+    day_today: "bg-accent text-accent-foreground",
+    day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+    day_disabled: "text-muted-foreground opacity-50",
+    day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+    day_hidden: "invisible",
+  };
+
   const pickerContent = (
     <div className={cn(
       "flex flex-col",
-      isMobile ? "max-h-[55vh] overflow-y-auto" : ""
+      isMobile ? "max-h-[50vh] overflow-y-auto" : ""
     )}>
       {/* Quick shortcuts */}
-      <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
-        <Zap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <div className="flex items-center gap-1 px-1.5 pt-1.5 pb-0.5">
+        <Zap className="h-3 w-3 text-muted-foreground shrink-0" />
         <button
           type="button"
           onClick={() => handleShortcut("hoje")}
-          className="px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors"
+          className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors"
         >
           Hoje
         </button>
         <button
           type="button"
           onClick={() => handleShortcut("amanha")}
-          className="px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors"
+          className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors"
         >
           Amanhã
         </button>
@@ -165,7 +192,7 @@ export function DateTimePicker({
           <button
             type="button"
             onClick={() => handleShortcut("agora")}
-            className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 hover:bg-primary/25 text-primary transition-colors"
+            className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/15 hover:bg-primary/25 text-primary transition-colors"
           >
             Agora
           </button>
@@ -179,21 +206,22 @@ export function DateTimePicker({
         onSelect={handleDaySelect}
         locale={ptBR}
         initialFocus
+        classNames={compactCalendarClassNames}
         className={cn("p-1 pointer-events-auto", isMobile && "mx-auto")}
       />
 
       {/* Time selector */}
       {mode === "datetime" && (
-        <div className="border-t border-border/60 px-2 pb-2 pt-1.5 space-y-1.5">
-          {/* Hour chips — single scrollable row */}
-          <div className="flex overflow-x-auto gap-1 pb-0.5 scrollbar-hide">
+        <div className="border-t border-border/60 px-1.5 pb-1.5 pt-1 space-y-1">
+          {/* Hour chips */}
+          <div className="flex overflow-x-auto gap-0.5 pb-0.5 scrollbar-hide">
             {quickHours.map((h) => (
               <button
                 key={h}
                 type="button"
                 onClick={() => handleHourChip(h)}
                 className={cn(
-                  "px-1.5 py-0.5 rounded-md text-[11px] font-medium whitespace-nowrap transition-all duration-150 shrink-0",
+                  "px-1 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap transition-all duration-150 shrink-0",
                   hour === h
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "bg-secondary/60 hover:bg-secondary text-secondary-foreground"
@@ -205,10 +233,10 @@ export function DateTimePicker({
           </div>
 
           {/* Precise selectors */}
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
             <Select value={hour} onValueChange={handleHourChange}>
-              <SelectTrigger className="w-[68px] h-8 text-xs">
+              <SelectTrigger className="w-[60px] h-7 text-[11px]">
                 <SelectValue placeholder="HH" />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
@@ -217,9 +245,9 @@ export function DateTimePicker({
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-muted-foreground font-bold text-sm">:</span>
+            <span className="text-muted-foreground font-bold text-xs">:</span>
             <Select value={minute} onValueChange={handleMinuteChange}>
-              <SelectTrigger className="w-[68px] h-8 text-xs">
+              <SelectTrigger className="w-[60px] h-7 text-[11px]">
                 <SelectValue placeholder="MM" />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
@@ -262,7 +290,7 @@ export function DateTimePicker({
         {triggerButton}
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-0 bg-card/95 backdrop-blur-xl border-border/60 shadow-xl"
+        className="w-[260px] p-0 bg-card/95 backdrop-blur-xl border-border/60 shadow-xl"
         align="start"
         sideOffset={4}
       >
