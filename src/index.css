@@ -437,7 +437,7 @@ input::placeholder, textarea::placeholder {
   .splash-card--float,
   .splash-card--exit,
   .splash-shine,
-  .splash-particle {
+  .soybean-grain {
     animation: none !important;
   }
   .splash-card--exit { opacity: 0; }
