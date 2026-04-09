@@ -293,6 +293,9 @@ export default function TransportsPage() {
 
   const [startTripDialogOpen, setStartTripDialogOpen] = useState(false);
   const [startTripWhatsappData, setStartTripWhatsappData] = useState<any>(null);
+  const [startTripWhatsappGuests, setStartTripWhatsappGuests] = useState<any[]>([]);
+  const [startTripDriverName, setStartTripDriverName] = useState('');
+  const [startTripStartedAt, setStartTripStartedAt] = useState('');
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
@@ -639,6 +642,9 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           // Show WhatsApp dialog
           if (result?.whatsapp) {
             setStartTripWhatsappData(result.whatsapp);
+            setStartTripWhatsappGuests(result.whatsappGuests || []);
+            setStartTripDriverName(result.driverName || '');
+            setStartTripStartedAt(result.startedAt || '');
             setStartTripDialogOpen(true);
           }
         } catch {
@@ -967,6 +973,9 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
         open={startTripDialogOpen}
         onOpenChange={setStartTripDialogOpen}
         whatsappData={startTripWhatsappData}
+        whatsappGuests={startTripWhatsappGuests}
+        driverName={startTripDriverName}
+        startedAt={startTripStartedAt}
       />
     </div>
   );

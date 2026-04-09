@@ -120,28 +120,20 @@ async function handleStart(admin: any, userId: string, payload: any) {
     return err("Motorista não vinculado ao transporte", 400);
   }
 
+  // Fetch all linked guests
   const { data: tgLinks } = await admin
     .from("transport_guests")
     .select("guest_id")
     .eq("transport_id", id);
 
-  let guestPhone: string | null = null;
-  let guestName: string | null = null;
-
+  let allGuests: any[] = [];
   if (tgLinks && tgLinks.length > 0) {
     const guestIds = tgLinks.map((l: any) => l.guest_id);
     const { data: guestsData } = await admin
       .from("guests")
       .select("id, nome, telefone")
       .in("id", guestIds);
-
-    const guestWithPhone = guestsData?.find((g: any) => g.telefone && g.telefone.replace(/\D/g, "").length >= 10);
-    if (guestWithPhone) {
-      guestPhone = guestWithPhone.telefone;
-      guestName = guestWithPhone.nome;
-    } else if (guestsData && guestsData.length > 0) {
-      guestName = guestsData[0].nome;
-    }
+    allGuests = guestsData || [];
   }
 
   const now = new Date().toISOString();
@@ -176,33 +168,58 @@ async function handleStart(admin: any, userId: string, payload: any) {
     destinoLabel = `Aeroporto${transport.voo_cidade ? ` de ${transport.voo_cidade}` : ""}`;
   }
 
-  const message = guestName
-    ? `Olá, ${guestName}. Aqui é ${driverName}, motorista responsável pelo seu transporte da Fenasoja Logística. Estou iniciando agora o deslocamento para o ${destinoLabel}. Qualquer necessidade, fico à disposição por aqui.`
-    : `Transporte iniciado para ${destinoLabel}. Motorista: ${driverName}.`;
+  // Build per-guest WhatsApp data
+  const whatsappGuests: any[] = [];
+  for (const guest of allGuests) {
+    const message = guest.nome
+      ? `Olá, ${guest.nome}. Aqui é ${driverName}, motorista responsável pelo seu transporte da Fenasoja Logística. Estou iniciando agora o deslocamento para o ${destinoLabel}. Qualquer necessidade, fico à disposição por aqui.`
+      : `Transporte iniciado para ${destinoLabel}. Motorista: ${driverName}.`;
 
-  let normalizedPhone = "";
-  let phoneValid = false;
-  if (guestPhone) {
-    const digits = guestPhone.replace(/\D/g, "");
-    normalizedPhone = digits.length >= 12 ? digits : `55${digits}`;
-    phoneValid = normalizedPhone.length >= 12 && normalizedPhone.length <= 15;
+    let normalizedPhone = "";
+    let phoneValid = false;
+    if (guest.telefone) {
+      const digits = guest.telefone.replace(/\D/g, "");
+      normalizedPhone = digits.length >= 12 ? digits : `55${digits}`;
+      phoneValid = normalizedPhone.length >= 12 && normalizedPhone.length <= 15;
+    }
+
+    const whatsappUrl = phoneValid
+      ? `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`
+      : "";
+
+    whatsappGuests.push({
+      phone: normalizedPhone,
+      message,
+      url: whatsappUrl,
+      guestName: guest.nome || "",
+      phoneValid,
+    });
   }
 
-  const whatsappUrl = phoneValid
-    ? `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`
-    : "";
+  // If no guests linked, build a generic entry
+  if (whatsappGuests.length === 0) {
+    whatsappGuests.push({
+      phone: "",
+      message: `Transporte iniciado para ${destinoLabel}. Motorista: ${driverName}.`,
+      url: "",
+      guestName: "",
+      phoneValid: false,
+    });
+  }
+
+  // Legacy compat: first guest as `whatsapp`
+  const firstGuest = whatsappGuests[0];
 
   return ok({
     data: updated,
     whatsapp: {
-      phone: normalizedPhone,
-      message,
-      url: whatsappUrl,
-      guestName: guestName || "",
+      ...firstGuest,
       driverName,
       startedAt: now,
-      phoneValid,
     },
+    whatsappGuests,
+    driverName,
+    startedAt: now,
   });
 }
 
