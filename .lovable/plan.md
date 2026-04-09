@@ -1,46 +1,45 @@
 
 
-# Compactar o DateTimePicker dentro dos diálogos de Hóspedes
+# Corrigir detecção de conflito de veículos
 
 ## Problema
 
-O calendário do `DateTimePicker` usa células de 36px (`w-9 h-9`) e padding generoso, ocupando espaço excessivo dentro do diálogo de hóspedes — especialmente quando há dois pickers (check-in e check-out). No desktop, o popover fica grande demais; no mobile, o drawer consome quase toda a tela.
+A função `isVehicleBusyAt` verifica apenas se o horário de início do novo transporte é anterior ao retorno estimado do transporte existente (`newStart < existingReturn`). Isso é uma verificação de "sobreposição" incompleta — falta verificar se o transporte existente começa antes do fim estimado do novo transporte.
+
+Exemplo real: AMAROK tem transporte pendente no dia 01/05 às 03:15. Ao tentar agendar um transporte no dia 29/04, o sistema diz "em uso até ~10:00" porque `29/04 10:25 < 01/05 05:15` é verdadeiro, mesmo que os transportes sejam em dias completamente diferentes.
 
 ## Solução
 
-Criar uma variante compacta do calendário e do picker, reduzindo tamanho das células e espaçamento sem alterar o componente `Calendar` global (que é usado em outros lugares).
+Corrigir a lógica de sobreposição temporal em `isVehicleBusyAt` e `getVehicleConflictInfo` para verificar sobreposição real entre dois intervalos de tempo:
+
+**Dois intervalos [startA, endA] e [startB, endB] se sobrepõem quando:**
+`startA < endB AND startB < endA`
+
+Onde:
+- `startA` / `endA` = início e retorno estimado do **novo** transporte
+- `startB` / `endB` = início e retorno estimado do transporte **existente**
+
+Para o novo transporte, estimar o retorno usando a mesma lógica de duração (título ou 60min padrão).
 
 ## Alterações
 
-### `src/components/ui/date-time-picker.tsx`
+### `src/pages/TransportsPage.tsx`
 
-1. **Passar `classNames` customizados ao `Calendar`** para reduzir tamanho das células:
-   - Células de `w-9 h-9` → `w-7 h-7` (28px)
-   - Dias com `h-7 w-7 text-xs`
-   - Caption label `text-xs`
-   - Nav buttons `h-6 w-6`
-   - Padding do calendário `p-1` (já está)
+Atualizar `isVehicleBusyAt` e `getVehicleConflictInfo`:
 
-2. **Compactar a seção de horários**:
-   - Chips de hora com `text-[10px] px-1 py-0.5`
-   - Select triggers `h-7 w-[60px] text-[11px]`
+```
+// Antes (incorreto):
+return new Date(startTime) < estReturn;
 
-3. **Compactar os shortcuts**:
-   - Padding mais apertado `px-1.5 pt-1.5 pb-0.5`
-   - Ícone Zap `h-3 w-3`
+// Depois (correto - verifica sobreposição real):
+const newStart = new Date(startTime);
+const newEnd = new Date(newStart.getTime() + (durationMin) * 60000); // duração estimada do novo
+return newStart < estReturn && existingStart < newEnd;
+```
 
-4. **PopoverContent (desktop)**: limitar largura com `w-[260px]`
+Receber opcionalmente o título/duração do novo transporte para calcular seu fim estimado, ou usar um fallback de 60-120 minutos.
 
-5. **DrawerContent (mobile)**: manter `max-h-[50vh]` no conteúdo scrollável para não dominar a tela
-
-### `src/pages/GuestsPage.tsx`
-
-- Nenhuma alteração necessária — o componente `DateTimePicker` já é usado inline e a compactação será automática.
-
-## Resultado
-
-- Calendário ~30% menor em ambas as plataformas
-- Não afeta outros usos do componente `Calendar` (agenda, etc.)
-- Header e botão do diálogo de hóspedes permanecem sempre visíveis
-- Picker continua funcional com todos os atalhos e seleção de horário
+| Arquivo | Ação |
+|---|---|
+| `src/pages/TransportsPage.tsx` | Corrigir lógica de sobreposição em `isVehicleBusyAt` e `getVehicleConflictInfo` |
 
