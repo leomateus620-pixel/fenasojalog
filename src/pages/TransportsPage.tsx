@@ -411,8 +411,10 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       // Fetch route estimate
       let routeData: { duration_minutes?: number; distance_km?: number; polyline?: string } = {};
       const destKey = form.titulo === 'Aeroporto' && form.voo_cidade ? `Aeroporto_${form.voo_cidade}` : (form.titulo || 'Outros');
+      const customLat = (form as any).destino_lat;
+      const customLng = (form as any).destino_lng;
       try {
-        const preview = await fetchRoutePreview(destKey);
+        const preview = await fetchRoutePreview(destKey, customLat, customLng);
         if (preview) routeData = preview;
       } catch { /* continue without route data */ }
 
