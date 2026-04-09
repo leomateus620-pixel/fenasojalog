@@ -118,12 +118,19 @@ export default function DriverLocationMap({ latitude, longitude, accuracy, speed
         }
       }
 
-      // Fit bounds to include driver + destination
-      const bounds = L.latLngBounds([
-        [latitude, longitude],
-        destLatLng,
-      ]);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+      // Fit bounds to include driver + destination + polyline
+      if (effectivePolyline && effectivePolyline.length > 2) {
+        // Use full polyline for bounds
+        const bounds = L.latLngBounds(effectivePolyline.map(p => [p[0], p[1]] as [number, number]));
+        bounds.extend([latitude, longitude]);
+        mapInstanceRef.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+      } else {
+        const bounds = L.latLngBounds([
+          [latitude, longitude],
+          destLatLng,
+        ]);
+        mapInstanceRef.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+      }
     }
   }, [latitude, longitude, accuracy, driverName, routePolyline, destLatLng, destLabel]);
 
