@@ -1,47 +1,41 @@
 
 
-# Corrigir KM estimado para destinos como Passo Fundo
+# Suporte a múltiplos hóspedes no diálogo de WhatsApp ao iniciar viagem
 
 ## Problema
 
-A função `getRoundTripKm` resolve a distância usando apenas `titulo` + `voo_cidade`. Quando o transporte tem `titulo` diferente de "Aeroporto" (ex: "Centro", "Outros") mas o `destino` é "Passo Fundo", o sistema retorna 4 km (valor do "Centro") em vez de 560 km.
+Quando um transporte tem múltiplos hóspedes (ex: MARIANGELA e VERÔNICA), o backend (`transport-lifecycle` edge function) seleciona apenas o primeiro hóspede com telefone válido e retorna um único objeto `whatsapp`. O diálogo só mostra opção de envio para esse hóspede.
 
 ## Solução
 
-Adicionar o campo `destino` como parâmetro de fallback em `getRoundTripKm`. Se a resolução por `titulo`/`voo_cidade` retornar um valor genérico (≤10 km) e o `destino` corresponder a uma cidade conhecida com distância maior, usar o valor correto.
+Retornar um array `whatsappGuests` com mensagem e link individualizados para cada hóspede. O diálogo exibirá uma seção por hóspede com nome, mensagem personalizada e botões Copiar/Enviar.
 
 ## Alterações
 
-### `src/lib/utils.ts`
+### 1. `supabase/functions/transport-lifecycle/index.ts`
 
-- Adicionar mapa de destinos conhecidos por nome de cidade:
-  ```
-  'Passo Fundo': 560, 'Chapecó': 630, 'Santo Ângelo': 143, 'Porto Alegre': 1024
-  ```
-- Atualizar `getRoundTripKm` para aceitar `destino` como 3º parâmetro opcional
-- Lógica: se o resultado pelo título for ≤10 km e o `destino` contiver uma cidade conhecida com distância maior, usar essa distância
+- Em vez de buscar apenas o primeiro hóspede com telefone, iterar sobre **todos** os hóspedes vinculados
+- Para cada hóspede, gerar mensagem personalizada com o nome dele e montar o link WhatsApp
+- Retornar `whatsappGuests: Array<{ phone, message, url, guestName, phoneValid }>` junto com `driverName` e `startedAt`
+- Manter o campo `whatsapp` legado apontando para o primeiro hóspede (compatibilidade)
 
-### `src/components/transport/TransportCard.tsx`
+### 2. `src/components/transport/StartTripDialog.tsx`
 
-- Passar `t.destino` para `getRoundTripKm(t.titulo, t.voo_cidade, t.destino)`
+- Aceitar nova prop `whatsappGuests` (array) além do `whatsappData` existente
+- Se `whatsappGuests` tiver mais de 1 item, renderizar uma lista com seção para cada hóspede:
+  - Nome do hóspede como subtítulo
+  - Preview da mensagem
+  - Botões Copiar + Enviar WhatsApp individuais
+  - Aviso de telefone inválido individual
+- Se houver apenas 1 hóspede, manter o layout atual sem alteração visual
 
-### `src/pages/TransportsPage.tsx`
+### 3. `src/pages/TransportsPage.tsx`
 
-- Atualizar chamadas a `getRoundTripKm` para incluir o destino
-
-### `src/lib/kmConsolidation.ts`
-
-- Atualizar chamada para incluir `t.destino`
-
-### `src/components/transport/TransportForm.tsx`
-
-- Atualizar preview de KM para incluir destino
+- Extrair `whatsappGuests` do resultado do `start.mutateAsync` e passar ao `StartTripDialog`
 
 | Arquivo | Ação |
 |---|---|
-| `src/lib/utils.ts` | Adicionar fallback por destino em `getRoundTripKm` |
-| `src/components/transport/TransportCard.tsx` | Passar `destino` |
-| `src/pages/TransportsPage.tsx` | Passar `destino` nas chamadas |
-| `src/lib/kmConsolidation.ts` | Passar `destino` |
-| `src/components/transport/TransportForm.tsx` | Passar `destino` no preview |
+| `supabase/functions/transport-lifecycle/index.ts` | Gerar array de mensagens para todos os hóspedes |
+| `src/components/transport/StartTripDialog.tsx` | Renderizar lista de hóspedes com botões individuais |
+| `src/pages/TransportsPage.tsx` | Passar array de hóspedes ao diálogo |
 
