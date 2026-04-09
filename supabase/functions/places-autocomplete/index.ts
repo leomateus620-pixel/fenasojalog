@@ -43,58 +43,50 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use Google Places API (New) — searchText
-    const url = 'https://places.googleapis.com/v1/places:searchText';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents',
-      },
-      body: JSON.stringify({
-        textQuery: query,
-        languageCode: 'pt-BR',
-        locationBias: {
-          circle: {
-            center: { latitude: -27.87, longitude: -54.48 },
-            radius: 500000,
-          },
-        },
-        maxResultCount: 5,
-      }),
-    });
+    // Step 1: Get autocomplete predictions using legacy Places API
+    const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&language=pt-BR&location=-27.87,-54.48&radius=500000&key=${GOOGLE_MAPS_API_KEY}`;
+    const acRes = await fetch(autocompleteUrl);
+    const acData = await acRes.json();
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error('Places API error:', JSON.stringify(data));
-      return new Response(JSON.stringify({ results: [], error: data.error?.message }), {
+    if (acData.status !== 'OK' || !acData.predictions?.length) {
+      if (acData.error_message) console.error('Autocomplete error:', acData.error_message);
+      return new Response(JSON.stringify({ results: [] }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const results = (data.places || []).map((p: any) => {
-      // Extract city from addressComponents
-      let city = '';
-      for (const comp of (p.addressComponents || [])) {
-        if (comp.types?.includes('administrative_area_level_2') || comp.types?.includes('locality')) {
-          city = comp.longText || comp.shortText || '';
-          break;
+    // Step 2: Get details (lat/lng) for top 5 predictions
+    const predictions = acData.predictions.slice(0, 5);
+    const results = await Promise.all(predictions.map(async (p: any) => {
+      try {
+        const detailUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.place_id}&fields=geometry,address_components&language=pt-BR&key=${GOOGLE_MAPS_API_KEY}`;
+        const detRes = await fetch(detailUrl);
+        const detData = await detRes.json();
+        
+        let city = '';
+        if (detData.result?.address_components) {
+          for (const comp of detData.result.address_components) {
+            if (comp.types?.includes('administrative_area_level_2') || comp.types?.includes('locality')) {
+              city = comp.long_name || '';
+              break;
+            }
+          }
         }
+
+        return {
+          place_id: p.place_id,
+          name: p.structured_formatting?.main_text || p.description,
+          address: p.description,
+          lat: detData.result?.geometry?.location?.lat || 0,
+          lng: detData.result?.geometry?.location?.lng || 0,
+          city,
+        };
+      } catch {
+        return null;
       }
+    }));
 
-      return {
-        place_id: p.id,
-        name: p.displayName?.text || '',
-        address: p.formattedAddress || '',
-        lat: p.location?.latitude || 0,
-        lng: p.location?.longitude || 0,
-        city,
-      };
-    });
-
-    return new Response(JSON.stringify({ results }), {
+    return new Response(JSON.stringify({ results: results.filter(Boolean) }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
