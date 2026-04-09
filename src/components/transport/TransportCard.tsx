@@ -137,7 +137,7 @@ export default function TransportCard({ t, members, vehicles, guests, highlightI
             </span>
           )}
           {(() => {
-            const km = t.distancia_estimada_km || getRoundTripKm(t.titulo, t.voo_cidade);
+            const km = t.distancia_estimada_km || getRoundTripKm(t.titulo, t.voo_cidade, t.destino);
             return km ? (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted/40 text-[11px] text-muted-foreground">
                 🛣️ ~{Math.round(km)} km (ida e volta)

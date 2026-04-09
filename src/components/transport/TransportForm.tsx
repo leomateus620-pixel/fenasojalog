@@ -169,7 +169,7 @@ export default function TransportForm({
               />
             </div>
             {(() => {
-              const km = apiKm || getRoundTripKm(data.titulo, data.voo_cidade);
+              const km = apiKm || getRoundTripKm(data.titulo, data.voo_cidade, data.destino);
               if (loadingKm) return (
                 <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
                   🛣️ Calculando distância por rota...
