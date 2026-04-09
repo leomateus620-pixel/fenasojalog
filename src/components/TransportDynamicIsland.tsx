@@ -78,9 +78,11 @@ export default function TransportDynamicIsland({
   const isDone = t.status === 'concluido';
 
   const location = useTransportLocation(isActive ? t.id : null);
-  const [liveEta, setLiveEta] = useState<{ minutes: number; km: number; arrivalTime: string } | null>(null);
+  const [liveDestRoute, setLiveDestRoute] = useState<{ minutes: number; km: number; arrivalTime: string } | null>(null);
+  const [liveReturnEta, setLiveReturnEta] = useState<{ minutes: number; arrivalTime: string } | null>(null);
   const [livePolyline, setLivePolyline] = useState<[number, number][] | undefined>(undefined);
   const lastFetchRef = useRef<number>(0);
+  const prevIsActiveRef = useRef<boolean>(false);
   const estimatedKm = getEffectiveEstimatedKm(t.distancia_estimada_km, t.titulo, t.voo_cidade, t.destino);
 
   // Auto-expand when transport becomes active
