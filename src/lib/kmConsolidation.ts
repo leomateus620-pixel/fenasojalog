@@ -126,7 +126,7 @@ function resolveKm(t: any): { km: number | null; source: KmSource } {
     return { km: t.distancia_estimada_km, source: 'saved' };
   }
   // Source 2: known route
-  const known = getRoundTripKm(t.titulo, t.voo_cidade);
+  const known = getRoundTripKm(t.titulo, t.voo_cidade, t.destino);
   if (known != null) {
     return { km: known, source: 'known_route' };
   }

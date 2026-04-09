@@ -113,11 +113,27 @@ const KNOWN_ROUNDTRIP_KM: Record<string, number> = {
   'Escolta Policial': 4,
 };
 
-/** Get estimated round-trip km for a transport based on title/city */
-export function getRoundTripKm(titulo: string | null | undefined, vooCidade?: string | null): number | null {
+/** Known round-trip distances by destination city name */
+const KNOWN_DESTINATION_KM: Record<string, number> = {
+  'Passo Fundo': 560,
+  'Chapecó': 630,
+  'Santo Ângelo': 143,
+  'Porto Alegre': 1024,
+};
+
+/** Get estimated round-trip km for a transport based on title/city/destino */
+export function getRoundTripKm(titulo: string | null | undefined, vooCidade?: string | null, destino?: string | null): number | null {
   if (!titulo) return null;
   const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : titulo;
   const km = KNOWN_ROUNDTRIP_KM[key];
-  if (km === undefined || km === 0) return null;
-  return km;
+  if (km !== undefined && km > 0 && km > 10) return km;
+  // Fallback: check destino against known cities
+  if (destino) {
+    for (const [city, cityKm] of Object.entries(KNOWN_DESTINATION_KM)) {
+      if (destino.includes(city)) return cityKm;
+    }
+  }
+  // Return the title-based value if it exists (even small ones like 4-6 km)
+  if (km !== undefined && km > 0) return km;
+  return null;
 }
