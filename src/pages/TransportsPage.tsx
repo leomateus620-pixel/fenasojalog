@@ -293,6 +293,9 @@ export default function TransportsPage() {
 
   const [startTripDialogOpen, setStartTripDialogOpen] = useState(false);
   const [startTripWhatsappData, setStartTripWhatsappData] = useState<any>(null);
+  const [startTripWhatsappGuests, setStartTripWhatsappGuests] = useState<any[]>([]);
+  const [startTripDriverName, setStartTripDriverName] = useState('');
+  const [startTripStartedAt, setStartTripStartedAt] = useState('');
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
