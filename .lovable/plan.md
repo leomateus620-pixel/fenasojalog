@@ -1,45 +1,47 @@
 
 
-# Corrigir detecção de conflito de veículos
+# Corrigir KM estimado para destinos como Passo Fundo
 
 ## Problema
 
-A função `isVehicleBusyAt` verifica apenas se o horário de início do novo transporte é anterior ao retorno estimado do transporte existente (`newStart < existingReturn`). Isso é uma verificação de "sobreposição" incompleta — falta verificar se o transporte existente começa antes do fim estimado do novo transporte.
-
-Exemplo real: AMAROK tem transporte pendente no dia 01/05 às 03:15. Ao tentar agendar um transporte no dia 29/04, o sistema diz "em uso até ~10:00" porque `29/04 10:25 < 01/05 05:15` é verdadeiro, mesmo que os transportes sejam em dias completamente diferentes.
+A função `getRoundTripKm` resolve a distância usando apenas `titulo` + `voo_cidade`. Quando o transporte tem `titulo` diferente de "Aeroporto" (ex: "Centro", "Outros") mas o `destino` é "Passo Fundo", o sistema retorna 4 km (valor do "Centro") em vez de 560 km.
 
 ## Solução
 
-Corrigir a lógica de sobreposição temporal em `isVehicleBusyAt` e `getVehicleConflictInfo` para verificar sobreposição real entre dois intervalos de tempo:
-
-**Dois intervalos [startA, endA] e [startB, endB] se sobrepõem quando:**
-`startA < endB AND startB < endA`
-
-Onde:
-- `startA` / `endA` = início e retorno estimado do **novo** transporte
-- `startB` / `endB` = início e retorno estimado do transporte **existente**
-
-Para o novo transporte, estimar o retorno usando a mesma lógica de duração (título ou 60min padrão).
+Adicionar o campo `destino` como parâmetro de fallback em `getRoundTripKm`. Se a resolução por `titulo`/`voo_cidade` retornar um valor genérico (≤10 km) e o `destino` corresponder a uma cidade conhecida com distância maior, usar o valor correto.
 
 ## Alterações
 
+### `src/lib/utils.ts`
+
+- Adicionar mapa de destinos conhecidos por nome de cidade:
+  ```
+  'Passo Fundo': 560, 'Chapecó': 630, 'Santo Ângelo': 143, 'Porto Alegre': 1024
+  ```
+- Atualizar `getRoundTripKm` para aceitar `destino` como 3º parâmetro opcional
+- Lógica: se o resultado pelo título for ≤10 km e o `destino` contiver uma cidade conhecida com distância maior, usar essa distância
+
+### `src/components/transport/TransportCard.tsx`
+
+- Passar `t.destino` para `getRoundTripKm(t.titulo, t.voo_cidade, t.destino)`
+
 ### `src/pages/TransportsPage.tsx`
 
-Atualizar `isVehicleBusyAt` e `getVehicleConflictInfo`:
+- Atualizar chamadas a `getRoundTripKm` para incluir o destino
 
-```
-// Antes (incorreto):
-return new Date(startTime) < estReturn;
+### `src/lib/kmConsolidation.ts`
 
-// Depois (correto - verifica sobreposição real):
-const newStart = new Date(startTime);
-const newEnd = new Date(newStart.getTime() + (durationMin) * 60000); // duração estimada do novo
-return newStart < estReturn && existingStart < newEnd;
-```
+- Atualizar chamada para incluir `t.destino`
 
-Receber opcionalmente o título/duração do novo transporte para calcular seu fim estimado, ou usar um fallback de 60-120 minutos.
+### `src/components/transport/TransportForm.tsx`
+
+- Atualizar preview de KM para incluir destino
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/TransportsPage.tsx` | Corrigir lógica de sobreposição em `isVehicleBusyAt` e `getVehicleConflictInfo` |
+| `src/lib/utils.ts` | Adicionar fallback por destino em `getRoundTripKm` |
+| `src/components/transport/TransportCard.tsx` | Passar `destino` |
+| `src/pages/TransportsPage.tsx` | Passar `destino` nas chamadas |
+| `src/lib/kmConsolidation.ts` | Passar `destino` |
+| `src/components/transport/TransportForm.tsx` | Passar `destino` no preview |
 
