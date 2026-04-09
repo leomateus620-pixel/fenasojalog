@@ -479,7 +479,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
               voo_numero: capturedReturnForm.voo_numero || null,
               voo_checkin: capturedReturnForm.voo_checkin || null,
               horario_saida: capturedReturnForm.horario_saida || null,
-              distancia_estimada_km: returnRouteData.distance_km ? Math.round(returnRouteData.distance_km * 2) : getRoundTripKm('Aeroporto', capturedForm.voo_cidade, capturedReturnForm.destino) || null,
+              distancia_estimada_km: returnRouteData.distance_km ? Math.round(returnRouteData.distance_km * 2) : getRoundTripKm('Aeroporto', capturedForm.voo_cidade, capturedForm.destino) || null,
               duracao_estimada_min: returnRouteData.duration_minutes || null,
               rota_polyline: returnRouteData.polyline || null,
             },

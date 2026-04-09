@@ -126,7 +126,7 @@ export function getRoundTripKm(titulo: string | null | undefined, vooCidade?: st
   if (!titulo) return null;
   const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : titulo;
   const km = KNOWN_ROUNDTRIP_KM[key];
-  if (km !== undefined && km > 0 && km > 10) return km;
+  if (km !== undefined && km > 10) return km;
   // Fallback: check destino against known cities
   if (destino) {
     for (const [city, cityKm] of Object.entries(KNOWN_DESTINATION_KM)) {
