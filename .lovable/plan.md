@@ -1,35 +1,75 @@
 
 
-# Corrigir fuso horário na edição de transportes
+# Auto-detecção de origem + Busca de destino premium
 
-## Problema
+## Resumo
 
-Dois bugs no fluxo de **edição**:
+Duas melhorias no formulário de criação de transporte:
+1. **Origem automática**: Detectar cidade do usuário via geolocalização + Google Reverse Geocoding
+2. **Destino "Outros"**: Substituir dropdown inline por um modal/drawer dedicado com busca de lugares — UX premium, responsivo
 
-1. **Ao abrir o dialog de edição** (linha 531): `t.inicio_em?.slice(0, 16)` fatia a string UTC bruta. Se o banco armazena `2026-04-09T19:00:00+00:00` (que é 16:00 SP), o input mostra `19:00` — e o usuário pensa que está certo. Mas se o banco armazena `2026-04-09T19:00:00-03:00`, o slice pega `2026-04-09T19:00` corretamente. O problema real é que o valor é armazenado em UTC e o slice ignora o offset.
+## Alterações
 
-2. **Ao salvar a edição** (linha 559): `inicio_em: editForm.inicio_em` é enviado **sem** `ensureSPOffset()`, então o Postgres interpreta como UTC. O fluxo de criação já usa `ensureSPTimestamptz()` corretamente, mas a edição não.
+### 1. Edge function `places-autocomplete` — adicionar modo `reverse-geocode`
 
-O mesmo problema afeta `fim_em` (linha 566).
+Adicionar suporte a um segundo modo na mesma edge function:
+- `{ mode: "reverse", lat: number, lng: number }` → chama Google Geocoding API reversa → retorna `{ city: string, address: string }`
+- Mantém o modo existente de busca (`{ query: string }`) intacto
 
-## Solução
+### 2. Novo componente `src/components/transport/PlacesSearchDialog.tsx`
 
-### `src/pages/TransportsPage.tsx`
+Modal dedicado para busca de destino com design premium:
+- **Mobile**: Drawer (vaul) que sobe do fundo, ocupando ~85% da tela
+- **Desktop**: Dialog centralizado (max-w-lg)
+- Header com título "Buscar Destino" e botão fechar
+- Campo de busca grande com ícone, auto-focus
+- Lista de resultados com ícones MapPin, nome em destaque, endereço secundário, cidade como badge
+- Estado vazio com ilustração/texto "Digite para buscar..."
+- Loading com skeleton/spinner
+- Ao selecionar → fecha e retorna o `PlaceResult`
 
-1. **Ao carregar para edição** — converter timestamp UTC do banco para datetime-local em SP:
-   - Substituir `t.inicio_em?.slice(0, 16)` por uma conversão usando `toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' })` (que retorna `YYYY-MM-DD HH:MM:SS`) e formatar para `YYYY-MM-DDTHH:MM`
-   - Fazer o mesmo para `t.fim_em`
+### 3. Atualizar `src/components/transport/TransportForm.tsx`
 
-2. **Ao salvar edição** — aplicar offset SP antes de enviar:
-   - Linha 559: `inicio_em: ensureSPOffset(editForm.inicio_em)`
-   - Linha 566: `fim_em: ... ? ensureSPOffset(editForm.fim_em) : null`
+**Origem automática:**
+- Adicionar `useEffect` no mount que pede `navigator.geolocation.getCurrentPosition`
+- Com as coordenadas, chamar `places-autocomplete` com `mode: "reverse"` 
+- Preencher `data.origem` com a cidade retornada (se o campo estiver vazio)
+- Mostrar ícone de localização 📍 e estado de loading no campo de origem
+- Botão de "redetectar" ao lado do input de origem
 
-### Helper (já existe em `src/lib/utils.ts`)
+**Destino "Outros":**
+- Substituir o `PlacesAutocomplete` inline por um botão que abre o `PlacesSearchDialog`
+- Quando um lugar é selecionado, preencher `destino`, `destino_lat`, `destino_lng`, `_selectedPlaceName`
+- Exibir o local selecionado como um chip/card elegante abaixo do botão (com ícone MapPin + nome + cidade)
 
-Criar uma função `utcToSPLocal(iso: string): string` que converte um timestamp ISO/UTC para o formato `YYYY-MM-DDTHH:MM` em horário de SP — reutilizável para qualquer campo datetime-local.
+### 4. Atualizar `src/components/transport/PlacesAutocomplete.tsx`
 
-| Arquivo | Alteração |
+Manter o componente existente mas refatorar para ser usado internamente pelo `PlacesSearchDialog` (reutilizar a lógica de busca).
+
+## Fluxo do usuário
+
+```text
+ORIGEM:
+1. Abre "Novo Transporte"
+2. Campo "Origem" já aparece com spinner "Detectando..."
+3. Em ~1s preenche automaticamente: "SANTA ROSA" (baseado no GPS)
+4. Usuário pode editar manualmente se quiser
+
+DESTINO (Outros):
+1. Seleciona "Outros" no título
+2. Aparece botão "Buscar destino..." em vez de input inline
+3. Clica → abre modal/drawer com campo de busca grande
+4. Digita "Ijuí" → resultados aparecem com design limpo
+5. Seleciona → modal fecha, chip com "Ijuí, RS" aparece no form
+6. Distância é calculada automaticamente via Google Routes
+```
+
+## Arquivos
+
+| Arquivo | Ação |
 |---|---|
-| `src/lib/utils.ts` | Adicionar helper `utcToSPLocal()` |
-| `src/pages/TransportsPage.tsx` | Usar `utcToSPLocal()` ao carregar edit form; usar `ensureSPOffset()` ao salvar |
+| `supabase/functions/places-autocomplete/index.ts` | Adicionar modo `reverse` geocoding |
+| `src/components/transport/PlacesSearchDialog.tsx` | Novo — modal/drawer premium de busca |
+| `src/components/transport/TransportForm.tsx` | Auto-detecção origem + botão para abrir dialog de destino |
+| `src/components/transport/PlacesAutocomplete.tsx` | Refatorar para reutilização interna |
 
