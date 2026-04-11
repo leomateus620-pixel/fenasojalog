@@ -68,7 +68,6 @@ function NavigationMap3DInner({
       zoom: 16,
       pitch: 60,
       bearing: heading,
-      antialias: true,
       attributionControl: false,
     });
 
