@@ -860,9 +860,19 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
               availableVehicles={availableVehicles}
             />
           </ScrollArea>
-          <Button onClick={handleAdd} className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all" disabled={create.isPending || isSubmittingRef.current}>
-            {create.isPending ? 'Salvando...' : 'Agendar Transporte'}
-          </Button>
+          <div className="space-y-2">
+            <Button onClick={handleAdd} className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all" disabled={create.isPending || isSubmittingRef.current}>
+              {create.isPending && !isSubmittingRef.current ? 'Salvando...' : '📅 Agendar Transporte'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleCreate('start_now')}
+              className="w-full h-11 rounded-xl font-semibold active:scale-[0.97] transition-all border-accent/30 text-accent hover:bg-accent/10 hover:text-accent"
+              disabled={create.isPending || start.isPending || isSubmittingRef.current}
+            >
+              {start.isPending ? 'Iniciando...' : '🚀 Iniciar Transporte'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
