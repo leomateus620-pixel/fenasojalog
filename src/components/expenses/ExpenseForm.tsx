@@ -163,8 +163,13 @@ export default function ExpenseForm({ onSubmit, isSubmitting, initialData }: Exp
 
   // Get transport display label
   const getTransportLabel = (t: any) => {
-    const route = `${(t.origem || '').slice(0, 15)} → ${(t.destino || '').slice(0, 15)}`;
-    return t.titulo || route;
+    const tipo = t.tipo ? `${t.tipo}` : '';
+    const rota = `${t.origem || '?'} → ${t.destino || '?'}`;
+    const data = t.inicio_em ? format(new Date(t.inicio_em), 'dd/MM HH:mm') : '';
+    const motorista = t.motorista_user_id
+      ? members.find((m: any) => m.user_id === t.motorista_user_id)?.nome_exibicao?.split(' ')[0] || ''
+      : '';
+    return [tipo, rota, data, motorista].filter(Boolean).join(' • ');
   };
 
   return (
