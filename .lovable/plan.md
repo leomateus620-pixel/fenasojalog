@@ -1,98 +1,118 @@
 
 
-# Melhoria Estrutural e Visual — 5 Áreas
+# Módulo de Despesas & Ressarcimentos — Plano de Implementação
 
-## Auditoria — Causas Raiz
+## Escopo e Faseamento
 
-1. **Buscar Destino mobile**: O `PlacesSearchDialog` usa `Drawer` com `max-h-[85dvh]` mas o conteúdo interno tem `max-h-[50vh]` fixo nos resultados — com teclado virtual aberto, o espaço é insuficiente. Falta `AbortController` para cancelar requests anteriores.
-
-2. **Sem "Iniciar Transporte"**: O botão único "Agendar Transporte" (linha 814-816 de TransportsPage) sempre cria com status `pendente`. Para iniciar, o usuário precisa criar e depois clicar "Iniciar" no card — dois passos desnecessários.
-
-3. **Delay do Dynamic Island**: Ao criar transporte, `handleAdd` chama `fetchRoutePreview` de forma bloqueante ANTES do `create.mutateAsync` (linhas 411-419). Isso bloqueia todo o submit enquanto espera a Google Routes API. Após salvar, `invalidateAll` invalida 7 queries simultâneas, causando re-render pesado.
-
-4. **Dashboard sem criação**: Não existe nenhum ponto de entrada para criar transporte no Dashboard. O card "Próximos Transportes" só lista e redireciona.
-
-5. **Mapa 2D/Split**: O `FullscreenMapDialog` não permite alternar entre modos — sempre mostra split 50/50 quando `isLive`. Sem controle do usuário para ver apenas um mapa.
+Este é um módulo completo que envolve ~10 tabelas novas, 1 edge function, 1 storage bucket, 5+ páginas/componentes e integrações com módulos existentes. Para manter qualidade e evitar regressões, a implementação será dividida em **3 fases incrementais**.
 
 ---
 
-## Plano de Implementação
+## FASE 1 — Fundação (esta entrega)
 
-### 1. Corrigir PlacesSearchDialog mobile
+Banco de dados, página principal, CRUD de despesas, dashboard cards, navegação.
 
-**Arquivo**: `src/components/transport/PlacesSearchDialog.tsx`
+### 1.1 Banco de Dados (Migration)
 
-- Trocar `max-h-[50vh]` dos resultados por `flex-1 overflow-y-auto` (adaptar ao espaço real disponível)
-- Adicionar `pb-safe` / `pb-8` no Drawer para safe area do mobile
-- Adicionar `AbortController` — cancelar request anterior ao digitar
-- Aumentar área de toque dos resultados: `min-h-[48px]` + `py-3.5`
-- Input com `autoComplete="off"` e `autoCorrect="off"` para evitar autocorrect do teclado
-- `DrawerContent` com `className="max-h-[90dvh] flex flex-col"` para melhor uso do espaço
-- Container de resultados com `overscroll-contain` para evitar scroll do body
+Criar as seguintes tabelas com RLS org-scoped:
 
-### 2. Botão "Iniciar Transporte"
+**`expense_categories`** — Categorias configuráveis
+- id, org_id, name, icon, requires_vehicle, requires_transport, requires_document, active, created_at
 
-**Arquivos**: `src/pages/TransportsPage.tsx`, `src/components/transport/TransportForm.tsx`
+**`expenses`** — Lançamentos de despesas
+- id, org_id, category_id, transport_id, event_id, vehicle_id, member_user_id
+- title, description, amount, expense_date, payment_method
+- paid_by_user_id, paid_by_name, pix_key, pix_key_type
+- status (rascunho/pendente_comprovante/pendente_validacao/aprovado/ressarcimento_solicitado/ressarcido/recusado/cancelado)
+- created_by_user_id, created_at, updated_at
 
-- Adicionar segundo botão abaixo de "Agendar Transporte": "🚀 Iniciar Transporte"
-- Extrair lógica de `handleAdd` para função reutilizável `handleCreate(mode: 'schedule' | 'start_now')`
-- Quando `mode = 'start_now'`:
-  - Criar transporte normalmente via `create.mutateAsync`
-  - Imediatamente chamar `start.mutateAsync({ id: result.id })` para iniciar
-  - Ativar tracking: `setTrackingTransportId(result.id)`
-  - Fechar dialog e mostrar toast "Viagem iniciada"
-- Validar campos obrigatórios (origem, destino, data) antes de ambos
-- Desabilitar ambos os botões durante submit (usar `isSubmittingRef`)
+**`expense_documents`** — Comprovantes/notas anexadas
+- id, expense_id, org_id, file_url, file_type, document_type
+- qr_raw, qr_url, issuer_name, issuer_document, invoice_number, access_key
+- issue_datetime, extracted_total, extracted_payload_json
+- extraction_status, validation_status, created_at
 
-### 3. Reduzir delay do Dynamic Island
+**`reimbursements`** — Controle de ressarcimentos
+- id, expense_id, org_id, beneficiary_user_id, beneficiary_name
+- pix_key, pix_key_type, requested_amount, approved_amount, paid_amount
+- status (pendente/aprovado/pago/recusado)
+- approved_by, paid_by, requested_at, approved_at, paid_at
+- payment_receipt_url, notes
 
-**Arquivo**: `src/pages/TransportsPage.tsx`
+**`expense_approvals`** — Log de aprovações
+- id, expense_id, org_id, action, previous_status, new_status, reason, acted_by, acted_at
 
-- **Desbloqueio do submit**: Mover `fetchRoutePreview` para DEPOIS do `create.mutateAsync` — criar transporte primeiro, enriquecer depois
-- Criar transporte com dados mínimos (sem `distancia_estimada_km`, `duracao_estimada_min`, `rota_polyline`)
-- Após criar, fechar dialog IMEDIATAMENTE e disparar enriquecimento em background:
-  ```
-  create → fechar dialog → toast → background: fetchRoutePreview → update com dados da rota
-  ```
-- Usar `Promise.allSettled` para route preview + return trip em paralelo
-- Invalidação cirúrgica: só invalidar `['transports']` no create, não as 7 queries
+Storage bucket: `expense-documents` (privado, RLS por org_id no path)
 
-**Arquivo**: `src/components/TransportDynamicIsland.tsx`
+Seed de categorias padrão (Combustível, Pedágio, Refeição, Hotel, Estacionamento, Manutenção, Compras operacionais, Outros).
 
-- Reduzir o throttle de 120s para 30s na primeira chamada (depois volta a 120s)
-- Mostrar skeleton/loading state para ETA/distância enquanto calcula
+RLS: mesmas regras do projeto — operador+ pode inserir/atualizar, admin/gestor pode deletar, membros da org podem ler.
 
-### 4. Dashboard — Criar Transporte
+### 1.2 Hook `useExpenses`
 
-**Arquivo**: `src/pages/Dashboard.tsx`
+CRUD completo com React Query, seguindo padrão de `useFuelRecords`/`useTransports`:
+- listagem com filtros (status, categoria, período, transporte, evento, membro)
+- create, update, delete mutations
+- upload de comprovante para storage
+- mutation de aprovação/mudança de status
 
-- Adicionar card "Criar Transporte" na seção de acessos rápidos (ao lado da Rede Hoteleira)
-- Ao clicar: `navigate('/transports?action=create')`
-- **Arquivo**: `src/pages/TransportsPage.tsx` — ler `searchParams.get('action')` e abrir dialog automaticamente se `action=create`
+### 1.3 Página `ExpensesPage`
 
-### 5. Reformulação do FullscreenMapDialog
+Nova rota `/expenses` — "Despesas & Ressarcimentos"
 
-**Arquivo**: `src/components/transport/FullscreenMapDialog.tsx`
+Estrutura:
+- **Tabs**: Lançamentos | Ressarcimentos | Relatórios
+- **Lançamentos**: Lista filtrada com chips (status, categoria, período), card por despesa com valor, categoria, status badge, comprovante indicator
+- **Dialog de criação**: Formulário completo com seleção de categoria, valor, data, contexto (transporte/evento/veículo), quem pagou, upload de comprovante
+- **Dialog de detalhes**: Visualização completa + ações (aprovar, recusar, solicitar ressarcimento)
+- **Ressarcimentos tab**: Lista de pendências de ressarcimento com ações (aprovar, marcar como pago)
 
-- Adicionar estado `viewMode: 'split' | 'nav' | 'aerial'` (default: `'split'`)
-- Controle de toggle no topo: 3 botões pill com ícones (Navegação | Aéreo | Dividido)
-- Persistir preferência em `sessionStorage`
-- Modo `nav`: NavigationMap3D em tela cheia
-- Modo `aerial`: DriverLocationMap em tela cheia
-- Modo `split`: layout atual 50/50
-- Não destruir/recriar mapas ao trocar — usar `hidden` ou `display:none` para preservar instâncias
-- Melhorar visual: gradiente sutil no fundo dos overlays, badges maiores, melhor contraste
-- Adicionar label do motorista no overlay quando em modo tela cheia única
+### 1.4 Navegação
+
+- Sidebar: adicionar "Despesas" no grupo "Operação" com ícone `Receipt`
+- BottomTabs: adicionar nos `moreLinks`
+- App.tsx: nova rota `/expenses`
+
+### 1.5 Dashboard
+
+Adicionar card "Despesas" na seção de ações rápidas:
+- Contador de despesas pendentes
+- Valor total do período
+- Alertas (sem comprovante, ressarcimento pendente)
+- Botão "Registrar Despesa" que navega para `/expenses?action=create`
 
 ---
 
-## Arquivos Alterados
+## FASE 2 — QR Code e Integrações (entrega futura)
 
-| Arquivo | Alteração |
+- **Scanner QR**: Componente com `html5-qrcode` para ler QR de NFC-e/NF-e
+- **Edge function `parse-fiscal-qr`**: Recebe URL/payload do QR, tenta extrair dados fiscais (CNPJ, valor, data, itens) via scraping do portal da SEFAZ ou parsing do payload
+- **Integração com Transportes**: Aba "Despesas" dentro do card de transporte
+- **Integração com Veículos**: Despesas de combustível/manutenção na ficha do veículo
+- **Integração com Equipe**: Despesas pagas pelo colaborador + ressarcimentos na ficha
+
+## FASE 3 — Relatórios e Automações (entrega futura)
+
+- Relatório consolidado por evento/período (PDF/CSV)
+- Detecção de duplicidade (mesmo QR, mesmo valor+data+emissor)
+- Automações: sugerir veículo ao selecionar combustível, criar pendência de ressarcimento automática
+- Offline: salvar rascunho local e sincronizar
+
+---
+
+## Arquivos da Fase 1
+
+| Arquivo | Ação |
 |---|---|
-| `src/components/transport/PlacesSearchDialog.tsx` | Fix mobile, AbortController, UX |
-| `src/pages/TransportsPage.tsx` | "Iniciar Transporte", desbloqueio submit, `?action=create` |
-| `src/pages/Dashboard.tsx` | Card "Criar Transporte" |
-| `src/components/transport/FullscreenMapDialog.tsx` | Toggle 3 modos, visual premium |
-| `src/components/TransportDynamicIsland.tsx` | Throttle reduzido, loading states |
+| `supabase/migrations/` | Nova migration com 5 tabelas + RLS + seed categorias + bucket |
+| `src/hooks/useExpenses.ts` | Novo — hook CRUD completo |
+| `src/hooks/useExpenseCategories.ts` | Novo — categorias |
+| `src/pages/ExpensesPage.tsx` | Novo — página principal do módulo |
+| `src/components/expenses/ExpenseForm.tsx` | Novo — formulário de criação/edição |
+| `src/components/expenses/ExpenseCard.tsx` | Novo — card de despesa na listagem |
+| `src/components/expenses/ReimbursementList.tsx` | Novo — tab de ressarcimentos |
+| `src/pages/Dashboard.tsx` | Adicionar card de despesas |
+| `src/components/Sidebar.tsx` | Adicionar link "Despesas" |
+| `src/components/BottomTabs.tsx` | Adicionar nos moreLinks |
+| `src/App.tsx` | Adicionar rota `/expenses` |
 
