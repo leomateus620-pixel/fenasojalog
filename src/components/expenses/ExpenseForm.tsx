@@ -42,7 +42,10 @@ export default function ExpenseForm({ onSubmit, isSubmitting, initialData }: Exp
   const { vehicles } = useVehicles();
   const { transports } = useTransports();
   const { members } = useOrgMembers();
+  const { commissions } = useCommissions();
 
+  const logisticaCommission = commissions.find((c: any) => c.nome?.toUpperCase().includes('LOGÍSTICA'));
+  const logisticaMembers = members.filter((m: any) => m.is_active && m.commission_id === logisticaCommission?.id);
   const [form, setForm] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
