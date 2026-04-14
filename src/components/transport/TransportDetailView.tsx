@@ -206,7 +206,7 @@ export default function TransportDetailView({ t, members, vehicles, guests, getD
               <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
                 {t.voo_cidade && <div><p className="text-xs text-muted-foreground">Cidade</p><p className="font-medium">{t.voo_cidade}</p></div>}
                 {t.voo_numero && <div><p className="text-xs text-muted-foreground">Nº Voo</p><p className="font-medium">{t.voo_numero}</p></div>}
-                {t.voo_checkin && <div><p className="text-xs text-muted-foreground">Check-in</p><p className="font-medium">{t.voo_checkin}</p></div>}
+                {t.voo_checkin && <div><p className="text-xs text-muted-foreground">Horário do Voo</p><p className="font-medium">{t.voo_checkin}</p></div>}
                 {t.voo_chegada && <div><p className="text-xs text-muted-foreground">Chegada</p><p className="font-medium">{t.voo_chegada}</p></div>}
                 {t.horario_saida && <div><p className="text-xs text-muted-foreground">Saída p/ Aeroporto</p><p className="font-medium">{t.horario_saida}</p></div>}
               </div>

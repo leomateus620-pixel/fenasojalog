@@ -77,7 +77,7 @@ export default function TransportCard({ t, members, vehicles, guests, highlightI
             <p className="text-sm font-bold text-foreground">{rawDateShort(t.inicio_em)}</p>
             {(t.voo_checkin || t.voo_chegada) && (
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{t.voo_checkin ? 'Check-in' : 'Desembarque'}</p>
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{t.voo_checkin ? 'Horário Voo' : 'Desembarque'}</p>
                 <p className="text-base font-mono font-bold text-primary leading-tight">{t.voo_checkin || t.voo_chegada}</p>
               </div>
             )}

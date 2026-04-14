@@ -780,7 +780,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
       ${t.titulo === 'Aeroporto' ? `<div class="flight"><strong>✈️ Informações do Voo</strong>
         ${t.voo_cidade ? `<div class="row"><span class="label">Cidade:</span><span class="value">${t.voo_cidade}</span></div>` : ''}
         ${t.voo_numero ? `<div class="row"><span class="label">Nº Voo:</span><span class="value">${t.voo_numero}</span></div>` : ''}
-        ${t.voo_checkin ? `<div class="row"><span class="label">Check-in:</span><span class="value">${t.voo_checkin}</span></div>` : ''}
+        ${t.voo_checkin ? `<div class="row"><span class="label">Horário do Voo:</span><span class="value">${t.voo_checkin}</span></div>` : ''}
         ${t.voo_chegada ? `<div class="row"><span class="label">Chegada:</span><span class="value">${t.voo_chegada}</span></div>` : ''}
         ${t.horario_saida ? `<div class="row"><span class="label">Saída p/ Aeroporto:</span><span class="value">${t.horario_saida}</span></div>` : ''}
       </div>` : ''}
