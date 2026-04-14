@@ -327,7 +327,7 @@ export default function TransportForm({
                 <Input placeholder="Nº do Voo" value={data.voo_numero} onChange={(e) => setData({ ...data, voo_numero: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Check-in</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Horário do Voo</Label>
                     <Input type="time" value={data.voo_checkin} onChange={async (e) => {
                       const checkin = e.target.value;
                       setData({ ...data, voo_checkin: checkin });
@@ -380,7 +380,7 @@ export default function TransportForm({
                       <Input placeholder="Nº do Voo (volta)" value={returnForm.voo_numero} onChange={(e) => setReturnForm((prev: any) => ({ ...prev, voo_numero: e.target.value }))} />
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs text-muted-foreground mb-1 block">Check-in Voo</Label>
+                          <Label className="text-xs text-muted-foreground mb-1 block">Horário do Voo</Label>
                           <Input type="time" value={returnForm.voo_checkin} onChange={async (e) => {
                             const checkin = e.target.value;
                             setReturnForm((prev: any) => ({ ...prev, voo_checkin: checkin }));

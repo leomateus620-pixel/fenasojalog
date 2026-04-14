@@ -367,7 +367,7 @@ export default function Dashboard() {
                 </div>
                 {(t.voo_checkin || t.voo_chegada) && (
                   <div className="text-center shrink-0">
-                    <p className="text-[9px] uppercase text-muted-foreground font-medium">{t.voo_checkin ? 'Check' : 'Voo'}</p>
+                    <p className="text-[9px] uppercase text-muted-foreground font-medium">Voo</p>
                     <p className="text-xs font-mono font-bold text-primary">{t.voo_checkin || t.voo_chegada}</p>
                   </div>
                 )}
@@ -407,7 +407,7 @@ export default function Dashboard() {
                        <div className="flex flex-col gap-0.5 shrink-0 min-w-[48px]">
                          {(e.voo_checkin || e.voo_chegada) && (
                            <div className="text-center">
-                             <p className="text-[8px] uppercase text-muted-foreground">Check</p>
+                              <p className="text-[8px] uppercase text-muted-foreground">Voo</p>
                              <p className="text-[11px] font-mono font-semibold">{e.voo_checkin || e.voo_chegada}</p>
                            </div>
                          )}
@@ -438,7 +438,7 @@ export default function Dashboard() {
                        <div className="flex flex-col gap-0.5 shrink-0 min-w-[48px]">
                          {(e.voo_checkin || e.voo_chegada) && (
                            <div className="text-center">
-                             <p className="text-[8px] uppercase text-muted-foreground">Check</p>
+                             <p className="text-[8px] uppercase text-muted-foreground">Voo</p>
                              <p className="text-[11px] font-mono font-semibold">{e.voo_checkin || e.voo_chegada}</p>
                            </div>
                          )}
