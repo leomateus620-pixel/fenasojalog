@@ -1,37 +1,33 @@
 
 
-# Melhorias no Formulário de Despesas — Transporte detalhado + Membros da Logística
+# Substituir "Check-in" por "Horário do Voo" — Labels de Voo
 
-## Problemas identificados
+## Escopo
 
-1. **Select de Transporte** (Anexo 1): Mostra apenas tipo genérico ("Aeroporto", "Centro"), sem detalhes. Com múltiplos transportes do mesmo tipo, é impossível distinguir qual selecionar.
+Alterar APENAS os labels visuais relacionados a voo (`voo_checkin`). Os labels de check-in/check-out de hóspedes (`checkin_em`, `checkout_em`) permanecem inalterados.
 
-2. **Select de "Quem pagou"** (Anexo 2): Lista TODOS os membros da organização. Deveria mostrar apenas membros da comissão de Logística, seguindo o mesmo padrão já usado em `VerEscalaPage.tsx` e `TransportForm.tsx`.
+## Alterações por arquivo
 
-## Solução
+### 1. `src/components/transport/TransportForm.tsx`
+- Linha 330: `"Check-in"` → `"Horário do Voo"`
+- Linha 383: `"Check-in Voo"` → `"Horário do Voo"`
 
-### Arquivo: `src/components/expenses/ExpenseForm.tsx`
+### 2. `src/components/transport/TransportDetailView.tsx`
+- Linha 209: `"Check-in"` → `"Horário do Voo"`
 
-**Transporte — Label detalhado:**
-- Alterar `getTransportLabel()` para exibir: `Tipo • Origem → Destino • DD/MM HH:MM`
-- Exemplo: `Aeroporto • POA → Hotel Fenasoja • 13/04 14:30`
-- Se tiver motorista vinculado, incluir nome abreviado
-- Remover `.slice(0, 15)` que trunca demais
-- Remover `.slice(0, 30)` que limita a 30 transportes
+### 3. `src/components/transport/TransportCard.tsx`
+- Linha 80: `'Check-in'` → `'Horário Voo'`
 
-**Membros — Filtro por comissão Logística:**
-- Importar `useCommissions` no componente
-- Filtrar membros para mostrar apenas os que pertencem à comissão cujo nome contém "LOGÍSTICA"
-- Mesmo padrão de `VerEscalaPage.tsx` (linhas 56-63)
-- Adicionar indicador visual abaixo do select: "Apenas membros da comissão de Logística"
+### 4. `src/pages/Dashboard.tsx`
+- Linha 370: `'Check'` → `'Voo'`
+- Linha 410: `"Check"` → `"Voo"`
+- Linha 441: `"Check"` → `"Voo"`
 
-### Alterações específicas
+### 5. `src/pages/TransportsPage.tsx`
+- Linha 783 (PDF template): `"Check-in:"` → `"Horário do Voo:"`
 
-1. **Importar** `useCommissions` de `@/hooks/useCommissions`
-2. **Encontrar** comissão de logística: `commissions.find(c => c.nome?.toUpperCase().includes('LOGÍSTICA'))`
-3. **Filtrar** membros: `members.filter(m => m.commission_id === logisticaCommission?.id)`
-4. **Melhorar** label do transporte com data, origem→destino completos e tipo
-5. **Manter** auto-fill inteligente ao selecionar transporte (vehicle + driver)
-
-### Nenhum outro arquivo precisa ser alterado.
+## Não alterar
+- `src/pages/GuestsPage.tsx` — "Check-in" e "Check-out" de hóspedes (hotel) ficam como estão
+- Nenhum campo de dados (`voo_checkin`) é renomeado — apenas labels de UI
+- Nenhuma lógica de cálculo (`isCheckin`, `CHECKIN_BUFFER_MIN`, etc.) é alterada
 
