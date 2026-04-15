@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link2, Copy, Check, Loader2, LinkIcon } from 'lucide-react';
+import { Link2, Copy, Check, Loader2, LinkIcon, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function MobilityLinksPanel() {
-  const { data: links, isLoading, generateAll, toggleActive } = usePublicFormLinks();
+  const { data: links, isLoading, generateAll, regenerateToken, toggleActive } = usePublicFormLinks();
   const { committees } = useOfficialCommittees();
-  const [generatedTokens, setGeneratedTokens] = useState<Record<string, string>>({});
+  // Map linkId -> raw token (available after generate or regenerate)
+  const [availableTokens, setAvailableTokens] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const baseUrl = window.location.origin;
@@ -22,9 +23,16 @@ export default function MobilityLinksPanel() {
     const result = await generateAll.mutateAsync(committees);
     if (result) {
       const map: Record<string, string> = {};
-      result.forEach((r) => { map[r.committee_id] = r.token; });
-      setGeneratedTokens((prev) => ({ ...prev, ...map }));
+      // We need to map committee_id -> link id after refresh, but for now map by committee
+      result.forEach((r) => { map[`committee_${r.committee_id}`] = r.token; });
+      setAvailableTokens((prev) => ({ ...prev, ...map }));
     }
+  };
+
+  const handleRegenerate = async (linkId: string) => {
+    const result = await regenerateToken.mutateAsync(linkId);
+    setAvailableTokens((prev) => ({ ...prev, [linkId]: result.token }));
+    toast.success('Novo token gerado! Copie o link agora.');
   };
 
   const copyLink = async (token: string, id: string) => {
@@ -83,7 +91,8 @@ export default function MobilityLinksPanel() {
                 </TableHeader>
                 <TableBody>
                   {links.map((link) => {
-                    const token = generatedTokens[link.committee_id];
+                    // Token available from generation (by committee) or regeneration (by link id)
+                    const token = availableTokens[link.id] || availableTokens[`committee_${link.committee_id}`];
                     return (
                       <TableRow key={link.id}>
                         <TableCell className="font-medium text-sm">{link.committee_name_snapshot}</TableCell>
@@ -100,19 +109,34 @@ export default function MobilityLinksPanel() {
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          {token ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyLink(token, link.id)}
-                              className="gap-1"
-                            >
-                              {copiedId === link.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                              {copiedId === link.id ? 'Copiado' : 'Copiar'}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Gerado anteriormente</span>
-                          )}
+                          <div className="flex items-center justify-end gap-1">
+                            {token ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyLink(token, link.id)}
+                                className="gap-1"
+                              >
+                                {copiedId === link.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copiedId === link.id ? 'Copiado' : 'Copiar'}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRegenerate(link.id)}
+                                disabled={regenerateToken.isPending}
+                                className="gap-1 text-xs"
+                              >
+                                {regenerateToken.isPending ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                )}
+                                Gerar novo link
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

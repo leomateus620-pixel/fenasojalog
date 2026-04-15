@@ -45,7 +45,6 @@ export function usePublicFormLinks() {
     mutationFn: async (committees: { id: string; committee_name: string; president_name: string }[]) => {
       if (!orgId) throw new Error('Sem organização');
       
-      // Get existing links to skip
       const { data: existing } = await (supabase as any)
         .from('public_form_links')
         .select('committee_id')
@@ -85,16 +84,32 @@ export function usePublicFormLinks() {
         .insert(rows.map((r) => r.row));
       if (error) throw error;
 
-      // Return the generated tokens so we can show them
       return rows.map((r) => ({
         committee_id: r.row.committee_id,
-        committee_name: r.committeeName,
         token: r.token,
       }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['public_form_links', orgId] });
       toast.success('Links gerados com sucesso');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const regenerateToken = useMutation({
+    mutationFn: async (linkId: string) => {
+      const token = crypto.randomUUID();
+      const tokenHash = await sha256(token);
+      const tokenHint = token.slice(-4);
+      const { error } = await (supabase as any)
+        .from('public_form_links')
+        .update({ token_hash: tokenHash, token_hint: tokenHint })
+        .eq('id', linkId);
+      if (error) throw error;
+      return { linkId, token };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public_form_links', orgId] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -113,5 +128,5 @@ export function usePublicFormLinks() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  return { ...query, generateAll, toggleActive };
+  return { ...query, generateAll, regenerateToken, toggleActive };
 }
