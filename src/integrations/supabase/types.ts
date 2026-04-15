@@ -112,6 +112,148 @@ export type Database = {
         }
         Relationships: []
       }
+      committee_mobility_forms: {
+        Row: {
+          committee_id: string
+          committee_name_snapshot: string
+          created_at: string
+          id: string
+          needs_electric_car: boolean
+          needs_scooter: boolean
+          operational_responsible_email: string | null
+          operational_responsible_name: string | null
+          operational_responsible_phone: string | null
+          org_id: string
+          president_name_snapshot: string
+          submission_status: string
+          submitted_at: string | null
+          submitted_by_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          committee_id: string
+          committee_name_snapshot: string
+          created_at?: string
+          id?: string
+          needs_electric_car?: boolean
+          needs_scooter?: boolean
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id: string
+          president_name_snapshot: string
+          submission_status?: string
+          submitted_at?: string | null
+          submitted_by_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          committee_id?: string
+          committee_name_snapshot?: string
+          created_at?: string
+          id?: string
+          needs_electric_car?: boolean
+          needs_scooter?: boolean
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id?: string
+          president_name_snapshot?: string
+          submission_status?: string
+          submitted_at?: string | null
+          submitted_by_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "committee_mobility_forms_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "official_committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "committee_mobility_forms_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      committee_mobility_members: {
+        Row: {
+          access_electric_car: boolean
+          access_scooter: boolean
+          access_status: string
+          committee_id: string
+          created_at: string
+          form_id: string
+          id: string
+          member_identifier: string | null
+          member_name: string
+          member_role: string | null
+          notes: string | null
+          org_id: string
+          qr_access_free: boolean
+          updated_at: string
+        }
+        Insert: {
+          access_electric_car?: boolean
+          access_scooter?: boolean
+          access_status?: string
+          committee_id: string
+          created_at?: string
+          form_id: string
+          id?: string
+          member_identifier?: string | null
+          member_name: string
+          member_role?: string | null
+          notes?: string | null
+          org_id: string
+          qr_access_free?: boolean
+          updated_at?: string
+        }
+        Update: {
+          access_electric_car?: boolean
+          access_scooter?: boolean
+          access_status?: string
+          committee_id?: string
+          created_at?: string
+          form_id?: string
+          id?: string
+          member_identifier?: string | null
+          member_name?: string
+          member_role?: string | null
+          notes?: string | null
+          org_id?: string
+          qr_access_free?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "committee_mobility_members_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "official_committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "committee_mobility_members_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "committee_mobility_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "committee_mobility_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       electric_carts: {
         Row: {
           codigo: string
@@ -620,6 +762,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "guests_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      official_committees: {
+        Row: {
+          committee_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          org_id: string
+          president_name: string
+          updated_at: string
+        }
+        Insert: {
+          committee_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          org_id: string
+          president_name: string
+          updated_at?: string
+        }
+        Update: {
+          committee_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          org_id?: string
+          president_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "official_committees_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
