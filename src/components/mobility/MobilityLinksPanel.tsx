@@ -10,7 +10,7 @@ import { Link2, Copy, Check, Loader2, LinkIcon, RefreshCw, ClipboardList } from 
 import { toast } from 'sonner';
 
 export default function MobilityLinksPanel() {
-  const { data: links, isLoading, generateAll, regenerateToken, toggleActive } = usePublicFormLinks();
+  const { data: links, isLoading, generateAll, regenerateToken, regenerateAllTokens, toggleActive } = usePublicFormLinks();
   const { committees } = useOfficialCommittees();
   // Map linkId -> raw token (available after generate or regenerate)
   const [availableTokens, setAvailableTokens] = useState<Record<string, string>>({});
