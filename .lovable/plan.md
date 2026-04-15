@@ -1,145 +1,58 @@
 
 
-# Módulo de Autorização de Mobilidade por Comissão
+# Gerar Links de Acesso Público para Todas as Comissões
 
 ## Resumo
+Criar uma tabela `public_form_links` para armazenar tokens de acesso, uma aba "Links" no painel de mobilidade para gerar e copiar links, uma rota pública isolada `/f/mobilidade/:token`, e uma edge function para resolver tokens sem autenticação.
 
-Criar um módulo completo para que cada comissão da Fenasoja registre quais integrantes estão autorizados a usar carro elétrico e/ou patinete. Inclui seed de 29 comissões oficiais, formulário de solicitação, cadastro de integrantes, e painel administrativo com filtros, contadores e exportação.
+## Banco de Dados
 
-## Estrutura de Dados (3 tabelas novas + seed)
+### Tabela `public_form_links`
+- id, org_id, committee_id, committee_name_snapshot, president_name_snapshot
+- token_hash (SHA-256 do token), token_hint (últimos 4 chars para identificação)
+- is_active (default true), created_at, updated_at
+- RLS: select/insert/update/delete apenas para admin/gestor autenticados
+- Unique index em `(org_id, committee_id)` para 1 link por comissão
 
-### Tabela `official_committees`
-Armazena a base oficial de comissões/presidentes. Serve como referência imutável para histórico.
+### Edge Function `resolve-public-link`
+- Recebe `{ token }`, computa SHA-256, busca na tabela `public_form_links`
+- Retorna committee_name, president_name se ativo
+- Usa service role key para bypass de RLS
+- Não expõe dados internos
 
-```sql
-CREATE TABLE official_committees (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id uuid NOT NULL,
-  committee_name text NOT NULL,
-  president_name text NOT NULL,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(org_id, committee_name)
-);
-```
+## Frontend
 
-RLS: select para membros da org, insert/update/delete para admin/gestor.
+### Nova aba "Links" no `MobilityAuthPage.tsx`
+- Adicionar terceira tab ao TabsList existente
 
-### Tabela `committee_mobility_forms`
-Registro de cada solicitação de mobilidade por comissão.
+### Novo componente `MobilityLinksPanel.tsx`
+- Botão "Gerar links para todas as comissões" que cria um token aleatório (crypto.randomUUID) por comissão, salva hash SHA-256 no banco
+- Tabela listando: comissão, presidente, link (com botão copiar), status ativo/inativo
+- Botão individual de copiar link e toggle ativo/inativo
 
-```sql
-CREATE TABLE committee_mobility_forms (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id uuid NOT NULL,
-  committee_id uuid NOT NULL REFERENCES official_committees(id),
-  committee_name_snapshot text NOT NULL,
-  president_name_snapshot text NOT NULL,
-  operational_responsible_name text,
-  operational_responsible_phone text,
-  operational_responsible_email text,
-  needs_electric_car boolean NOT NULL DEFAULT false,
-  needs_scooter boolean NOT NULL DEFAULT false,
-  submission_status text NOT NULL DEFAULT 'rascunho',
-  submitted_at timestamptz,
-  submitted_by_user_id uuid,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-```
+### Novo hook `usePublicFormLinks.ts`
+- CRUD autenticado para `public_form_links`
+- Mutation para gerar links em batch (todas comissões)
 
-RLS: select para membros, insert/update para admin/gestor/operador, delete para admin/gestor.
-
-### Tabela `committee_mobility_members`
-Integrantes autorizados por formulário.
-
-```sql
-CREATE TABLE committee_mobility_members (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id uuid NOT NULL,
-  form_id uuid NOT NULL REFERENCES committee_mobility_forms(id) ON DELETE CASCADE,
-  committee_id uuid NOT NULL REFERENCES official_committees(id),
-  member_name text NOT NULL,
-  member_role text,
-  member_identifier text,
-  access_electric_car boolean NOT NULL DEFAULT false,
-  access_scooter boolean NOT NULL DEFAULT false,
-  qr_access_free boolean NOT NULL DEFAULT false,
-  access_status text NOT NULL DEFAULT 'pendente',
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-RLS: mesma lógica das demais tabelas do sistema.
-
-### Seed das 29 comissões oficiais
-Inserir via migration as 29 comissões com seus presidentes para todas as orgs existentes. Usar `ON CONFLICT DO NOTHING` para segurança.
+### Rota pública `/f/mobilidade/:token`
+- Registrada FORA do AuthGuard/OrgGuard/Layout no `App.tsx`
+- Página `PublicMobilityFormPage.tsx` com layout mínimo isolado
+- Chama edge function `resolve-public-link` para validar token
+- Exibe nome da comissão e presidente
+- Por enquanto: exibe apenas confirmação de que o link é válido (formulário público completo será implementado depois)
 
 ## Arquivos a criar
-
 | Arquivo | Descrição |
 |---|---|
-| `supabase/migrations/...sql` | Criação das 3 tabelas, RLS, seed |
-| `src/hooks/useOfficialCommittees.ts` | CRUD para comissões oficiais |
-| `src/hooks/useMobilityForms.ts` | CRUD para formulários de mobilidade |
-| `src/hooks/useMobilityMembers.ts` | CRUD para integrantes autorizados |
-| `src/pages/MobilityAuthPage.tsx` | Página principal com painel admin + formulário |
-| `src/components/mobility/MobilityForm.tsx` | Formulário de solicitação por comissão |
-| `src/components/mobility/MobilityMemberRow.tsx` | Linha de integrante no formulário |
-| `src/components/mobility/MobilityAdminPanel.tsx` | Painel com stats, filtros, tabela, exportação |
+| Migration SQL | Tabela `public_form_links` + RLS |
+| `supabase/functions/resolve-public-link/index.ts` | Resolver token |
+| `src/components/mobility/MobilityLinksPanel.tsx` | Painel de gestão de links |
+| `src/hooks/usePublicFormLinks.ts` | Hook CRUD para links |
+| `src/pages/PublicMobilityFormPage.tsx` | Página pública isolada |
 
 ## Arquivos a modificar
-
 | Arquivo | Alteração |
 |---|---|
-| `src/App.tsx` | Adicionar rota `/mobility-auth` |
-| `src/components/Sidebar.tsx` | Adicionar link "Mobilidade" no grupo Operação |
-| `src/components/BottomTabs.tsx` | Adicionar link no menu "Mais" |
-
-## Funcionalidades do formulário
-
-- Select de comissão populado com as 29 oficiais
-- Auto-preenche presidente oficial (somente leitura para não-admin)
-- Campos de responsável operacional (nome, telefone, email)
-- Toggle "Precisa de carro elétrico?" / "Precisa de patinete?"
-- Área dinâmica para adicionar integrantes quando sim
-- Cada integrante: nome, cargo, identificador, checkbox carro/patinete/ambos, QR gratuito, observação
-- Botão de enviar que salva snapshot do presidente no formulário
-
-## Funcionalidades do painel administrativo
-
-- Cards de resumo: comissões respondidas, total integrantes, carro elétrico, patinete, QR gratuito
-- Busca por nome de integrante
-- Filtros: comissão, modal (carro/patinete), status de liberação
-- Tabela com todos os integrantes autorizados
-- Ações: liberar, revisar, bloquear acesso
-- Exportação CSV filtrada (todos, só carro, só patinete)
-- Expandir formulário de cada comissão para ver detalhes
-
-## Fluxo de dados
-
-```text
-Comissão oficial (seed)
-  └─> Formulário de mobilidade (1 por comissão)
-        └─> Integrantes autorizados (N por formulário)
-              └─> Status: pendente → liberado / bloqueado
-```
-
-## Segurança
-
-- RLS em todas as tabelas usando `is_org_member` e `get_user_org_role`
-- Snapshots de presidente/comissão no formulário para preservar histórico
-- Unicidade de integrante por comissão+modal via validação no frontend
-- Audit trail via tabela `audit_log` existente
-
-## UX/UI
-
-- Design consistente com o restante do sistema (cards, badges, tons gold)
-- Responsivo mobile/desktop
-- Estados de loading, empty state, sucesso e erro
-- Formulário limpo e guiado passo a passo
-- Painel operacional com leitura rápida
+| `src/App.tsx` | Rota `/f/mobilidade/:token` fora do AuthGuard |
+| `src/pages/MobilityAuthPage.tsx` | Tab "Links" |
 
