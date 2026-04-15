@@ -769,6 +769,120 @@ export type Database = {
           },
         ]
       }
+      mobility_authorizations: {
+        Row: {
+          access_status: string
+          authorization_type: Database["public"]["Enums"]["mobility_authorization_type"]
+          committee_id: string
+          committee_name_snapshot: string
+          created_at: string
+          id: string
+          member_identifier: string | null
+          member_name: string
+          member_role: string | null
+          notes: string | null
+          operational_responsible_email: string | null
+          operational_responsible_name: string | null
+          operational_responsible_phone: string | null
+          org_id: string
+          president_name_snapshot: string
+          qr_access_free: boolean
+          source_form_id: string
+          source_link_id: string
+          source_member_id: string
+          source_origin: string
+          submitted_at: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          access_status?: string
+          authorization_type: Database["public"]["Enums"]["mobility_authorization_type"]
+          committee_id: string
+          committee_name_snapshot: string
+          created_at?: string
+          id?: string
+          member_identifier?: string | null
+          member_name: string
+          member_role?: string | null
+          notes?: string | null
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id: string
+          president_name_snapshot: string
+          qr_access_free?: boolean
+          source_form_id: string
+          source_link_id: string
+          source_member_id: string
+          source_origin?: string
+          submitted_at?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          access_status?: string
+          authorization_type?: Database["public"]["Enums"]["mobility_authorization_type"]
+          committee_id?: string
+          committee_name_snapshot?: string
+          created_at?: string
+          id?: string
+          member_identifier?: string | null
+          member_name?: string
+          member_role?: string | null
+          notes?: string | null
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id?: string
+          president_name_snapshot?: string
+          qr_access_free?: boolean
+          source_form_id?: string
+          source_link_id?: string
+          source_member_id?: string
+          source_origin?: string
+          submitted_at?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobility_authorizations_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "official_committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobility_authorizations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobility_authorizations_source_form_id_fkey"
+            columns: ["source_form_id"]
+            isOneToOne: false
+            referencedRelation: "public_mobility_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobility_authorizations_source_link_id_fkey"
+            columns: ["source_link_id"]
+            isOneToOne: false
+            referencedRelation: "public_form_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mobility_authorizations_source_member_id_fkey"
+            columns: ["source_member_id"]
+            isOneToOne: false
+            referencedRelation: "public_mobility_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       official_committees: {
         Row: {
           committee_name: string
@@ -902,6 +1016,61 @@ export type Database = {
         }
         Relationships: []
       }
+      public_form_audit: {
+        Row: {
+          actor_scope: string
+          created_at: string
+          event_type: string
+          form_id: string | null
+          id: string
+          link_id: string
+          org_id: string
+          payload: Json
+        }
+        Insert: {
+          actor_scope?: string
+          created_at?: string
+          event_type: string
+          form_id?: string | null
+          id?: string
+          link_id: string
+          org_id: string
+          payload?: Json
+        }
+        Update: {
+          actor_scope?: string
+          created_at?: string
+          event_type?: string
+          form_id?: string | null
+          id?: string
+          link_id?: string
+          org_id?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_form_audit_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "public_mobility_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_form_audit_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "public_form_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_form_audit_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_form_links: {
         Row: {
           committee_id: string
@@ -949,6 +1118,158 @@ export type Database = {
           },
           {
             foreignKeyName: "public_form_links_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_mobility_forms: {
+        Row: {
+          committee_id: string
+          committee_name_snapshot: string
+          created_at: string
+          id: string
+          last_public_access_at: string | null
+          last_synced_at: string | null
+          link_id: string
+          needs_electric_car: boolean
+          needs_scooter: boolean
+          operational_responsible_email: string | null
+          operational_responsible_name: string | null
+          operational_responsible_phone: string | null
+          org_id: string
+          president_name_snapshot: string
+          submission_status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          committee_id: string
+          committee_name_snapshot: string
+          created_at?: string
+          id?: string
+          last_public_access_at?: string | null
+          last_synced_at?: string | null
+          link_id: string
+          needs_electric_car?: boolean
+          needs_scooter?: boolean
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id: string
+          president_name_snapshot: string
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          committee_id?: string
+          committee_name_snapshot?: string
+          created_at?: string
+          id?: string
+          last_public_access_at?: string | null
+          last_synced_at?: string | null
+          link_id?: string
+          needs_electric_car?: boolean
+          needs_scooter?: boolean
+          operational_responsible_email?: string | null
+          operational_responsible_name?: string | null
+          operational_responsible_phone?: string | null
+          org_id?: string
+          president_name_snapshot?: string
+          submission_status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_mobility_forms_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "official_committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_mobility_forms_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: true
+            referencedRelation: "public_form_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_mobility_forms_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_mobility_members: {
+        Row: {
+          access_electric_car: boolean
+          access_scooter: boolean
+          committee_id: string
+          created_at: string
+          form_id: string
+          id: string
+          member_identifier: string | null
+          member_name: string
+          member_role: string | null
+          notes: string | null
+          org_id: string
+          qr_access_free: boolean
+          updated_at: string
+        }
+        Insert: {
+          access_electric_car?: boolean
+          access_scooter?: boolean
+          committee_id: string
+          created_at?: string
+          form_id: string
+          id?: string
+          member_identifier?: string | null
+          member_name: string
+          member_role?: string | null
+          notes?: string | null
+          org_id: string
+          qr_access_free?: boolean
+          updated_at?: string
+        }
+        Update: {
+          access_electric_car?: boolean
+          access_scooter?: boolean
+          committee_id?: string
+          created_at?: string
+          form_id?: string
+          id?: string
+          member_identifier?: string | null
+          member_name?: string
+          member_role?: string | null
+          notes?: string | null
+          org_id?: string
+          qr_access_free?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_mobility_members_committee_id_fkey"
+            columns: ["committee_id"]
+            isOneToOne: false
+            referencedRelation: "official_committees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_mobility_members_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "public_mobility_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_mobility_members_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1907,6 +2228,22 @@ export type Database = {
         Args: { _guest_ids: string[]; _org_id: string; _transport_id: string }
         Returns: undefined
       }
+      submit_public_mobility_form: {
+        Args: {
+          _members?: Json
+          _needs_electric_car?: boolean
+          _needs_scooter?: boolean
+          _operational_responsible_email?: string
+          _operational_responsible_name?: string
+          _operational_responsible_phone?: string
+          _token_hash: string
+        }
+        Returns: string
+      }
+      sync_public_mobility_form: {
+        Args: { _form_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
@@ -1925,6 +2262,7 @@ export type Database = {
         | "cancelado"
       extraction_status: "pendente" | "sucesso" | "falha" | "manual"
       member_status: "disponivel" | "em_deslocamento"
+      mobility_authorization_type: "carro_eletrico" | "patinete"
       org_role: "admin" | "gestor" | "operador" | "leitura"
       pix_key_type: "cpf" | "telefone" | "email" | "aleatoria"
       priority_level: "baixa" | "media" | "alta" | "urgente"
@@ -2078,6 +2416,7 @@ export const Constants = {
       ],
       extraction_status: ["pendente", "sucesso", "falha", "manual"],
       member_status: ["disponivel", "em_deslocamento"],
+      mobility_authorization_type: ["carro_eletrico", "patinete"],
       org_role: ["admin", "gestor", "operador", "leitura"],
       pix_key_type: ["cpf", "telefone", "email", "aleatoria"],
       priority_level: ["baixa", "media", "alta", "urgente"],
