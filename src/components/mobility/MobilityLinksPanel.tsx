@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link2, Copy, Check, Loader2, LinkIcon, RefreshCw } from 'lucide-react';
+import { Link2, Copy, Check, Loader2, LinkIcon, RefreshCw, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function MobilityLinksPanel() {
