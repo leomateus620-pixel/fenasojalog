@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function MobilityLinksPanel() {
   const { data: links, isLoading, generateAll, toggleActive } = usePublicFormLinks();
-  const { data: committees } = useOfficialCommittees();
+  const { committees } = useOfficialCommittees();
   const [generatedTokens, setGeneratedTokens] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
