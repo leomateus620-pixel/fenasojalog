@@ -4,10 +4,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AuthGuard from "./components/AuthGuard";
 import OrgGuard from "./components/OrgGuard";
 import Layout from "./components/Layout";
+import { getCanonicalPublicMobilityUrl, shouldForcePublicMobilityRedirect } from "./lib/publicMobility";
 import Dashboard from "./pages/Dashboard";
 import VehiclesPage from "./pages/VehiclesPage";
 import ElectricCartsPage from "./pages/ElectricCartsPage";
@@ -39,6 +42,35 @@ const persister = createSyncStoragePersister({
   key: 'fenasoja-query-cache',
 });
 
+const PublicMobilityRoute = () => {
+  const shouldRedirect = typeof window !== 'undefined' && shouldForcePublicMobilityRedirect(window.location);
+
+  useEffect(() => {
+    if (!shouldRedirect) return;
+
+    window.location.replace(
+      getCanonicalPublicMobilityUrl(
+        window.location.pathname,
+        window.location.search,
+        window.location.hash,
+      ),
+    );
+  }, [shouldRedirect]);
+
+  if (shouldRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span>Redirecionando para o formulário público…</span>
+        </div>
+      </div>
+    );
+  }
+
+  return <PublicMobilityFormPage />;
+};
+
 const App = () => (
   <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}>
     <TooltipProvider>
@@ -47,7 +79,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public isolated route — no auth, no layout */}
-          <Route path="/f/mobilidade/:token" element={<PublicMobilityFormPage />} />
+          <Route path="/f/mobilidade/:token" element={<PublicMobilityRoute />} />
 
           {/* Authenticated app */}
           <Route path="/*" element={

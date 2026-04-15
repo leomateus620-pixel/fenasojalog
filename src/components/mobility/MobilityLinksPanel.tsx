@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePublicFormLinks } from '@/hooks/usePublicFormLinks';
 import { useOfficialCommittees } from '@/hooks/useOfficialCommittees';
+import { getPublicMobilityOrigin } from '@/lib/publicMobility';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -8,16 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link2, Copy, Check, Loader2, LinkIcon, RefreshCw, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-
-const getPublicOrigin = () => {
-  const PUBLIC_DOMAIN = 'https://fenasojalog.lovable.app';
-  if (typeof window === 'undefined') return PUBLIC_DOMAIN;
-  const host = window.location.hostname;
-  if (host === 'fenasojalog.lovable.app' || host === 'fenasojalog.com' || host === 'www.fenasojalog.com') {
-    return window.location.origin;
-  }
-  return PUBLIC_DOMAIN;
-};
 
 export default function MobilityLinksPanel() {
   const { data: links, isLoading, generateAll, regenerateToken, regenerateAllTokens, toggleActive } = usePublicFormLinks();
@@ -27,7 +18,7 @@ export default function MobilityLinksPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copyingAll, setCopyingAll] = useState(false);
 
-  const publicOrigin = getPublicOrigin();
+  const publicOrigin = getPublicMobilityOrigin(typeof window !== 'undefined' ? window.location : undefined);
 
   const handleGenerate = async () => {
     if (!committees?.length) return;
