@@ -1,61 +1,68 @@
 
 
-## Diagnóstico — 3 problemas reais identificados
+## Diagnóstico — fui mais a fundo dessa vez
 
-### Problema 1: `fenasojalog2026@hotmail.com` vê o sistema todo
-**Causa real:** No `useCapabilities.ts` linha 12, o hook concede `full_access` automaticamente para qualquer role `admin/gestor/operador`. Mas o usuário está com role `leitura` no banco (correto). Então isso não é o bug.
+Confirmei no banco que os roles **estão corretos**:
+- `fenasojalog@gmail.com` → role `admin` ✅
+- `leomateus620@gmail.com` → role `operador` ✅
+- `fenasojalog2026@hotmail.com` → role `leitura` + capability `mobility_access` ✅
 
-O **bug verdadeiro** está em `useCurrentOrg`: quando o usuário não tem role definido ainda (carregamento async) ou quando há fallback, `myRole` pode vir como undefined e o cache do React Query persistido em localStorage (`fenasoja-query-cache`) pode estar **servindo dados de uma sessão anterior** (ex.: do admin que logou antes nesse navegador). O `PersistQueryClientProvider` mantém cache por 24h sem invalidar no signOut/signIn. Resultado: novo login herda capabilities/queries do usuário anterior.
+A função SQL `has_capability` retorna `true` para admin/operador automaticamente. Logo, no papel, tudo deveria funcionar. Mas tem **3 bugs de fato** no front-end:
 
-### Problema 2: `fenasojalog@gmail.com` (admin) e `leomateus620@gmail.com` (operador) NÃO veem o menu Mobilidade
-**Causa real:** No `Sidebar.tsx` linha 26, o item Mobilidade exige `cap: 'mobility_access'`. No hook `useCapabilities`, quando o usuário tem role admin/operador → `hasFullAccess = true` → `hasCapability('mobility_access')` retorna `true`. Isso **deveria funcionar**.
+### Bug 1 — Erro de hooks do React derruba os guards
+O console mostra `Uncaught Error: Should have a queue. This is likely a bug in React` no `AuthGuard.tsx` linha 30 (`if (showSplash)`). Isso acontece porque cada componente que chama `useAuth()` cria sua **própria instância de `useState`/`useEffect`/`useRef`** (Sidebar, AuthGuard, CapabilityGuard via useCapabilities, etc.). Quando o `onAuthStateChange` dispara, várias instâncias chamam `queryClient.clear()` e mexem em refs ao mesmo tempo, gerando reconciliação inconsistente. Quando o React quebra a fila de hooks, **os guards falham silenciosamente** e o conteúdo renderiza sem proteção — explica por que o usuário restrito viu Settings.
 
-Mas: o `useQuery` para capabilities tem `enabled: !!user && !!orgId && !hasFullAccessByRole`. Quando `myRole` ainda está carregando (undefined), `hasFullAccessByRole = false`, a query roda e retorna `[]`, e `hasCapability` retorna `false` para tudo — escondendo a Mobilidade até o role carregar. Mas o problema real é que **a sidebar renderiza antes do role estar pronto e não re-renderiza** corretamente em alguns casos por causa do cache persistido com chave estática ignorando user_id.
+### Bug 2 — Race condition em `useCapabilities`
+O hook calcula `hasFullAccessByRole` **antes** do `myRole` estar resolvido. Em milissegundos iniciais: `myRole = null` → `hasFullAccessByRole = false` → query roda → enquanto carrega, `hasCapability(qualquer_coisa)` retorna `false`. Para admin, isso significa que **TODOS os menus somem** até o role chegar. E o `useMemo` de `groups` no Sidebar usa `hasCapability` como dep — mas `hasCapability` é uma função nova a cada render, fazendo o memo recomputar com valores parciais.
 
-Além disso, **falta o item Mobilidade na lista para admins** porque ele está marcado com `cap: 'mobility_access'` (não `full_access`). Embora `hasCapability` deva retornar true para admin via fallback, se houve qualquer hidratação errada do cache, pode falhar.
-
-### Problema 3: Cache cross-user via localStorage
-O `PersistQueryClientProvider` usa chave fixa `fenasoja-query-cache`. Quando user A faz logout e user B faz login no mesmo browser, B vê dados/capabilities de A até o refetch.
+### Bug 3 — Cache cruzado por queryKey colidindo
+O `PersistQueryClientProvider` usa chave única `fenasoja-query-cache`. Mesmo que cada queryKey inclua `user?.id`, **as queries que NÃO usam user.id na key** (transports, events, tasks, members, mobility-forms) são compartilhadas entre usuários. O sidebar renderiza badges com dados do usuário anterior e o restritivo vê pistas do sistema todo. Pior: quando o admin loga depois do restrito, o cache antigo serve `myRole = 'leitura'` por instantes antes do refetch, ocultando todos os menus.
 
 ---
 
 ## Correções
 
-### 1. Limpar cache no logout/login (`useAuth.ts` + `App.tsx`)
-- No `signOut`: `queryClient.clear()` + `localStorage.removeItem('fenasoja-query-cache')`
-- No `onAuthStateChange` quando user_id mudar: limpar cache
+### 1. Centralizar `useAuth` em um Context (fonte única de verdade)
+- Criar `src/contexts/AuthProvider.tsx` que monta `useState`/`onAuthStateChange` **uma única vez**
+- `useAuth()` passa a ler do Context, sem `useState` próprio
+- Elimina a multiplicidade de subscriptions, refs e o React queue error
 
-### 2. Corrigir `useCapabilities` para evitar flash de "sem permissão"
-- Aguardar o `myRole` estar definido antes de decidir `hasCapability`
-- Expor `isLoading` que cobre tanto a query quanto o carregamento do role
-- Quando `isLoading`, sidebar não filtra menus (mostra skeleton) ao invés de esconder
+### 2. Centralizar `useCapabilities` em Context também
+- `src/contexts/CapabilitiesProvider.tsx` calcula uma única vez
+- Garante `isLoading = true` até `authLoading || orgLoading || (!!user && (!orgId || myRole == null))`
+- Retorna `hasCapability` como função estável (`useCallback`) para Sidebar não recomputar
 
-### 3. Garantir que Mobilidade aparece para admins
-- Trocar `cap: 'mobility_access'` por uma lógica OR: visível se `full_access` OU `mobility_access`
-- Como `hasCapability('mobility_access')` já retorna true para quem tem `full_access`, basta corrigir o bug de cache + loading
+### 3. Sidebar
+- Trocar `useMemo([hasCapability])` por dependência das primitivas (`hasFullAccess`, `capSet`)
+- Enquanto `capsLoading` ou role não resolvido, mostrar skeletons (não esconder)
 
-### 4. Endurecer guarda no `CapabilityGuard`
-- Não redirecionar enquanto `isLoading` (evita flicker pra `/mobility-auth` em refresh)
-- Para usuário `mobility_access` only, redirecionar `/` → `/mobility-auth` automaticamente
+### 4. Versionar o cache persistido por usuário
+- Trocar `key: 'fenasoja-query-cache'` por chave dinâmica ou usar `buster` no `PersistQueryClientProvider` baseado em `user.id`
+- Assim, o cache persistido fica isolado por sessão de usuário e nunca contamina o próximo
 
-### 5. Ajustar `useCurrentOrg` para invalidar org ao trocar de user
-- Detectar mudança de user.id e resetar `orgId` do localStorage se não pertencer ao novo user
+### 5. CapabilityGuard
+- Garantir que enquanto `isLoading`, NUNCA renderiza children nem redireciona
+- Para usuários sem `full_access` mas com `mobility_access`, redirecionar `/` → `/mobility-auth` (mantém o que já existe, mas com guarda de loading robusta)
+
+### 6. Limpeza pós-logout no login
+- Adicionar limpeza explícita de cache + reload suave ao detectar troca de user no `AuthProvider` (uma vez só, no nível raiz), evitando race conditions que múltiplos `useAuth` causam hoje
 
 ---
 
 ## Arquivos a alterar
 | Arquivo | Mudança |
 |---|---|
-| `src/hooks/useAuth.ts` | `queryClient.clear()` + remove localStorage no signOut e ao detectar troca de user |
-| `src/App.tsx` | Expor queryClient para useAuth; redirect `/` → `/mobility-auth` se sem `full_access` |
-| `src/hooks/useCapabilities.ts` | `isLoading` cobre role+query; aguardar role definido |
-| `src/hooks/useCurrentOrg.ts` | Resetar org persistida quando user.id mudar |
-| `src/components/CapabilityGuard.tsx` | Não decidir enquanto loading; redirect inteligente |
-| `src/components/Sidebar.tsx` | Skeleton enquanto capabilities loading; não esconder Mobilidade prematuramente |
+| `src/contexts/AuthProvider.tsx` | **Novo** — Provider único que substitui estado local de useAuth |
+| `src/hooks/useAuth.ts` | Vira consumer do AuthContext |
+| `src/contexts/CapabilitiesProvider.tsx` | **Novo** — Provider único de capabilities |
+| `src/hooks/useCapabilities.ts` | Vira consumer do CapabilitiesContext |
+| `src/App.tsx` | Envolver app com `<AuthProvider><CapabilitiesProvider>`. Configurar `buster` dinâmico no Persister por user.id |
+| `src/components/Sidebar.tsx` | Deps estáveis no useMemo, loading robusto |
+| `src/components/CapabilityGuard.tsx` | Já está OK, apenas validar |
 
 ## Resultado esperado
-- Logout/login limpos: cada usuário só vê o que tem permissão, sem herdar do anterior
-- Admin e operador veem **todos** os menus, incluindo Mobilidade
-- `fenasojalog2026@hotmail.com` vê **somente** Mobilidade + Sair, sem flicker, sem acesso por URL direta
-- Refresh em `/mobility-auth` mantém o usuário restrito na página correta
+- Admin (`fenasojalog@gmail.com`) e operador (`leomateus620@gmail.com`): **veem todos os menus, incluindo Mobilidade**, sem flash
+- Restrito (`fenasojalog2026@hotmail.com`): vê **apenas Mobilidade + Sair**, e tentativas de URL direta para `/`, `/settings`, etc. redirecionam para `/mobility-auth`
+- Sem o erro `Should have a queue` no console
+- Sem contaminação de cache entre logins
 
