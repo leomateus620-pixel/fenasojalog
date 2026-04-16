@@ -1,68 +1,79 @@
 
 
-## Diagnóstico — fui mais a fundo dessa vez
+## Diagnóstico
 
-Confirmei no banco que os roles **estão corretos**:
-- `fenasojalog@gmail.com` → role `admin` ✅
-- `leomateus620@gmail.com` → role `operador` ✅
-- `fenasojalog2026@hotmail.com` → role `leitura` + capability `mobility_access` ✅
+**Causa do erro:** A política `cmf_insert` (e `cmm_insert`) exige role `admin/gestor/operador`. Mas `fenasojalog2026@hotmail.com` tem role `leitura` + capability `mobility_access`. Quando ele tenta inserir em `committee_mobility_forms`, o RLS bloqueia com "new row violates row-level security policy".
 
-A função SQL `has_capability` retorna `true` para admin/operador automaticamente. Logo, no papel, tudo deveria funcionar. Mas tem **3 bugs de fato** no front-end:
+A capability `mobility_access` foi criada para liberar a navegação no frontend, mas as políticas RLS das tabelas de mobilidade nunca foram atualizadas para reconhecê-la.
 
-### Bug 1 — Erro de hooks do React derruba os guards
-O console mostra `Uncaught Error: Should have a queue. This is likely a bug in React` no `AuthGuard.tsx` linha 30 (`if (showSplash)`). Isso acontece porque cada componente que chama `useAuth()` cria sua **própria instância de `useState`/`useEffect`/`useRef`** (Sidebar, AuthGuard, CapabilityGuard via useCapabilities, etc.). Quando o `onAuthStateChange` dispara, várias instâncias chamam `queryClient.clear()` e mexem em refs ao mesmo tempo, gerando reconciliação inconsistente. Quando o React quebra a fila de hooks, **os guards falham silenciosamente** e o conteúdo renderiza sem proteção — explica por que o usuário restrito viu Settings.
+**Dados do usuário (confirmados no banco):**
+- user_id: `745e22a1-aefd-4a68-8f1a-30b14b97c9b5`
+- org_id: `985888b8-155f-4bbe-b6b9-6bef2893d99b`
+- role: `leitura` + capability `mobility_access`
 
-### Bug 2 — Race condition em `useCapabilities`
-O hook calcula `hasFullAccessByRole` **antes** do `myRole` estar resolvido. Em milissegundos iniciais: `myRole = null` → `hasFullAccessByRole = false` → query roda → enquanto carrega, `hasCapability(qualquer_coisa)` retorna `false`. Para admin, isso significa que **TODOS os menus somem** até o role chegar. E o `useMemo` de `groups` no Sidebar usa `hasCapability` como dep — mas `hasCapability` é uma função nova a cada render, fazendo o memo recomputar com valores parciais.
-
-### Bug 3 — Cache cruzado por queryKey colidindo
-O `PersistQueryClientProvider` usa chave única `fenasoja-query-cache`. Mesmo que cada queryKey inclua `user?.id`, **as queries que NÃO usam user.id na key** (transports, events, tasks, members, mobility-forms) são compartilhadas entre usuários. O sidebar renderiza badges com dados do usuário anterior e o restritivo vê pistas do sistema todo. Pior: quando o admin loga depois do restrito, o cache antigo serve `myRole = 'leitura'` por instantes antes do refetch, ocultando todos os menus.
-
----
+**Comissão Serviços (confirmada):**
+- committee_id: `c8d2aec0-e8bc-47c1-ae92-0843f1fb6570`
+- president: Valtair Dorneles
 
 ## Correções
 
-### 1. Centralizar `useAuth` em um Context (fonte única de verdade)
-- Criar `src/contexts/AuthProvider.tsx` que monta `useState`/`onAuthStateChange` **uma única vez**
-- `useAuth()` passa a ler do Context, sem `useState` próprio
-- Elimina a multiplicidade de subscriptions, refs e o React queue error
+### 1. Migration SQL — corrigir RLS para aceitar capability `mobility_access`
 
-### 2. Centralizar `useCapabilities` em Context também
-- `src/contexts/CapabilitiesProvider.tsx` calcula uma única vez
-- Garante `isLoading = true` até `authLoading || orgLoading || (!!user && (!orgId || myRole == null))`
-- Retorna `hasCapability` como função estável (`useCallback`) para Sidebar não recomputar
+Atualizar políticas INSERT/UPDATE de `committee_mobility_forms` e `committee_mobility_members` para também permitir quando `has_capability(auth.uid(), org_id, 'mobility_access')` retornar `true`:
 
-### 3. Sidebar
-- Trocar `useMemo([hasCapability])` por dependência das primitivas (`hasFullAccess`, `capSet`)
-- Enquanto `capsLoading` ou role não resolvido, mostrar skeletons (não esconder)
+```sql
+DROP POLICY "cmf_insert" ON public.committee_mobility_forms;
+CREATE POLICY "cmf_insert" ON public.committee_mobility_forms FOR INSERT
+  WITH CHECK (
+    public.get_user_org_role(auth.uid(), org_id) IN ('admin','gestor','operador')
+    OR public.has_capability(auth.uid(), org_id, 'mobility_access')
+  );
 
-### 4. Versionar o cache persistido por usuário
-- Trocar `key: 'fenasoja-query-cache'` por chave dinâmica ou usar `buster` no `PersistQueryClientProvider` baseado em `user.id`
-- Assim, o cache persistido fica isolado por sessão de usuário e nunca contamina o próximo
+DROP POLICY "cmf_update" ON public.committee_mobility_forms;
+CREATE POLICY "cmf_update" ON public.committee_mobility_forms FOR UPDATE
+  USING (
+    public.get_user_org_role(auth.uid(), org_id) IN ('admin','gestor','operador')
+    OR public.has_capability(auth.uid(), org_id, 'mobility_access')
+  );
 
-### 5. CapabilityGuard
-- Garantir que enquanto `isLoading`, NUNCA renderiza children nem redireciona
-- Para usuários sem `full_access` mas com `mobility_access`, redirecionar `/` → `/mobility-auth` (mantém o que já existe, mas com guarda de loading robusta)
+-- Mesmo tratamento para committee_mobility_members (insert/update)
+```
 
-### 6. Limpeza pós-logout no login
-- Adicionar limpeza explícita de cache + reload suave ao detectar troca de user no `AuthProvider` (uma vez só, no nível raiz), evitando race conditions que múltiplos `useAuth` causam hoje
+Manter DELETE restrito a admin/gestor (segurança preservada).
 
----
+### 2. Pré-cadastrar a solicitação completa de Valtair (na mesma migration)
 
-## Arquivos a alterar
-| Arquivo | Mudança |
-|---|---|
-| `src/contexts/AuthProvider.tsx` | **Novo** — Provider único que substitui estado local de useAuth |
-| `src/hooks/useAuth.ts` | Vira consumer do AuthContext |
-| `src/contexts/CapabilitiesProvider.tsx` | **Novo** — Provider único de capabilities |
-| `src/hooks/useCapabilities.ts` | Vira consumer do CapabilitiesContext |
-| `src/App.tsx` | Envolver app com `<AuthProvider><CapabilitiesProvider>`. Configurar `buster` dinâmico no Persister por user.id |
-| `src/components/Sidebar.tsx` | Deps estáveis no useMemo, loading robusto |
-| `src/components/CapabilityGuard.tsx` | Já está OK, apenas validar |
+Inserir um `committee_mobility_forms` para a comissão "Serviços" e os 6 integrantes em `committee_mobility_members`, depois rodar `sync_internal_mobility_form()` para popular `mobility_authorizations`. Dados extraídos dos anexos:
 
-## Resultado esperado
-- Admin (`fenasojalog@gmail.com`) e operador (`leomateus620@gmail.com`): **veem todos os menus, incluindo Mobilidade**, sem flash
-- Restrito (`fenasojalog2026@hotmail.com`): vê **apenas Mobilidade + Sair**, e tentativas de URL direta para `/`, `/settings`, etc. redirecionam para `/mobility-auth`
-- Sem o erro `Should have a queue` no console
-- Sem contaminação de cache entre logins
+**Cabeçalho:**
+- Comissão: Serviços (Presidente: Valtair Dorneles)
+- Responsável Operacional: ALEXANDRE BARBOSA
+- Telefone: 55992016989
+- E-mail: VALTAIR190@GMAIL.COM
+- Carro Elétrico: ✅ | Patinete: ❌
+
+**6 Integrantes (todos com Carro Elétrico ✅, QR Gratuito ❌, função SERVIÇOS, observação "CARRINHOS DE TRANSPORTE DE RESIDUOS LIXO"):**
+
+| # | Nome | CPF |
+|---|---|---|
+| 1 | JOSE EDUARDO MUCHA | 00911028048 |
+| 2 | GIUSEPPE FRANCESCO MARTINS GER | 02718327030 |
+| 3 | ANTILHO FAGUNDES NETO | 00879183071 |
+| 4 | ARLEN ANTUNES | 87714051000 |
+| 5 | CARLOS EDUARDO ANGST | 82026233049 |
+| 6 | ROBSON NORBERTO SEGAT | 01179189035 |
+
+`submitted_by_user_id`: `745e22a1-aefd-4a68-8f1a-30b14b97c9b5` (Valtair)
+`org_id`: `985888b8-155f-4bbe-b6b9-6bef2893d99b`
+`committee_id`: `c8d2aec0-e8bc-47c1-ae92-0843f1fb6570`
+
+Após inserir, executar `SELECT public.sync_internal_mobility_form('<form_id>');` para gerar 6 autorizações em `mobility_authorizations` (tipo `carro_eletrico`).
+
+## Arquivos
+- **Nova migration SQL** com: 4 políticas atualizadas + INSERT do form + INSERT dos 6 membros + chamada de sync.
+
+## Resultado
+- Valtair (e qualquer usuário com `mobility_access`) consegue enviar solicitações sem erro de RLS.
+- A solicitação dele já estará cadastrada e sincronizada com Carrinhos Elétricos quando logar de novo.
+- Segurança preservada: DELETE continua restrito a admin/gestor; outros módulos não afetados.
 
