@@ -1,126 +1,61 @@
 
 
-# Refatoração do Módulo Mobilidade — Plano de Implementação
+## Diagnóstico — 3 problemas reais identificados
 
-## Resumo
+### Problema 1: `fenasojalog2026@hotmail.com` vê o sistema todo
+**Causa real:** No `useCapabilities.ts` linha 12, o hook concede `full_access` automaticamente para qualquer role `admin/gestor/operador`. Mas o usuário está com role `leitura` no banco (correto). Então isso não é o bug.
 
-Remover toda a funcionalidade de links públicos, manter o fluxo interno (Nova Solicitação → Painel → Carrinhos/Patinetes), e criar um sistema de permissões granulares para suportar o login restrito `fenasojalog2026@hotmail.com`.
+O **bug verdadeiro** está em `useCurrentOrg`: quando o usuário não tem role definido ainda (carregamento async) ou quando há fallback, `myRole` pode vir como undefined e o cache do React Query persistido em localStorage (`fenasoja-query-cache`) pode estar **servindo dados de uma sessão anterior** (ex.: do admin que logou antes nesse navegador). O `PersistQueryClientProvider` mantém cache por 24h sem invalidar no signOut/signIn. Resultado: novo login herda capabilities/queries do usuário anterior.
 
----
+### Problema 2: `fenasojalog@gmail.com` (admin) e `leomateus620@gmail.com` (operador) NÃO veem o menu Mobilidade
+**Causa real:** No `Sidebar.tsx` linha 26, o item Mobilidade exige `cap: 'mobility_access'`. No hook `useCapabilities`, quando o usuário tem role admin/operador → `hasFullAccess = true` → `hasCapability('mobility_access')` retorna `true`. Isso **deveria funcionar**.
 
-## Análise do estado atual
+Mas: o `useQuery` para capabilities tem `enabled: !!user && !!orgId && !hasFullAccessByRole`. Quando `myRole` ainda está carregando (undefined), `hasFullAccessByRole = false`, a query roda e retorna `[]`, e `hasCapability` retorna `false` para tudo — escondendo a Mobilidade até o role carregar. Mas o problema real é que **a sidebar renderiza antes do role estar pronto e não re-renderiza** corretamente em alguns casos por causa do cache persistido com chave estática ignorando user_id.
 
-### Tabelas no banco
-- **Internas (manter):** `committee_mobility_forms`, `committee_mobility_members` — usadas pelo fluxo interno
-- **Públicas (remover lógica, preservar dados):** `public_form_links` (29 registros), `public_mobility_forms`, `public_mobility_members`, `public_form_audit` — todas com 0 registros úteis exceto links
-- **Autorizações:** `mobility_authorizations` — consumida pelos menus Carrinhos Elétricos e Patinetes via `AuthorizationsTab`
+Além disso, **falta o item Mobilidade na lista para admins** porque ele está marcado com `cap: 'mobility_access'` (não `full_access`). Embora `hasCapability` deva retornar true para admin via fallback, se houve qualquer hidratação errada do cache, pode falhar.
 
-### Problema de fluxo identificado
-O fluxo interno (MobilityForm → committee_mobility_forms/members) **não sincroniza automaticamente** com `mobility_authorizations`. A função `sync_public_mobility_form` só é chamada pelo fluxo público. Isso significa que solicitações internas **não aparecem** na aba Autorizações dos menus Carrinhos Elétricos e Patinetes. Este é um bug real que precisa ser corrigido.
-
-### Roles existentes
-Enum `org_role`: `admin`, `gestor`, `operador`, `leitura`. Não existe conceito de "capability" granular por módulo.
+### Problema 3: Cache cross-user via localStorage
+O `PersistQueryClientProvider` usa chave fixa `fenasoja-query-cache`. Quando user A faz logout e user B faz login no mesmo browser, B vê dados/capabilities de A até o refetch.
 
 ---
 
-## Etapas de implementação
+## Correções
 
-### 1. Criar sistema de capabilities por módulo
-**Migração SQL:**
-- Criar tabela `user_capabilities` com colunas: `id`, `user_id`, `org_id`, `capability` (text), `created_at`
-- Capabilities iniciais: `mobility_access`, `full_access` (wildcard)
-- RLS: membros ativos podem ler suas próprias capabilities
-- Criar função `has_capability(uuid, uuid, text)` SECURITY DEFINER
+### 1. Limpar cache no logout/login (`useAuth.ts` + `App.tsx`)
+- No `signOut`: `queryClient.clear()` + `localStorage.removeItem('fenasoja-query-cache')`
+- No `onAuthStateChange` quando user_id mudar: limpar cache
 
-**Lógica:** Admin/Gestor/Operador herdam `full_access` automaticamente. O login restrito receberá apenas `mobility_access`.
+### 2. Corrigir `useCapabilities` para evitar flash de "sem permissão"
+- Aguardar o `myRole` estar definido antes de decidir `hasCapability`
+- Expor `isLoading` que cobre tanto a query quanto o carregamento do role
+- Quando `isLoading`, sidebar não filtra menus (mostra skeleton) ao invés de esconder
 
-### 2. Criar o usuário restrito
-- Usar edge function `create-user` ou migration para criar o usuário `fenasojalog2026@hotmail.com` com senha `2026fenasoja`
-- Vinculá-lo à organização existente como role `leitura` (mínimo de privilégio)
-- Inserir capability `mobility_access` para esse user_id + org_id
-- Habilitar auto-confirm para este signup específico
+### 3. Garantir que Mobilidade aparece para admins
+- Trocar `cap: 'mobility_access'` por uma lógica OR: visível se `full_access` OU `mobility_access`
+- Como `hasCapability('mobility_access')` já retorna true para quem tem `full_access`, basta corrigir o bug de cache + loading
 
-### 3. Criar hook `useCapabilities`
-- Busca capabilities do usuário logado
-- Expõe `hasCapability(name)` e `hasFullAccess`
-- Admin/Gestor/Operador → `full_access` automático (via query ou lógica no hook baseada no role do `useCurrentOrg`)
+### 4. Endurecer guarda no `CapabilityGuard`
+- Não redirecionar enquanto `isLoading` (evita flicker pra `/mobility-auth` em refresh)
+- Para usuário `mobility_access` only, redirecionar `/` → `/mobility-auth` automaticamente
 
-### 4. Proteger rotas e sidebar
-**Sidebar (`Sidebar.tsx`):**
-- Filtrar `groups` com base nas capabilities do usuário
-- Mobilidade visível se `mobility_access` ou `full_access`
-- Demais menus visíveis apenas com `full_access`
-- Botão "Sair" sempre visível
-
-**Rotas (`App.tsx`):**
-- Criar componente `CapabilityGuard` que redireciona para `/mobility-auth` se o usuário não tem `full_access` e tenta acessar outra rota
-- Rota `/mobility-auth` acessível com `mobility_access`
-
-### 5. Corrigir sincronização interna → autorizações
-**Problema crítico:** Ao criar solicitação interna, os membros ficam em `committee_mobility_members` mas **nunca** chegam em `mobility_authorizations`.
-
-**Solução:** Criar função SQL `sync_internal_mobility_form(form_id)` que:
-- Lê membros de `committee_mobility_members` para o form
-- Insere em `mobility_authorizations` com `source_origin = 'interno'`
-- Chamada automaticamente via trigger AFTER INSERT em `committee_mobility_members` ou explicitamente no hook após salvar todos os membros
-
-### 6. Remover funcionalidade de links públicos
-
-**Frontend — remover:**
-- `src/components/mobility/MobilityLinksPanel.tsx`
-- `src/hooks/usePublicFormLinks.ts`
-- `src/pages/PublicMobilityFormPage.tsx`
-- `src/lib/publicMobility.ts`
-- Aba "Links" de `MobilityAuthPage.tsx`
-- Rota `/f/mobilidade/:token` e componente `PublicMobilityRoute` de `App.tsx`
-- Import de `Link2` e `MobilityLinksPanel` em `MobilityAuthPage`
-
-**Backend — remover edge functions:**
-- `supabase/functions/resolve-public-link/`
-- `supabase/functions/submit-public-form/`
-
-**Banco — NÃO dropar tabelas** (preservar dados históricos). Apenas remover as funções SQL públicas se desejado numa fase futura.
-
-### 7. Simplificar MobilityAuthPage
-- Remover aba "Links", manter apenas "Painel" e "Nova Solicitação"
-- Tabs: `Painel` | `Nova Solicitação`
-
-### 8. Auditoria do fluxo completo
-Validar após implementação:
-1. Criar solicitação → persiste em `committee_mobility_forms` + `committee_mobility_members`
-2. Sincroniza automaticamente → `mobility_authorizations`
-3. Painel (`MobilityAdminPanel`) mostra KPIs e listagem corretos
-4. `ElectricCartsPage` → aba Autorizações mostra membros com `authorization_type = 'carro_eletrico'`
-5. `ScootersPage` → aba Autorizações mostra membros com `authorization_type = 'patinete'`
-6. Status (pendente/liberado/bloqueado) funciona end-to-end
-7. Refresh não perde dados
-8. Filtros e contadores consistentes
+### 5. Ajustar `useCurrentOrg` para invalidar org ao trocar de user
+- Detectar mudança de user.id e resetar `orgId` do localStorage se não pertencer ao novo user
 
 ---
 
-## Arquivos modificados
+## Arquivos a alterar
+| Arquivo | Mudança |
+|---|---|
+| `src/hooks/useAuth.ts` | `queryClient.clear()` + remove localStorage no signOut e ao detectar troca de user |
+| `src/App.tsx` | Expor queryClient para useAuth; redirect `/` → `/mobility-auth` se sem `full_access` |
+| `src/hooks/useCapabilities.ts` | `isLoading` cobre role+query; aguardar role definido |
+| `src/hooks/useCurrentOrg.ts` | Resetar org persistida quando user.id mudar |
+| `src/components/CapabilityGuard.tsx` | Não decidir enquanto loading; redirect inteligente |
+| `src/components/Sidebar.tsx` | Skeleton enquanto capabilities loading; não esconder Mobilidade prematuramente |
 
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/MobilityAuthPage.tsx` | Remover aba Links |
-| `src/components/mobility/MobilityLinksPanel.tsx` | Deletar |
-| `src/hooks/usePublicFormLinks.ts` | Deletar |
-| `src/pages/PublicMobilityFormPage.tsx` | Deletar |
-| `src/lib/publicMobility.ts` | Deletar |
-| `src/App.tsx` | Remover rota pública, imports, PublicMobilityRoute |
-| `src/components/Sidebar.tsx` | Filtrar menus por capability |
-| `src/hooks/useCapabilities.ts` | Criar |
-| `src/components/CapabilityGuard.tsx` | Criar |
-| `supabase/functions/resolve-public-link/` | Deletar |
-| `supabase/functions/submit-public-form/` | Deletar |
-| **Migrações SQL** | Tabela capabilities, função sync interna, trigger, criação do usuário |
-
----
-
-## Detalhe técnico: segurança
-
-- O bloqueio não é apenas visual — rotas protegidas por `CapabilityGuard` redirecionam
-- RLS nas tabelas de mobilidade já filtra por `org_id` + membership
-- O usuário restrito terá role `leitura` (sem poder editar outros módulos) + capability `mobility_access`
-- Capabilities são verificadas tanto no frontend (sidebar + rotas) quanto no banco (RLS pode ser estendida)
+## Resultado esperado
+- Logout/login limpos: cada usuário só vê o que tem permissão, sem herdar do anterior
+- Admin e operador veem **todos** os menus, incluindo Mobilidade
+- `fenasojalog2026@hotmail.com` vê **somente** Mobilidade + Sair, sem flicker, sem acesso por URL direta
+- Refresh em `/mobility-auth` mantém o usuário restrito na página correta
 
