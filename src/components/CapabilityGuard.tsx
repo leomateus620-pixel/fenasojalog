@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function CapabilityGuard({ capability, children, fallbackRoute }: Props) {
-  const { hasCapability, hasFullAccess, isLoading } = useCapabilities();
+  const { hasCapability, isLoading } = useCapabilities();
 
   if (isLoading) {
     return (
