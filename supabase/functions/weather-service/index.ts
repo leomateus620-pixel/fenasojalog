@@ -196,7 +196,9 @@ async function resolveTransportLocation(transportId: string) {
 
 async function persistSnapshot(orgId: string, transportId: string, lat: number, lng: number, cityName: string, normalized: any, raw: any) {
   const ck = cityKey(lat, lng);
-  const { alerts_summary, ...normalizedClean } = normalized;
+  const { alerts_summary, ...rest } = normalized ?? {};
+  // Defensively strip any internal/underscore-prefixed keys (e.g. _raw) to avoid PGRST204 schema errors
+  const normalizedClean = Object.fromEntries(Object.entries(rest).filter(([k]) => !k.startsWith('_')));
   const { data: snap, error } = await admin
     .from('transport_weather_snapshots')
     .insert({
