@@ -39,7 +39,7 @@ export default function PlacesSearchDialog({ open, onOpenChange, onSelect }: Pla
       setQuery('');
       setResults([]);
       setSearched(false);
-      setTimeout(() => inputRef.current?.focus(), 200);
+      setTimeout(() => inputRef.current?.focus(), 350);
     } else {
       // Cancel any in-flight request on close
       abortRef.current?.abort();
