@@ -245,7 +245,7 @@ function getMiniMapUrl(originLat: number, originLng: number, destLat: number, de
 }
 
 export default function TransportsPage() {
-  const { transports, create, update, remove, start } = useTransports();
+  const { transports, create, update, remove, start, arriveDestination, startReturn, completeReturn } = useTransports();
   const { members } = useOrgMembers();
   const { vehicles } = useVehicles();
   const { guests, create: createGuest } = useGuests();
@@ -446,6 +446,10 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
           observacoes: buildEscoltaObs(form),
           destino_lat: customLat || null,
           destino_lng: customLng || null,
+          // Origin coords for return-trip tracking — defaults to Santa Rosa
+          origem_lat: SANTA_ROSA_LAT,
+          origem_lng: SANTA_ROSA_LNG,
+          somente_ida: !!(form as any).somente_ida,
           distancia_estimada_km: null,
           duracao_estimada_min: null,
           rota_polyline: null,
@@ -661,56 +665,90 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
   };
 
   const cycleStatus = async (t: any) => {
-    const order = ['pendente', 'em_andamento', 'concluido'];
-    const idx = order.indexOf(t.status);
-    if (idx < order.length - 1) {
-      const newStatus = order[idx + 1];
-      if (newStatus === 'concluido') {
-        if (trackingTransportId === t.id) {
-          await locationTracker.stopTracking();
-          setTrackingTransportId(null);
+    // Fenasoja return-trip window: 29/04 → 10/05/2026 (SP)
+    const inWindow = (() => {
+      if (!t.inicio_em) return false;
+      const d = new Date(t.inicio_em);
+      const start = new Date('2026-04-29T03:00:00.000Z');
+      const end = new Date('2026-05-11T02:59:59.999Z');
+      return d >= start && d <= end;
+    })();
+    const useReturnFlow = inWindow && !t.somente_ida;
+
+    // pendente → em_andamento (shared with legacy flow)
+    if (t.status === 'pendente') {
+      try {
+        const result = await start.mutateAsync({ id: t.id });
+        setTrackingTransportId(t.id);
+        toast.success('Viagem iniciada — localização ativada');
+        if (result?.whatsapp) {
+          setStartTripWhatsappData(result.whatsapp);
+          setStartTripWhatsappGuests(result.whatsappGuests || []);
+          setStartTripDriverName(result.driverName || '');
+          setStartTripStartedAt(result.startedAt || '');
+          setStartTripDialogOpen(true);
         }
-        setEditId(t.id);
-        const escoltaData = parseEscoltaFromObs(t.observacoes);
-        const linkedGuests2 = getGuestsForTransport(t.id);
-        setEditGuests(linkedGuests2);
-        setEditForm({
-          titulo: t.titulo || '', origem: t.origem, destino: t.destino,
-          inicio_em: t.inicio_em ? utcToSPLocal(t.inicio_em) : '', motorista_user_id: t.motorista_user_id || '',
-          vehicle_id: t.vehicle_id || '', prioridade: t.prioridade || 'media',
-          status: 'concluido',
-          km_retirada: t.km_retirada != null ? String(t.km_retirada) : '',
-          km_devolucao: '',
-          fim_em: nowSPLocal(),
-          voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
-          voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
-          horario_saida: t.horario_saida || '',
-          ...escoltaData,
-        });
-        setEditOpen(true);
-        return;
-      }
-      // Starting trip — use start mutation with backend validation
-      if (newStatus === 'em_andamento') {
-        try {
-          const result = await start.mutateAsync({ id: t.id });
-          // Set up tracking
-          setTrackingTransportId(t.id);
-          toast.success('Viagem iniciada — localização ativada');
-          // Show WhatsApp dialog
-          if (result?.whatsapp) {
-            setStartTripWhatsappData(result.whatsapp);
-            setStartTripWhatsappGuests(result.whatsappGuests || []);
-            setStartTripDriverName(result.driverName || '');
-            setStartTripStartedAt(result.startedAt || '');
-            setStartTripDialogOpen(true);
-          }
-        } catch {
-          // Error already handled by onError in the mutation
-        }
-        return;
-      }
+      } catch { /* handled by onError */ }
+      return;
     }
+
+    // em_andamento → either chegou_destino (return flow) or open Finalizar dialog (legacy)
+    if (t.status === 'em_andamento') {
+      if (useReturnFlow) {
+        try { await arriveDestination.mutateAsync({ id: t.id }); } catch { /* handled */ }
+        return;
+      }
+      // Legacy: open Finalizar dialog directly
+      if (trackingTransportId === t.id) {
+        await locationTracker.stopTracking();
+        setTrackingTransportId(null);
+      }
+      openFinalizeDialog(t);
+      return;
+    }
+
+    // chegou_destino → start_return (only valid in return flow)
+    if (t.status === 'chegou_destino') {
+      if (!useReturnFlow) {
+        openFinalizeDialog(t);
+        return;
+      }
+      try { await startReturn.mutateAsync({ id: t.id }); } catch { /* handled */ }
+      return;
+    }
+
+    // em_retorno → open Finalizar dialog → complete_return on save
+    if (t.status === 'em_retorno') {
+      if (trackingTransportId === t.id) {
+        await locationTracker.stopTracking();
+        setTrackingTransportId(null);
+      }
+      openFinalizeDialog(t, true);
+      return;
+    }
+  };
+
+  const openFinalizeDialog = (t: any, isReturnFlow: boolean = false) => {
+    setEditId(t.id);
+    const escoltaData = parseEscoltaFromObs(t.observacoes);
+    const linkedGuests2 = getGuestsForTransport(t.id);
+    setEditGuests(linkedGuests2);
+    setEditForm({
+      titulo: t.titulo || '', origem: t.origem, destino: t.destino,
+      inicio_em: t.inicio_em ? utcToSPLocal(t.inicio_em) : '', motorista_user_id: t.motorista_user_id || '',
+      vehicle_id: t.vehicle_id || '', prioridade: t.prioridade || 'media',
+      status: 'concluido',
+      km_retirada: t.km_retirada != null ? String(t.km_retirada) : '',
+      km_devolucao: '',
+      fim_em: nowSPLocal(),
+      voo_cidade: t.voo_cidade || '', voo_numero: t.voo_numero || '',
+      voo_checkin: t.voo_checkin || '', voo_chegada: t.voo_chegada || '',
+      horario_saida: t.horario_saida || '',
+      ...escoltaData,
+      // Marker so handleEditSave knows to call complete_return instead of update
+      __completeReturn: isReturnFlow,
+    } as any);
+    setEditOpen(true);
   };
 
   const sorted = [...transports].sort((a: any, b: any) => (a.inicio_em || '').localeCompare(b.inicio_em || ''));
