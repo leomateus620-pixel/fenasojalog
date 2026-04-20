@@ -1,0 +1,1 @@
+ALTER TABLE public.vehicles ALTER COLUMN placa DROP NOT NULL;

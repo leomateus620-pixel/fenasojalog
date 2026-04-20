@@ -2276,7 +2276,7 @@ export type Database = {
           marca: string | null
           modelo: string | null
           org_id: string
-          placa: string
+          placa: string | null
           renavam: string | null
           responsavel_user_id: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
@@ -2293,7 +2293,7 @@ export type Database = {
           marca?: string | null
           modelo?: string | null
           org_id: string
-          placa: string
+          placa?: string | null
           renavam?: string | null
           responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
@@ -2310,7 +2310,7 @@ export type Database = {
           marca?: string | null
           modelo?: string | null
           org_id?: string
-          placa?: string
+          placa?: string | null
           renavam?: string | null
           responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
