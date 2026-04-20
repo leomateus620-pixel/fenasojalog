@@ -2,40 +2,41 @@
 
 ## Diagnóstico
 
-Nos cards de transporte (e na visualização de detalhes/dynamic island), são exibidos dois horários lado a lado:
-- **Chegada** (~14:39) — ETA real calculada pela Google Routes API.
-- **Retorno** (~13:49) — atualmente está mostrando um valor inconsistente (próximo do horário atual), pois não representa um retorno real do destino, e sim um cálculo derivado que confunde o operador.
+Quando o usuário clica em **"Finalizar"** no card do transporte, a função `cycleStatus` (em `src/pages/TransportsPage.tsx`, linha 679) preenche o formulário de edição lendo `t.inicio_em` direto do banco e fazendo apenas `slice(0, 16)`:
 
-O horário de retorno do destino quase nunca é conhecido (depende do tempo que o convidado fica no local), então exibi-lo gera ruído visual e induz erro.
+```ts
+inicio_em: t.inicio_em?.slice(0, 16) || '',
+```
+
+Mas `t.inicio_em` é uma timestamp **UTC** (ex.: `"2026-04-20T16:44:00+00:00"` que equivale a `13:44` em SP). O `slice(0,16)` corta `"2026-04-20T16:44"` e o input `datetime-local` exibe **16:44** como se fosse horário SP — primeira regressão visual.
+
+Pior: ao salvar (linha 608), o código aplica `ensureSPOffset(editForm.inicio_em)`, gerando `"2026-04-20T16:44:00-03:00"` → grava **19:44 UTC** no banco. Em todas as próximas leituras, exibe **16:44 SP** (saída deslocada em **+3h** permanentemente — exatamente o que aparece no PDF).
+
+A função `openEditDlg` (botão Editar, linha 580) já está correta usando `utcToSPLocal(t.inicio_em)`. O bug só ocorre no fluxo "Finalizar Viagem".
 
 ## Correção
 
-Remover **toda exibição** do "Retorno ~HH:MM" da UI, mantendo apenas "Chegada ~HH:MM". A lógica de cálculo de retorno (usada para outros fins, como agenda de retorno do aeroporto) **não será removida** — apenas a exibição visual nos pontos abaixo.
+### Arquivo: `src/pages/TransportsPage.tsx`
 
-### Pontos de exibição a ajustar
+**Linha 679** — trocar a conversão crua por `utcToSPLocal`, idêntica ao `openEditDlg`:
 
-| Arquivo | Mudança |
-|---|---|
-| `src/components/transport/TransportCard.tsx` | Remover badge/pill "Retorno ~HH:MM" ao lado de "Chegada" |
-| `src/components/transport/TransportDetailView.tsx` | Remover linha/badge "Retorno ~HH:MM" da área de telemetria |
-| `src/components/TransportDynamicIsland.tsx` | Remover "Retorno" do bloco de telemetria split (manter apenas Chegada, KM e duração) |
-| `src/pages/TransportsPage.tsx` (se exibir inline) | Verificar e remover qualquer referência ao retorno estimado na lista |
+```diff
+- inicio_em: t.inicio_em?.slice(0, 16) || '', motorista_user_id: t.motorista_user_id || '',
++ inicio_em: t.inicio_em ? utcToSPLocal(t.inicio_em) : '', motorista_user_id: t.motorista_user_id || '',
+```
 
-### O que será preservado
+Isso garante que o `datetime-local` receba o horário **já convertido para o fuso de São Paulo**, e o `ensureSPOffset` na linha 608 passe a anexar o offset correto (`-03:00`) sem deslocar o valor.
 
-- Cálculo interno de ETA de retorno (`return_eta`, hooks de estimativa) — continua funcionando para a automação de viagem de retorno do aeroporto.
-- Coluna "SAÍDA / RETORNO" no header dos cards (datas/horas agendadas, não estimativas) — não confundir com o pill "Retorno ~HH:MM".
-- Lógica de `useTransportReturnEstimate` — fica disponível mas não é mais consumida visualmente.
+### Validação adicional
 
-### Verificação
-
-1. Buscar `Retorno` e `~` em `src/components/transport/**` e `src/components/TransportDynamicIsland.tsx` para localizar todas as ocorrências do pill.
-2. Garantir que apenas o pill estimado (com ícone azul/relógio) seja removido, não a coluna agendada do header.
-3. Conferir no card de transporte ativo (em andamento) e no Dynamic Island (mobile e desktop) que apenas "Chegada ~HH:MM" permanece visível.
+- Conferir que não há outros pontos onde `inicio_em` ou `fim_em` são lidos crus do banco para `datetime-local`. Já verifiquei: `openEditDlg` e o `editForm.fim_em` em `cycleStatus` (linha 684) usam `nowSPLocal()` — corretos.
+- `ensureSPOffset` e `utcToSPLocal` em `src/lib/utils.ts` permanecem inalterados — funcionam corretamente.
+- PDF (linha 765) e `TransportDetailView` (linha 62) já usam `toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })` — corretos.
 
 ## Resultado
 
-- Card e detalhes mostram somente "Chegada ~HH:MM" (ETA real).
-- Sem mais informação confusa sobre retorno estimado.
-- Automação de retorno do aeroporto e demais cálculos internos preservados.
+- Ao clicar em **Finalizar**, o campo "Data/Hora saída" no formulário aparece com o horário SP real (13:44, não 16:44).
+- Ao salvar, o `inicio_em` permanece igual ao original — sem deslocamento de +3h.
+- PDF, card e detalhe passam a mostrar o horário consistente (13:44) no fuso de Brasília.
+- Transportes futuros não acumulam mais o erro a cada finalização.
 
