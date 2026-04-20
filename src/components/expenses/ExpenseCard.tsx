@@ -57,10 +57,14 @@ export default function ExpenseCard({ expense, onClick }: ExpenseCardProps) {
         {/* Contextual links */}
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {expense.transport_id && (
-            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Truck className="w-2.5 h-2.5" />Transporte</span>
+            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5 max-w-[120px] truncate">
+              <Truck className="w-2.5 h-2.5 shrink-0" />{expense.transports?.titulo || 'Transporte'}
+            </span>
           )}
           {expense.vehicle_id && (
-            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Car className="w-2.5 h-2.5" />Veículo</span>
+            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5 max-w-[120px] truncate">
+              <Car className="w-2.5 h-2.5 shrink-0" />{expense.vehicles?.modelo || expense.vehicles?.placa || 'Veículo'}
+            </span>
           )}
           {expense.paid_by_name && (
             <span className="text-[9px] text-muted-foreground">• {expense.paid_by_name}</span>
