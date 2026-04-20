@@ -1,50 +1,37 @@
 
 
-## Filtro por pessoa no menu Despesas
+## Remover documento anexado do veículo DEFENDER 4X4
 
-### Problema
-Não há opção para filtrar despesas pelo nome da pessoa responsável (`paid_by_name`). O usuário quer ver todas as despesas vinculadas a uma pessoa específica.
+### Diagnóstico
+O veículo **DEFENDER 4X4** (ID `7cfacb28-616f-4dde-9bd9-26682913006f`) tem um PDF anexado por engano no campo `documento_url`:
+```
+985888b8-155f-4bbe-b6b9-6bef2893d99b/7cfacb28-616f-4dde-9bd9-26682913006f/1776711108918.pdf
+```
+(bucket privado `vehicle-documents`).
 
 ### Solução
 
-Adicionar um filtro do tipo **Select/dropdown** abaixo dos chips de status, listando todas as pessoas distintas com despesas registradas. Ao selecionar uma pessoa, as despesas são filtradas no backend via `paid_by_name`.
+**1. Remover arquivo do storage** (`vehicle-documents`):
+```
+985888b8-155f-4bbe-b6b9-6bef2893d99b/7cfacb28-616f-4dde-9bd9-26682913006f/1776711108918.pdf
+```
 
-### Alterações
+**2. Limpar referência no banco** via migração:
+```sql
+UPDATE vehicles
+SET documento_url = NULL,
+    updated_at = now()
+WHERE id = '7cfacb28-616f-4dde-9bd9-26682913006f';
+```
 
-**1. `src/hooks/useExpenses.ts`**
-- Adicionar `paid_by_name?: string` à interface `ExpenseFilters`
-- Adicionar filtro na query: `if (filters?.paid_by_name) q = q.eq('paid_by_name', filters.paid_by_name);`
-
-**2. `src/pages/ExpensesPage.tsx`**
-- Novo estado `personFilter` (string, default `''`)
-- Extrair lista de nomes únicos: buscar todas despesas sem filtro de pessoa para montar a lista de opções (usar uma query separada leve ou extrair do resultado completo)
-- Renderizar um `<Select>` compacto (ou chips horizontais) logo abaixo dos chips de status, com placeholder "Filtrar por pessoa"
-- Passar `paid_by_name` nos filtros do `useExpenses`:
-  ```ts
-  useExpenses({
-    ...(statusFilter ? { status: statusFilter } : {}),
-    ...(personFilter ? { paid_by_name: personFilter } : {}),
-  })
-  ```
-- Opção "Todos" para limpar o filtro
-
-**3. Abordagem para lista de nomes**
-- Usar uma segunda chamada `useExpenses()` sem filtros apenas para extrair nomes distintos seria redundante
-- Melhor: adicionar um hook/query dedicado que faz `SELECT DISTINCT paid_by_name FROM expenses WHERE org_id = ? AND paid_by_name IS NOT NULL`
-- Ou, mais simples: buscar os nomes distintos do array `expenses` carregado sem filtro de pessoa (carregar todas e filtrar client-side para pessoa, mantendo server-side para status)
-- **Escolha**: filtro client-side para pessoa (sem nova query), pois já carregamos até 500 registros. Carregar com filtro de status apenas, e filtrar por `paid_by_name` no frontend
-
-### Fluxo final
-1. Carregar despesas filtradas apenas por `status` (como hoje)
-2. Extrair `distinctNames` via `useMemo` do array completo
-3. Se `personFilter` estiver ativo, filtrar `expenses` client-side antes do `groupByDate`
-4. Renderizar Select com os nomes disponíveis + opção "Todos"
+### Resultado esperado
+- Card do DEFENDER 4X4 deixa de exibir o bloco "Documento do Veículo" com o PDF.
+- Aparecerá novamente a opção de anexar um documento limpo.
+- Nenhuma alteração de código é necessária.
 
 ### Arquivos
-
-| Arquivo | Mudança |
+| Tipo | Detalhe |
 |---|---|
-| `src/pages/ExpensesPage.tsx` | Estado `personFilter`, Select de pessoas, filtro client-side |
-
-Nenhuma alteração no hook necessária — filtro será 100% client-side para simplicidade.
+| Storage delete | `vehicle-documents/985888b8.../7cfacb28.../1776711108918.pdf` |
+| Migração SQL | `UPDATE vehicles SET documento_url = NULL` para o ID acima |
 
