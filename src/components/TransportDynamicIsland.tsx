@@ -454,16 +454,16 @@ export default function TransportDynamicIsland({
                 onClick={(e) => { e.stopPropagation(); onCycleStatus(); }}
                 className={cn(
                   'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]',
-                  t.status === 'pendente'
-                    ? 'bg-primary/15 hover:bg-primary/25 text-primary'
-                    : 'bg-accent/20 hover:bg-accent/30 text-accent',
+                  t.status === 'pendente' && 'bg-primary/15 hover:bg-primary/25 text-primary',
+                  t.status === 'em_andamento' && 'bg-accent/20 hover:bg-accent/30 text-accent',
+                  t.status === 'chegou_destino' && 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400',
+                  t.status === 'em_retorno' && 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-600 dark:text-indigo-400',
                 )}
               >
-                {t.status === 'pendente' ? (
-                  <><Play className="w-3.5 h-3.5" /> Iniciar</>
-                ) : (
-                  <><Square className="w-3.5 h-3.5" /> Finalizar</>
-                )}
+                {t.status === 'pendente' && (<><Play className="w-3.5 h-3.5" /> Iniciar</>)}
+                {t.status === 'em_andamento' && (<><Square className="w-3.5 h-3.5" /> {isInReturnTripWindow(t.inicio_em) && !t.somente_ida ? 'Cheguei no destino' : 'Finalizar'}</>)}
+                {t.status === 'chegou_destino' && (<><Play className="w-3.5 h-3.5" /> Iniciar Viagem de Volta</>)}
+                {t.status === 'em_retorno' && (<><Square className="w-3.5 h-3.5" /> Finalizar retorno</>)}
               </button>
             )}
             <button
