@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { cn, getEffectiveEstimatedKm } from '@/lib/utils';
 import { Navigation, MapPinOff, Clock, ArrowRight, Ruler, Timer, Square, Play, Eye, MapPin, Expand } from 'lucide-react';
 import { useTransportLocation } from '@/hooks/useLocationTracking';
+import { isInReturnTripWindow } from '@/hooks/useTransports';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateHeading, smoothHeading, haversineDistance } from '@/lib/heading';
 import FullscreenMapDialog from '@/components/transport/FullscreenMapDialog';
@@ -49,9 +50,14 @@ function decodePolyline(encoded: string): [number, number][] {
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
   em_andamento: 'Em trânsito',
+  chegou_destino: 'Chegou no destino',
+  em_retorno: 'Em rota de retorno',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
 };
+
+// Santa Rosa origin (used as fallback for return trip when origem_lat/lng not stored)
+const SANTA_ROSA: { lat: number; lng: number } = { lat: -27.8708, lng: -54.4814 };
 
 interface TransportDynamicIslandProps {
   transport: any;
@@ -74,15 +80,18 @@ export default function TransportDynamicIsland({
   onCycleStatus,
   onDetail,
 }: TransportDynamicIslandProps) {
-  const isActive = t.status === 'em_andamento';
-  const [expanded, setExpanded] = useState(isActive);
+  const isReturning = t.status === 'em_retorno';
+  const isAtDestination = t.status === 'chegou_destino';
+  const isActive = t.status === 'em_andamento' || isReturning;
+  const [expanded, setExpanded] = useState(isActive || isAtDestination);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const isCancelled = t.status === 'cancelado';
   const isDone = t.status === 'concluido';
 
-  const location = useTransportLocation(isActive ? t.id : null);
+  // Stream live location during outbound and return phases (and pin while at destination)
+  const location = useTransportLocation((isActive || isAtDestination) ? t.id : null);
   const [liveDestRoute, setLiveDestRoute] = useState<{ minutes: number; km: number; arrivalTime: string } | null>(null);
-  
+
   const [livePolyline, setLivePolyline] = useState<[number, number][] | undefined>(undefined);
   const lastFetchRef = useRef<number>(0);
   const prevIsActiveRef = useRef<boolean>(false);
@@ -116,17 +125,25 @@ export default function TransportDynamicIsland({
     if (isActive) setExpanded(true);
   }, [isActive]);
 
+  // During return phase, render the return polyline if stored
   const routePolyline = useMemo(() => {
-    if (t.rota_polyline) {
-      try { return decodePolyline(t.rota_polyline); } catch { return undefined; }
+    const enc = isReturning ? (t.rota_polyline_volta || t.rota_polyline) : t.rota_polyline;
+    if (enc) {
+      try { return decodePolyline(enc); } catch { return undefined; }
     }
     return undefined;
-  }, [t.rota_polyline]);
+  }, [t.rota_polyline, t.rota_polyline_volta, isReturning]);
 
+  // During return phase, "destination" of tracking = origin of the trip
   const destCoords = useMemo(() => {
+    if (isReturning) {
+      const lat = t.origem_lat ?? SANTA_ROSA.lat;
+      const lng = t.origem_lng ?? SANTA_ROSA.lng;
+      return [lat, lng] as [number, number];
+    }
     const d = getDestCoords(t);
     return d ? [d.lat, d.lng] as [number, number] : undefined;
-  }, [t.titulo, t.voo_cidade, t.destino_lat, t.destino_lng]);
+  }, [t, isReturning]);
 
   // Fetch live route + ETA when location updates
   useEffect(() => {
@@ -137,8 +154,10 @@ export default function TransportDynamicIsland({
     if (throttle > 0 && now - lastFetchRef.current < throttle) return;
     lastFetchRef.current = now;
 
-    const dest = getDestCoords(t);
-    if (!dest) return;
+    // Use destCoords (already swapped to origin during the return phase)
+    if (!destCoords) return;
+    const destLat = destCoords[0];
+    const destLng = destCoords[1];
 
     (async () => {
       try {
@@ -157,9 +176,9 @@ export default function TransportDynamicIsland({
             mode: 'LIVE_ROUTE',
             origin_lat: location.latitude,
             origin_lng: location.longitude,
-            dest_lat: dest.lat,
-            dest_lng: dest.lng,
-            destination: t.destino,
+            dest_lat: destLat,
+            dest_lng: destLng,
+            destination: isReturning ? t.origem : t.destino,
           }),
         });
 
@@ -179,7 +198,7 @@ export default function TransportDynamicIsland({
         }
       } catch { /* keep last */ }
     })();
-  }, [location?.latitude, location?.longitude, isActive]);
+  }, [location?.latitude, location?.longitude, isActive, isReturning, destCoords]);
 
   const etaText = useMemo(() => {
     if (liveDestRoute && isActive) return `${liveDestRoute.minutes} min`;
@@ -436,16 +455,16 @@ export default function TransportDynamicIsland({
                 onClick={(e) => { e.stopPropagation(); onCycleStatus(); }}
                 className={cn(
                   'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]',
-                  t.status === 'pendente'
-                    ? 'bg-primary/15 hover:bg-primary/25 text-primary'
-                    : 'bg-accent/20 hover:bg-accent/30 text-accent',
+                  t.status === 'pendente' && 'bg-primary/15 hover:bg-primary/25 text-primary',
+                  t.status === 'em_andamento' && 'bg-accent/20 hover:bg-accent/30 text-accent',
+                  t.status === 'chegou_destino' && 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400',
+                  t.status === 'em_retorno' && 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-600 dark:text-indigo-400',
                 )}
               >
-                {t.status === 'pendente' ? (
-                  <><Play className="w-3.5 h-3.5" /> Iniciar</>
-                ) : (
-                  <><Square className="w-3.5 h-3.5" /> Finalizar</>
-                )}
+                {t.status === 'pendente' && (<><Play className="w-3.5 h-3.5" /> Iniciar</>)}
+                {t.status === 'em_andamento' && (<><Square className="w-3.5 h-3.5" /> {isInReturnTripWindow(t.inicio_em) && !t.somente_ida ? 'Cheguei no destino' : 'Finalizar'}</>)}
+                {t.status === 'chegou_destino' && (<><Play className="w-3.5 h-3.5" /> Iniciar Viagem de Volta</>)}
+                {t.status === 'em_retorno' && (<><Square className="w-3.5 h-3.5" /> Finalizar retorno</>)}
               </button>
             )}
             <button
