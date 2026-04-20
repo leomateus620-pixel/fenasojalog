@@ -268,7 +268,7 @@ export default function ExpensesPage() {
             <div className="space-y-2">
               {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl bg-muted/30 animate-pulse" />)}
             </div>
-          ) : expenses.length === 0 ? (
+          ) : filteredExpenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
                 <Receipt className="w-8 h-8 opacity-25" />
