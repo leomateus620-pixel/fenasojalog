@@ -55,7 +55,8 @@ const statusLabels: Record<string, string> = {
   cancelado: 'Cancelado',
 };
 
-const SANTA_ROSA = { lat: -27.8708, lng: -54.4814 };
+// Santa Rosa origin (used as fallback for return trip when origem_lat/lng not stored)
+const SANTA_ROSA: { lat: number; lng: number } = { lat: -27.8708, lng: -54.4814 };
 
 interface TransportDynamicIslandProps {
   transport: any;
@@ -78,15 +79,18 @@ export default function TransportDynamicIsland({
   onCycleStatus,
   onDetail,
 }: TransportDynamicIslandProps) {
-  const isActive = t.status === 'em_andamento';
-  const [expanded, setExpanded] = useState(isActive);
+  const isReturning = t.status === 'em_retorno';
+  const isAtDestination = t.status === 'chegou_destino';
+  const isActive = t.status === 'em_andamento' || isReturning;
+  const [expanded, setExpanded] = useState(isActive || isAtDestination);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const isCancelled = t.status === 'cancelado';
   const isDone = t.status === 'concluido';
 
-  const location = useTransportLocation(isActive ? t.id : null);
+  // Stream live location during outbound and return phases (and pin while at destination)
+  const location = useTransportLocation((isActive || isAtDestination) ? t.id : null);
   const [liveDestRoute, setLiveDestRoute] = useState<{ minutes: number; km: number; arrivalTime: string } | null>(null);
-  
+
   const [livePolyline, setLivePolyline] = useState<[number, number][] | undefined>(undefined);
   const lastFetchRef = useRef<number>(0);
   const prevIsActiveRef = useRef<boolean>(false);
@@ -120,17 +124,25 @@ export default function TransportDynamicIsland({
     if (isActive) setExpanded(true);
   }, [isActive]);
 
+  // During return phase, render the return polyline if stored
   const routePolyline = useMemo(() => {
-    if (t.rota_polyline) {
-      try { return decodePolyline(t.rota_polyline); } catch { return undefined; }
+    const enc = isReturning ? (t.rota_polyline_volta || t.rota_polyline) : t.rota_polyline;
+    if (enc) {
+      try { return decodePolyline(enc); } catch { return undefined; }
     }
     return undefined;
-  }, [t.rota_polyline]);
+  }, [t.rota_polyline, t.rota_polyline_volta, isReturning]);
 
+  // During return phase, "destination" of tracking = origin of the trip
   const destCoords = useMemo(() => {
+    if (isReturning) {
+      const lat = t.origem_lat ?? SANTA_ROSA.lat;
+      const lng = t.origem_lng ?? SANTA_ROSA.lng;
+      return [lat, lng] as [number, number];
+    }
     const d = getDestCoords(t);
     return d ? [d.lat, d.lng] as [number, number] : undefined;
-  }, [t.titulo, t.voo_cidade, t.destino_lat, t.destino_lng]);
+  }, [t, isReturning]);
 
   // Fetch live route + ETA when location updates
   useEffect(() => {
