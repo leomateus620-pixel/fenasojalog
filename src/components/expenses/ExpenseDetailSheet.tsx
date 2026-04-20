@@ -93,10 +93,22 @@ export default function ExpenseDetailSheet({
 
         {/* Contextual links */}
         {expense.transport_id && (
-          <InfoRow label="Transporte" value={`ID: ${expense.transport_id.slice(0, 8)}...`} icon={Truck} />
+          <InfoRow
+            label="Transporte"
+            value={expense.transports?.titulo || (expense.transports?.destino ? `→ ${expense.transports.destino}` : 'Transporte removido')}
+            icon={Truck}
+          />
         )}
         {expense.vehicle_id && (
-          <InfoRow label="Veículo" value={`ID: ${expense.vehicle_id.slice(0, 8)}...`} icon={Car} />
+          <InfoRow
+            label="Veículo"
+            value={
+              expense.vehicles
+                ? `${[expense.vehicles.marca, expense.vehicles.modelo].filter(Boolean).join(' ')}${expense.vehicles.placa ? ` • ${expense.vehicles.placa}` : ''}`.trim() || 'Veículo'
+                : 'Veículo removido'
+            }
+            icon={Car}
+          />
         )}
 
         {/* Pix info */}

@@ -23,7 +23,7 @@ export function useExpenses(filters?: ExpenseFilters) {
       if (!orgId) return [];
       let q = (supabase as any)
         .from('expenses')
-        .select('*, expense_categories(name, icon), expense_documents(id, file_url, extraction_status)')
+        .select('*, expense_categories(name, icon), expense_documents(id, file_url, extraction_status), vehicles(id, modelo, marca, placa), transports(id, titulo, destino, inicio_em)')
         .eq('org_id', orgId)
         .order('expense_date', { ascending: false })
         .limit(500);
