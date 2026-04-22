@@ -11,7 +11,7 @@ import { useFenasojaEvents, FENASOJA_RANGE } from '@/hooks/useFenasojaEvents';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { toast } from 'sonner';
-import { getDateSP } from '@/lib/utils';
+import { getDateSP, utcToSPLocal, ensureSPOffset } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 
 interface EventFormProps {
@@ -48,8 +48,8 @@ export default function EventForm({ open, onOpenChange, editing }: EventFormProp
       return {
         titulo: editing.titulo || '',
         descricao: editing.descricao || '',
-        inicio_em: editing.inicio_em ? editing.inicio_em.slice(0, 16) : '',
-        fim_em: editing.fim_em ? editing.fim_em.slice(0, 16) : '',
+        inicio_em: editing.inicio_em ? utcToSPLocal(editing.inicio_em) : '',
+        fim_em: editing.fim_em ? utcToSPLocal(editing.fim_em) : '',
         local: editing.local || '',
         tipo_tag: editing.tipo_tag || '',
         responsavel_user_id: editing.responsavel_user_id || 'none',
@@ -79,12 +79,19 @@ export default function EventForm({ open, onOpenChange, editing }: EventFormProp
     const payload = {
       titulo: form.titulo.toUpperCase(),
       descricao: form.descricao || null,
-      inicio_em: form.inicio_em,
-      fim_em: form.fim_em,
+      inicio_em: ensureSPOffset(form.inicio_em),
+      fim_em: ensureSPOffset(form.fim_em),
       local: form.local || null,
       tipo_tag: form.tipo_tag || null,
       responsavel_user_id: form.responsavel_user_id !== 'none' ? form.responsavel_user_id : null,
       commission_id: form.commission_id !== 'none' ? form.commission_id : null,
+    };
+
+    // Format a Date as YYYY-MM-DDTHH:MM in São Paulo timezone (no offset)
+    const toSPLocalString = (d: Date): string => {
+      const raw = d.toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      const [date, time] = raw.split(' ');
+      return `${date}T${time?.slice(0, 5) || '00:00'}`;
     };
 
     try {
@@ -92,10 +99,13 @@ export default function EventForm({ open, onOpenChange, editing }: EventFormProp
         await update.mutateAsync({ id: editing.id, ...payload });
         toast.success('Evento atualizado');
       } else if (form.repetir_diariamente) {
-        const start = new Date(form.inicio_em);
-        const end = new Date(form.fim_em);
+        // Use full ISO with SP offset as anchor, then add days
+        const startISO = ensureSPOffset(form.inicio_em);
+        const endISO = ensureSPOffset(form.fim_em);
+        const start = new Date(startISO);
+        const end = new Date(endISO);
         const diffMs = end.getTime() - start.getTime();
-        const lastDay = new Date('2026-05-10T23:59:00');
+        const lastDay = new Date(ensureSPOffset('2026-05-10T23:59'));
         let count = 0;
         for (let i = 0; ; i++) {
           const newStart = new Date(start.getTime() + i * 86400000);
@@ -103,8 +113,8 @@ export default function EventForm({ open, onOpenChange, editing }: EventFormProp
           const newEnd = new Date(newStart.getTime() + diffMs);
           await create.mutateAsync({
             ...payload,
-            inicio_em: newStart.toISOString().slice(0, 16),
-            fim_em: newEnd.toISOString().slice(0, 16),
+            inicio_em: ensureSPOffset(toSPLocalString(newStart)),
+            fim_em: ensureSPOffset(toSPLocalString(newEnd)),
           });
           count++;
         }
