@@ -48,8 +48,8 @@ export default function EventForm({ open, onOpenChange, editing }: EventFormProp
       return {
         titulo: editing.titulo || '',
         descricao: editing.descricao || '',
-        inicio_em: editing.inicio_em ? editing.inicio_em.slice(0, 16) : '',
-        fim_em: editing.fim_em ? editing.fim_em.slice(0, 16) : '',
+        inicio_em: editing.inicio_em ? utcToSPLocal(editing.inicio_em) : '',
+        fim_em: editing.fim_em ? utcToSPLocal(editing.fim_em) : '',
         local: editing.local || '',
         tipo_tag: editing.tipo_tag || '',
         responsavel_user_id: editing.responsavel_user_id || 'none',
