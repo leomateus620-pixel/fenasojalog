@@ -1,77 +1,60 @@
 
 
-## Exportar autorizações de Patinetes e Carrinhos Elétricos (CSV + PDF)
+## Remover "QR Gratuito" do módulo Mobilidade
 
 ### Diagnóstico
-Hoje a aba **Autorizados** dentro de `Patinetes` e `Carrinhos Elétricos` (componente compartilhado `AuthorizationsTab`) já lê de `mobility_authorizations` e tem um botão **CSV** simples. Porém:
+A funcionalidade "QR Gratuito" aparece em 6 pontos da UI dos menus **Mobilidade**, **Patinetes** e **Carrinhos Elétricos**. Vamos retirar todas as menções visuais e exportadas, mantendo a coluna `qr_access_free` no banco intacta (sem migração destrutiva — preserva histórico e evita risco a registros existentes).
 
-1. O CSV exporta TODAS as autorizações (incluindo pendentes/bloqueadas) — não é "apenas aprovadas"
-2. **Não existe geração de PDF**
-3. O CSV atual não tem cabeçalho institucional, totalizadores nem agrupamento por comissão
+### Mudanças
 
-A solicitação é: **gerar CSV + PDF organizados, considerando apenas as solicitações aprovadas (`access_status = 'liberado'`)**, com botões disponíveis em ambos os menus para rodar quando todos enviarem suas solicitações.
+**1. `src/components/mobility/MobilityAdminPanel.tsx`** (Painel principal)
+- Remover o `StatCard` "QR Gratuito" (o card destacado no print)
+- Reduzir grid de stats de 5 para 4 colunas (`grid-cols-2 md:grid-cols-4`)
+- Remover ícone `QrCode` ao lado do nome na tabela
+- Remover coluna "QR Gratuito" do CSV exportado
+- Limpar import `QrCode` do lucide-react e o cálculo `stats.qr`
 
-### Solução
+**2. `src/components/mobility/AuthorizationsTab.tsx`** (abas Autorizados em Patinetes e Carrinhos)
+- Remover coluna "QR" da tabela (header + célula com Badge)
+- Resultado: tabela vai de 7 para 6 colunas
 
-**1. Novo helper compartilhado: `src/lib/generateMobilityAuthorizationsExport.ts`**
+**3. `src/components/mobility/EditMemberDialog.tsx`** (Dialog de edição)
+- Remover checkbox "QR Gratuito" do bloco de modais
+- Remover state `qrAccessFree` / `setQrAccessFree`
+- Remover do payload de `updateMember` (envia sempre `false` por compatibilidade ou omite)
 
-Centraliza a lógica para os dois tipos (patinete e carro elétrico), evitando duplicação:
+**4. `src/components/mobility/MobilityForm.tsx`** (formulário público de solicitação)
+- Remover `qr_access_free` do `emptyMember()` e do payload submetido
 
-- `exportMobilityAuthorizationsCSV(authorizations, type)` 
-  - Filtra `access_status === 'liberado'`
-  - Ordena por **comissão → nome do integrante**
-  - BOM UTF-8 (`\uFEFF`) para Excel reconhecer acentos
-  - Colunas: `Nº | Comissão | Presidente | Resp. Operacional | Telefone Op. | Nome | Cargo | CPF/Identificador | QR Gratuito | Modal | Data Aprovação`
-  - Nome de arquivo: `autorizacoes_aprovadas_<patinetes|carrinhos>_<YYYY-MM-DD>.csv`
+**5. `src/components/mobility/MobilityMemberRow.tsx`** (linha do form público)
+- Remover checkbox "QR Gratuito" e a prop relacionada
 
-- `exportMobilityAuthorizationsPDF(authorizations, type)` usando `jsPDF` + `jspdf-autotable` (já presentes no projeto):
-  - **Capa institucional** com fundo verde Fenasoja (`#194019`) + dourado (`#DCBE50`), título dinâmico:
-    - "Autorizações Aprovadas — Patinetes" / "Autorizações Aprovadas — Carrinhos Elétricos"
-    - Subtítulo "Fenasoja 2026 — Logística"
-    - Data de geração + total de autorizações aprovadas
-  - **Página de resumo** com:
-    - Total de aprovados
-    - Quantidade de comissões representadas
-    - Quantidade com QR gratuito
-    - Card destaque por comissão (mini tabela: comissão | nº integrantes | nº QR grátis)
-  - **Tabelas agrupadas por comissão** (uma seção por comissão):
-    - Cabeçalho da seção: nome da comissão + presidente + responsável operacional + telefone
-    - Tabela: `# | Nome | Cargo | CPF/Identificador | QR | Aprovado em`
-    - Tema `striped`, header verde `#194019` com texto dourado
-  - **Rodapé** em todas as páginas: "Fenasoja Logística — Documento oficial de autorização" + paginação `Página X de Y`
-  - Nome do arquivo: `autorizacoes_aprovadas_<patinetes|carrinhos>_<YYYY-MM-DD>.pdf`
+**6. `src/lib/generateMobilityAuthorizationsExport.ts`** (exportações)
+- **CSV:** remover coluna "QR Gratuito" do header e da linha
+- **PDF:** remover métrica "QR Gratuito" do bloco de stats da capa, remover coluna "QR Grátis" da tabela de resumo por comissão, remover coluna "QR" das tabelas detalhadas
+- Remover cálculo `totalQrFree` e o acumulador `qrFree` por comissão
 
-**2. Atualizar `src/components/mobility/AuthorizationsTab.tsx`**
+**7. `src/hooks/useMobilityMembers.ts`** (tipagem)
+- Manter `qr_access_free` opcional na interface (compatibilidade com banco) mas não exigir no payload
 
-Substituir o botão **CSV** atual por um agrupamento de exportação:
-
-- Botão dropdown / ou dois botões lado a lado:
-  - **Exportar CSV** (ícone `FileSpreadsheet`)
-  - **Exportar PDF** (ícone `FileText`)
-- Ambos exportam **somente os registros com `access_status === 'liberado'`** — independente dos filtros de tela aplicados (busca, comissão, status), garantindo que sempre saia "todos aprovados"
-- Antes de exportar, validar: se nenhuma autorização aprovada → `toast.warning('Nenhuma solicitação aprovada para exportar.')`
-- Toast de sucesso ao concluir: `Exportadas N autorizações aprovadas`
-
-**3. Estilo visual dos botões (Liquid Glass coerente)**
-
-Manter padrão `h-10 gap-1.5 rounded-xl` já usado na página, com ícones lucide:
-- `FileSpreadsheet` (verde sutil) para CSV
-- `FileDown` (dourado) para PDF
-
-### Arquivos
-
-| Arquivo | Tipo | Mudança |
-|---|---|---|
-| `src/lib/generateMobilityAuthorizationsExport.ts` | Novo | Funções `exportMobilityAuthorizationsCSV` e `exportMobilityAuthorizationsPDF` parametrizadas por tipo |
-| `src/components/mobility/AuthorizationsTab.tsx` | Edit | Substitui botão único CSV por dois botões (CSV + PDF) chamando o novo helper, filtrando apenas `liberado` |
-
-Sem migração de banco. Sem alteração no fluxo de aprovação. As páginas `ScootersPage` e `ElectricCartsPage` herdam automaticamente os novos botões pois já consomem `<AuthorizationsTab type="..." />`.
+### Banco de dados
+**Sem migração.** A coluna `qr_access_free` permanece em `committee_mobility_members` e `mobility_authorizations` com `DEFAULT false`, garantindo que novos registros não dependam mais desse dado. Se no futuro for necessário remover de vez, fazemos numa migração separada.
 
 ### Critério de aceite
+1. Card "QR GRATUITO" sumiu do Painel de Mobilidade (grid agora com 4 cards)
+2. Coluna/badge "QR" não aparece mais nas abas Autorizados de Patinetes nem de Carrinhos Elétricos
+3. Checkbox "QR Gratuito" sumiu do formulário público e do dialog de edição
+4. CSV e PDF exportados não contêm mais nenhuma menção a "QR Gratuito"
+5. Sem regressão em criar/editar/aprovar solicitações
+6. Ícone `QrCode` removido dos imports não utilizados
 
-1. Aba **Autorizados** em Patinetes e em Carrinhos Elétricos passa a ter dois botões: **CSV** e **PDF**
-2. Clicar em CSV gera um arquivo `.csv` aberto corretamente em Excel (acentos OK), contendo apenas autorizações com status **Liberado**, ordenadas por comissão e nome
-3. Clicar em PDF gera um documento institucional com capa verde+dourado, página de resumo, tabelas agrupadas por comissão e paginação
-4. Quando não houver nenhum aprovado, exibe toast de aviso sem gerar arquivo vazio
-5. Filtros de tela (busca/status/comissão) **não interferem** na exportação — sempre exporta o conjunto completo de aprovados
+### Arquivos
+| Arquivo | Mudança |
+|---|---|
+| `src/components/mobility/MobilityAdminPanel.tsx` | Remove StatCard, ícone na tabela, coluna do CSV |
+| `src/components/mobility/AuthorizationsTab.tsx` | Remove coluna QR da tabela |
+| `src/components/mobility/EditMemberDialog.tsx` | Remove checkbox e state |
+| `src/components/mobility/MobilityForm.tsx` | Remove campo do payload |
+| `src/components/mobility/MobilityMemberRow.tsx` | Remove checkbox |
+| `src/lib/generateMobilityAuthorizationsExport.ts` | Remove colunas/métricas QR de CSV e PDF |
 
