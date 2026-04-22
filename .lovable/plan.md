@@ -1,101 +1,77 @@
 
 
-## Refinar identidade do menu "Eventos Fenasoja" + cards 3D premium
+## Exportar autorizações de Patinetes e Carrinhos Elétricos (CSV + PDF)
 
-### 1. Trocar ícone do menu (sidebar + cabeçalho da página)
+### Diagnóstico
+Hoje a aba **Autorizados** dentro de `Patinetes` e `Carrinhos Elétricos` (componente compartilhado `AuthorizationsTab`) já lê de `mobility_authorizations` e tem um botão **CSV** simples. Porém:
 
-Substituir `Sparkles` (estrela cintilante, percebida como "emoji") por **`CalendarStar`** ou — mais profissional — **`CalendarCheck2`** combinado com refinamento visual. Após análise da identidade Fenasoja (institucional, programação oficial), o ícone escolhido é **`CalendarCheck2`** (calendário com check), que comunica "agenda institucional confirmada" de forma sóbria e corporativa.
+1. O CSV exporta TODAS as autorizações (incluindo pendentes/bloqueadas) — não é "apenas aprovadas"
+2. **Não existe geração de PDF**
+3. O CSV atual não tem cabeçalho institucional, totalizadores nem agrupamento por comissão
 
-| Local | Antes | Depois |
-|---|---|---|
-| `Sidebar.tsx` (item de menu) | `Sparkles` | `CalendarCheck2` |
-| `FenasojaEventsPage.tsx` (badge do header) | `Sparkles` em pílula gold | `CalendarCheck2` em pílula com gradiente verde→dourado, ring duplo |
-| Empty state | `Sparkles` | `CalendarCheck2` (mesmo tratamento glass premium) |
-| `EventCard.tsx` (título) | `Sparkles` ao lado do nome | **Removido** — substituído por barra dourada lateral mais espessa + número do evento (#01, #02) em mono dourado |
+A solicitação é: **gerar CSV + PDF organizados, considerando apenas as solicitações aprovadas (`access_status = 'liberado'`)**, com botões disponíveis em ambos os menus para rodar quando todos enviarem suas solicitações.
 
-### 2. Cards 3D premium com profundidade real
+### Solução
 
-Aprimorar `EventCard.tsx` com técnicas modernas de profundidade:
+**1. Novo helper compartilhado: `src/lib/generateMobilityAuthorizationsExport.ts`**
 
-**Camadas de profundidade (3D real):**
-- `perspective: 1200px` no container pai dos cards
-- Cada card com `transform-style: preserve-3d` + `rotateX(0.5deg)` sutil em repouso
-- **Hover desktop:** `translateY(-6px) rotateX(2deg) scale(1.01)` com transição `cubic-bezier(0.25, 0.46, 0.45, 0.94)` 400ms
-- **Active mobile:** `scale(0.985)` + reduce shadow (feedback tátil)
+Centraliza a lógica para os dois tipos (patinete e carro elétrico), evitando duplicação:
 
-**Sistema de sombras em camadas (depth shadows):**
-```
-shadow base:    0 1px 2px rgba(0,0,0,0.08)
-shadow midground: 0 8px 20px -8px hsl(var(--primary)/0.15)
-shadow gold glow: 0 24px 48px -16px hsl(var(--gold)/0.35)
-inner highlight: inset 0 1px 0 hsl(var(--gold)/0.18)
-```
-No hover, todas as sombras se intensificam suavemente; o glow dourado expande para 60px.
+- `exportMobilityAuthorizationsCSV(authorizations, type)` 
+  - Filtra `access_status === 'liberado'`
+  - Ordena por **comissão → nome do integrante**
+  - BOM UTF-8 (`\uFEFF`) para Excel reconhecer acentos
+  - Colunas: `Nº | Comissão | Presidente | Resp. Operacional | Telefone Op. | Nome | Cargo | CPF/Identificador | QR Gratuito | Modal | Data Aprovação`
+  - Nome de arquivo: `autorizacoes_aprovadas_<patinetes|carrinhos>_<YYYY-MM-DD>.csv`
 
-**Gradientes e textura premium:**
-- Background: `linear-gradient(135deg, hsl(var(--primary)/0.08) 0%, hsl(var(--card)/0.7) 45%, transparent 100%)`
-- Camada de brilho diagonal animada (shimmer) que cruza o card a cada hover (~1.2s)
-- Borda com gradient stroke: `border-image: linear-gradient(135deg, hsl(var(--gold)/0.4), transparent 60%, hsl(var(--gold)/0.2))`
-- Stripe lateral dourada **espessada de 3px → 5px** com gradient vertical e blur sutil (efeito "luz emanando")
+- `exportMobilityAuthorizationsPDF(authorizations, type)` usando `jsPDF` + `jspdf-autotable` (já presentes no projeto):
+  - **Capa institucional** com fundo verde Fenasoja (`#194019`) + dourado (`#DCBE50`), título dinâmico:
+    - "Autorizações Aprovadas — Patinetes" / "Autorizações Aprovadas — Carrinhos Elétricos"
+    - Subtítulo "Fenasoja 2026 — Logística"
+    - Data de geração + total de autorizações aprovadas
+  - **Página de resumo** com:
+    - Total de aprovados
+    - Quantidade de comissões representadas
+    - Quantidade com QR gratuito
+    - Card destaque por comissão (mini tabela: comissão | nº integrantes | nº QR grátis)
+  - **Tabelas agrupadas por comissão** (uma seção por comissão):
+    - Cabeçalho da seção: nome da comissão + presidente + responsável operacional + telefone
+    - Tabela: `# | Nome | Cargo | CPF/Identificador | QR | Aprovado em`
+    - Tema `striped`, header verde `#194019` com texto dourado
+  - **Rodapé** em todas as páginas: "Fenasoja Logística — Documento oficial de autorização" + paginação `Página X de Y`
+  - Nome do arquivo: `autorizacoes_aprovadas_<patinetes|carrinhos>_<YYYY-MM-DD>.pdf`
 
-**Tipografia em relevo:**
-- Hora principal: `text-3xl font-mono font-bold` com `text-shadow: 0 1px 0 rgba(0,0,0,0.2)` (efeito embossed sutil)
-- Título: drop-shadow leve dourado em hover
+**2. Atualizar `src/components/mobility/AuthorizationsTab.tsx`**
 
-**Badges 3D:**
-- Badge de turno (Manhã/Tarde/Noite) ganha gradient real + sombra interna + ring dourado
-- Ícone do turno com micro-animação: `Sun` rotaciona lentamente, `Sunset` desliza, `Moon` pulsa
+Substituir o botão **CSV** atual por um agrupamento de exportação:
 
-### 3. Animações cinematográficas
+- Botão dropdown / ou dois botões lado a lado:
+  - **Exportar CSV** (ícone `FileSpreadsheet`)
+  - **Exportar PDF** (ícone `FileText`)
+- Ambos exportam **somente os registros com `access_status === 'liberado'`** — independente dos filtros de tela aplicados (busca, comissão, status), garantindo que sempre saia "todos aprovados"
+- Antes de exportar, validar: se nenhuma autorização aprovada → `toast.warning('Nenhuma solicitação aprovada para exportar.')`
+- Toast de sucesso ao concluir: `Exportadas N autorizações aprovadas`
 
-**Entrada da lista (orquestração):**
-- Substituir `animate-fade-in` simples por animação composta:
-  - `opacity 0 → 1` (300ms)
-  - `translateY(24px) → 0` (450ms cubic-bezier)
-  - `rotateX(-8deg) → 0` (450ms) — efeito "virando para o usuário"
-  - `scale(0.96) → 1` (350ms)
-- Stagger 70ms entre cards (mantém percepção de fluidez sem demora)
+**3. Estilo visual dos botões (Liquid Glass coerente)**
 
-**Mudança de dia (chips):**
-- Ao clicar em outro dia: cards atuais saem com `animate-fade-out + translateY(-12px) + rotateX(6deg)` (200ms)
-- Novos cards entram pela animação acima — sensação de "carrossel 3D"
-
-**Chips de dia:**
-- Chip ativo ganha `scale(1.06)` + glow dourado pulsante sutil
-- Hover em chip inativo: `translateY(-2px) rotateX(4deg)` micro-3D
-
-**Hover interativo nos cards:**
-- Botões de ação (Editar/Excluir) deslizam de `opacity 0 translateY(8px)` para `opacity 1 translateY(0)` no hover (desktop). Em mobile permanecem visíveis.
-- Highlight gradient cruza diagonalmente o card uma vez (shimmer).
-
-### 4. Definir keyframes globais necessários
-
-Adicionar em `tailwind.config.ts` (extend keyframes):
-- `card-enter-3d` — combinação opacity/translateY/rotateX/scale
-- `shimmer-diagonal` — gradiente translucido cruzando o card
-- `gold-pulse` — sombra dourada pulsante sutil para o chip ativo
-
-### 5. Acessibilidade & performance
-
-- Respeitar `prefers-reduced-motion`: animações 3D viram fade simples
-- Usar `will-change: transform` somente durante hover (toggle via classe)
-- Animações restritas a `transform`/`opacity` (GPU) — sem layout thrashing
+Manter padrão `h-10 gap-1.5 rounded-xl` já usado na página, com ícones lucide:
+- `FileSpreadsheet` (verde sutil) para CSV
+- `FileDown` (dourado) para PDF
 
 ### Arquivos
 
-| Arquivo | Mudança |
-|---|---|
-| `src/components/Sidebar.tsx` | Trocar `Sparkles` → `CalendarCheck2` no item "Eventos Fenasoja" |
-| `src/pages/FenasojaEventsPage.tsx` | Trocar `Sparkles` → `CalendarCheck2` no header e empty state; aplicar `perspective` no wrapper da lista; refinar gradiente do ícone do header |
-| `src/components/fenasoja/EventCard.tsx` | Rewrite visual: remover `Sparkles`, adicionar stripe 5px, sombras em camadas, hover 3D, shimmer, badges com gradient, micro-animação no ícone do turno |
-| `tailwind.config.ts` | Adicionar keyframes `card-enter-3d`, `shimmer-diagonal`, `gold-pulse` |
+| Arquivo | Tipo | Mudança |
+|---|---|---|
+| `src/lib/generateMobilityAuthorizationsExport.ts` | Novo | Funções `exportMobilityAuthorizationsCSV` e `exportMobilityAuthorizationsPDF` parametrizadas por tipo |
+| `src/components/mobility/AuthorizationsTab.tsx` | Edit | Substitui botão único CSV por dois botões (CSV + PDF) chamando o novo helper, filtrando apenas `liberado` |
+
+Sem migração de banco. Sem alteração no fluxo de aprovação. As páginas `ScootersPage` e `ElectricCartsPage` herdam automaticamente os novos botões pois já consomem `<AuthorizationsTab type="..." />`.
 
 ### Critério de aceite
 
-1. Ícone do menu lateral troca de "estrelinha" para um ícone calendário institucional sóbrio (`CalendarCheck2`)
-2. Página Eventos Fenasoja reflete o mesmo ícone no header e empty state
-3. Cards reagem ao hover com efeito 3D real (perspectiva + sombras em camadas + shimmer)
-4. Entrada dos cards é cinematográfica e escalonada
-5. Mobile mantém feedback tátil (scale + sombra) sem quebrar performance
-6. `prefers-reduced-motion` desativa as animações 3D
+1. Aba **Autorizados** em Patinetes e em Carrinhos Elétricos passa a ter dois botões: **CSV** e **PDF**
+2. Clicar em CSV gera um arquivo `.csv` aberto corretamente em Excel (acentos OK), contendo apenas autorizações com status **Liberado**, ordenadas por comissão e nome
+3. Clicar em PDF gera um documento institucional com capa verde+dourado, página de resumo, tabelas agrupadas por comissão e paginação
+4. Quando não houver nenhum aprovado, exibe toast de aviso sem gerar arquivo vazio
+5. Filtros de tela (busca/status/comissão) **não interferem** na exportação — sempre exporta o conjunto completo de aprovados
 
