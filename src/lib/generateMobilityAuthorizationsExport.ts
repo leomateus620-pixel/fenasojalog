@@ -87,7 +87,7 @@ export function exportMobilityAuthorizationsCSV(
   const meta = TYPE_LABEL[type];
   const headers = [
     'Nº', 'Comissão', 'Presidente', 'Resp. Operacional', 'Telefone Op.',
-    'Nome', 'Cargo', 'CPF/Identificador', 'QR Gratuito', 'Modal', 'Data Aprovação',
+    'Nome', 'Cargo', 'CPF/Identificador', 'Modal', 'Data Aprovação',
   ];
 
   const rows = approved.map((a, i) => [
@@ -99,7 +99,6 @@ export function exportMobilityAuthorizationsCSV(
     a.member_name,
     a.member_role || '',
     a.member_identifier || '',
-    a.qr_access_free ? 'Sim' : 'Não',
     meta.singular,
     formatDateBR(a.updated_at || a.synced_at || a.submitted_at),
   ]);
@@ -172,21 +171,18 @@ export function exportMobilityAuthorizationsPDF(
   doc.addPage();
   drawHeader(doc, meta.plural, pageW);
 
-  const committees = new Map<string, { count: number; qrFree: number; president: string; opName: string; opPhone: string }>();
+  const committees = new Map<string, { count: number; president: string; opName: string; opPhone: string }>();
   approved.forEach((a) => {
     const key = a.committee_name_snapshot;
     const cur = committees.get(key) || {
-      count: 0, qrFree: 0,
+      count: 0,
       president: a.president_name_snapshot,
       opName: a.operational_responsible_name || '',
       opPhone: a.operational_responsible_phone || '',
     };
     cur.count += 1;
-    if (a.qr_access_free) cur.qrFree += 1;
     committees.set(key, cur);
   });
-
-  const totalQrFree = approved.filter((a) => a.qr_access_free).length;
 
   doc.setTextColor(...TEXT_DARK);
   doc.setFont('helvetica', 'bold');
@@ -195,12 +191,11 @@ export function exportMobilityAuthorizationsPDF(
 
   // Stat cards
   const cardY = 46;
-  const cardW = (pageW - 28 - 12) / 3;
+  const cardW = (pageW - 28 - 6) / 2;
   const cardH = 26;
   const stats: Array<[string, string]> = [
     ['Aprovados', String(approved.length)],
     ['Comissões', String(committees.size)],
-    ['QR Gratuito', String(totalQrFree)],
   ];
   stats.forEach((s, i) => {
     const x = 14 + i * (cardW + 6);
@@ -221,19 +216,18 @@ export function exportMobilityAuthorizationsPDF(
   // Per-committee summary table
   const summaryRows = Array.from(committees.entries())
     .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
-    .map(([name, info]) => [name, info.president, String(info.count), String(info.qrFree)]);
+    .map(([name, info]) => [name, info.president, String(info.count)]);
 
   autoTable(doc, {
     startY: cardY + cardH + 10,
-    head: [['Comissão', 'Presidente', 'Aprovados', 'QR Grátis']],
+    head: [['Comissão', 'Presidente', 'Aprovados']],
     body: summaryRows,
     theme: 'striped',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: TEXT_DARK },
     headStyles: { fillColor: FENASOJA_GREEN, textColor: FENASOJA_GOLD, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 248, 244] },
     columnStyles: {
-      2: { halign: 'center', cellWidth: 24 },
-      3: { halign: 'center', cellWidth: 24 },
+      2: { halign: 'center', cellWidth: 28 },
     },
     margin: { left: 14, right: 14 },
   });
@@ -272,13 +266,12 @@ export function exportMobilityAuthorizationsPDF(
 
     autoTable(doc, {
       startY: y + 26,
-      head: [['#', 'Nome', 'Cargo', 'CPF/Identificador', 'QR', 'Aprovado em']],
+      head: [['#', 'Nome', 'Cargo', 'CPF/Identificador', 'Aprovado em']],
       body: members.map((m, i) => [
         String(i + 1),
         m.member_name,
         m.member_role || '—',
         m.member_identifier || '—',
-        m.qr_access_free ? 'Sim' : '—',
         formatDateBR(m.updated_at || m.synced_at || m.submitted_at),
       ]),
       theme: 'striped',
@@ -287,8 +280,7 @@ export function exportMobilityAuthorizationsPDF(
       alternateRowStyles: { fillColor: [248, 248, 244] },
       columnStyles: {
         0: { halign: 'center', cellWidth: 10 },
-        4: { halign: 'center', cellWidth: 14 },
-        5: { halign: 'center', cellWidth: 28 },
+        4: { halign: 'center', cellWidth: 28 },
       },
       margin: { left: 14, right: 14 },
     });
