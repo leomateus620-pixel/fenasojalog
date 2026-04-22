@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toTitleCase, formatCpf } from './textNormalize';
 
 export type MobilityExportType = 'carro_eletrico' | 'patinete';
 
@@ -66,9 +67,9 @@ function getApproved(authorizations: MobilityAuthorization[]): MobilityAuthoriza
   return authorizations
     .filter((a) => a.access_status === 'liberado')
     .sort((a, b) => {
-      const c = a.committee_name_snapshot.localeCompare(b.committee_name_snapshot, 'pt-BR');
+      const c = toTitleCase(a.committee_name_snapshot).localeCompare(toTitleCase(b.committee_name_snapshot), 'pt-BR');
       if (c !== 0) return c;
-      return a.member_name.localeCompare(b.member_name, 'pt-BR');
+      return toTitleCase(a.member_name).localeCompare(toTitleCase(b.member_name), 'pt-BR');
     });
 }
 
@@ -92,13 +93,13 @@ export function exportMobilityAuthorizationsCSV(
 
   const rows = approved.map((a, i) => [
     i + 1,
-    a.committee_name_snapshot,
-    a.president_name_snapshot,
-    a.operational_responsible_name || '',
+    toTitleCase(a.committee_name_snapshot),
+    toTitleCase(a.president_name_snapshot),
+    toTitleCase(a.operational_responsible_name || ''),
     a.operational_responsible_phone || '',
-    a.member_name,
-    a.member_role || '',
-    a.member_identifier || '',
+    toTitleCase(a.member_name),
+    toTitleCase(a.member_role || ''),
+    formatCpf(a.member_identifier || ''),
     meta.singular,
     formatDateBR(a.updated_at || a.synced_at || a.submitted_at),
   ]);
@@ -173,11 +174,11 @@ export function exportMobilityAuthorizationsPDF(
 
   const committees = new Map<string, { count: number; president: string; opName: string; opPhone: string }>();
   approved.forEach((a) => {
-    const key = a.committee_name_snapshot;
+    const key = toTitleCase(a.committee_name_snapshot);
     const cur = committees.get(key) || {
       count: 0,
-      president: a.president_name_snapshot,
-      opName: a.operational_responsible_name || '',
+      president: toTitleCase(a.president_name_snapshot),
+      opName: toTitleCase(a.operational_responsible_name || ''),
       opPhone: a.operational_responsible_phone || '',
     };
     cur.count += 1;
@@ -236,9 +237,10 @@ export function exportMobilityAuthorizationsPDF(
   const sortedCommittees = Array.from(committees.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
   sortedCommittees.forEach((committeeName) => {
-    const members = approved.filter((a) => a.committee_name_snapshot === committeeName);
+    const members = approved.filter((a) => toTitleCase(a.committee_name_snapshot) === committeeName);
     if (members.length === 0) return;
     const first = members[0];
+    const opName = toTitleCase(first.operational_responsible_name || '');
 
     doc.addPage();
     drawHeader(doc, meta.plural, pageW);
@@ -254,11 +256,11 @@ export function exportMobilityAuthorizationsPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Presidente: ${first.president_name_snapshot}`, 18, y + 16);
+    doc.text(`Presidente: ${toTitleCase(first.president_name_snapshot)}`, 18, y + 16);
 
-    if (first.operational_responsible_name || first.operational_responsible_phone) {
+    if (opName || first.operational_responsible_phone) {
       const op = [
-        first.operational_responsible_name && `Resp. Op.: ${first.operational_responsible_name}`,
+        opName && `Resp. Op.: ${opName}`,
         first.operational_responsible_phone && `Tel.: ${first.operational_responsible_phone}`,
       ].filter(Boolean).join('   |   ');
       doc.text(op, pageW - 18, y + 16, { align: 'right' });
@@ -269,9 +271,9 @@ export function exportMobilityAuthorizationsPDF(
       head: [['#', 'Nome', 'Cargo', 'CPF/Identificador', 'Aprovado em']],
       body: members.map((m, i) => [
         String(i + 1),
-        m.member_name,
-        m.member_role || '—',
-        m.member_identifier || '—',
+        toTitleCase(m.member_name),
+        toTitleCase(m.member_role || '') || '—',
+        formatCpf(m.member_identifier || '') || '—',
         formatDateBR(m.updated_at || m.synced_at || m.submitted_at),
       ]),
       theme: 'striped',

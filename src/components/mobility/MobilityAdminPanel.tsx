@@ -13,6 +13,7 @@ import { useMobilityMembers } from '@/hooks/useMobilityMembers';
 import { useOfficialCommittees } from '@/hooks/useOfficialCommittees';
 import { toast } from 'sonner';
 import StatCard from '@/components/StatCard';
+import { toTitleCase, formatCpf } from '@/lib/textNormalize';
 
 const statusColors: Record<string, string> = {
   pendente: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
@@ -36,8 +37,9 @@ export default function MobilityAdminPanel() {
   const [editingMember, setEditingMember] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
+    const needle = toTitleCase(search).toLocaleLowerCase('pt-BR');
     return allMembers.filter((m: any) => {
-      if (search && !m.member_name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (needle && !toTitleCase(m.member_name).toLocaleLowerCase('pt-BR').includes(needle)) return false;
       if (filterCommittee !== 'all' && m.committee_id !== filterCommittee) return false;
       if (filterModal === 'car' && !m.access_electric_car) return false;
       if (filterModal === 'scooter' && !m.access_scooter) return false;
@@ -70,10 +72,10 @@ export default function MobilityAdminPanel() {
 
   const exportCSV = () => {
     const rows = filtered.map((m: any) => ({
-      Nome: m.member_name,
-      Cargo: m.member_role || '',
-      Identificador: m.member_identifier || '',
-      Comissão: m.committee_mobility_forms?.committee_name_snapshot || '',
+      Nome: toTitleCase(m.member_name),
+      Cargo: toTitleCase(m.member_role || ''),
+      Identificador: formatCpf(m.member_identifier || ''),
+      Comissão: toTitleCase(m.committee_mobility_forms?.committee_name_snapshot || ''),
       'Carro Elétrico': m.access_electric_car ? 'Sim' : 'Não',
       Patinete: m.access_scooter ? 'Sim' : 'Não',
       Status: statusLabels[m.access_status] || m.access_status,
@@ -114,7 +116,7 @@ export default function MobilityAdminPanel() {
               <SelectContent>
                 <SelectItem value="all">Todas comissões</SelectItem>
                 {committees.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>{c.committee_name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{toTitleCase(c.committee_name)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -167,16 +169,20 @@ export default function MobilityAdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((m: any) => (
+                  {filtered.map((m: any) => {
+                    const displayName = toTitleCase(m.member_name);
+                    const displayRole = toTitleCase(m.member_role || '');
+                    const displayCommittee = toTitleCase(m.committee_mobility_forms?.committee_name_snapshot || '');
+                    return (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">
-                        {m.member_name}
+                        {displayName}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
-                        {m.committee_mobility_forms?.committee_name_snapshot || '—'}
+                        {displayCommittee || '—'}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
-                        {m.member_role || '—'}
+                        {displayRole || '—'}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -214,12 +220,12 @@ export default function MobilityAdminPanel() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Excluir integrante?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta ação removerá <strong>{m.member_name}</strong> e todas as autorizações de mobilidade vinculadas. Não poderá ser desfeita.
+                                  Esta ação removerá <strong>{displayName}</strong> e todas as autorizações de mobilidade vinculadas. Não poderá ser desfeita.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(m.id, m.member_name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                <AlertDialogAction onClick={() => handleDelete(m.id, displayName)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                   Excluir
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -228,7 +234,8 @@ export default function MobilityAdminPanel() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
