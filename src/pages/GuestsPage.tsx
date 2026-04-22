@@ -65,6 +65,35 @@ export default function GuestsPage() {
   const [editId, setEditId] = useState('');
   const [editForm, setEditForm] = useState(emptyForm);
 
+  const [hotelFilter, setHotelFilter] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return sessionStorage.getItem('guests:hotel-filter') || 'all';
+  });
+
+  useEffect(() => {
+    try { sessionStorage.setItem('guests:hotel-filter', hotelFilter); } catch {}
+  }, [hotelFilter]);
+
+  const hotelOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let noneCount = 0;
+    for (const g of guests as any[]) {
+      const name = (g.hotel_nome || '').trim();
+      if (!name) noneCount++;
+      else counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    const sorted = Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+    return { sorted, noneCount };
+  }, [guests]);
+
+  const filteredGuests = useMemo(() => {
+    if (hotelFilter === 'all') return guests;
+    if (hotelFilter === '__none__') return (guests as any[]).filter(g => !(g.hotel_nome || '').trim());
+    return (guests as any[]).filter(g => g.hotel_nome === hotelFilter);
+  }, [guests, hotelFilter]);
+
+  const isFilterActive = hotelFilter !== 'all';
+
   const handleAdd = async () => {
     if (!form.nome) return;
     try {
