@@ -147,7 +147,7 @@ export default function GuestsPage() {
     try {
       await update.mutateAsync({
         id: editId, nome: editForm.nome, telefone: editForm.telefone || null,
-        email: editForm.email || null, tipo: editForm.tipo, hotel_nome: editForm.hotel_nome || null,
+        email: editForm.email || null, tipo: editForm.tipo, hotel_nome: normalizeHotelName(editForm.hotel_nome) || null,
         checkin_em: editForm.checkin_em ? ensureSPOffset(editForm.checkin_em) : null, checkout_em: editForm.checkout_em ? ensureSPOffset(editForm.checkout_em) : null,
         observacoes: editForm.observacoes || null,
       });
