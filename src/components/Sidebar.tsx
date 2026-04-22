@@ -1,8 +1,9 @@
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Zap, MapPin, CalendarDays, CheckSquare, Users, Hotel, Bike,
-  PanelLeftClose, PanelLeftOpen, LogOut, Settings, ClipboardList, X, Gauge, FileText, Receipt, ShieldCheck,
+  PanelLeftClose, PanelLeftOpen, LogOut, Settings, ClipboardList, X, Gauge, FileText, Receipt, ShieldCheck, Sparkles,
 } from 'lucide-react';
+import { useFenasojaEvents } from '@/hooks/useFenasojaEvents';
 import logo from '@/assets/logofeira26.webp';
 import { useAuth } from '@/hooks/useAuth';
 import { useTransports } from '@/hooks/useTransports';
@@ -21,6 +22,7 @@ const operacao = [
   { to: '/transports', icon: MapPin, label: 'Transportes', cap: 'full_access' },
   { to: '/expenses', icon: Receipt, label: 'Despesas', cap: 'full_access' },
   { to: '/agenda', icon: CalendarDays, label: 'Agenda', cap: 'full_access' },
+  { to: '/fenasoja-events', icon: Sparkles, label: 'Eventos Fenasoja', cap: 'full_access' },
   { to: '/ver-escala', icon: ClipboardList, label: 'Escala', cap: 'full_access' },
   { to: '/checklist', icon: CheckSquare, label: 'Checklist', cap: 'full_access' },
   { to: '/km-emissoes', icon: Gauge, label: 'KM & Emissões', cap: 'full_access' },
@@ -69,6 +71,7 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
   const { hasFullAccess, capSet, isLoading: capsLoading } = useCapabilities();
   const { transports } = useTransports();
   const { events } = useEvents();
+  const { events: fenasojaEvents } = useFenasojaEvents();
   const { tasks } = useTasks();
   const { members } = useOrgMembers();
 
@@ -88,16 +91,20 @@ export default function Sidebar({ collapsed, onToggle, isMobile, mobileOpen, onM
     const todayEvents = events.filter((e: any) => {
       try { return isToday(parseISO(e.inicio_em)); } catch { return false; }
     }).length;
+    const todayFenasoja = fenasojaEvents.filter((e: any) => {
+      try { return isToday(parseISO(e.inicio_em)); } catch { return false; }
+    }).length;
     const pendingTasks = tasks.filter((t: any) => t.status === 'pendente').length;
     const availableMembers = members.filter((m: any) => m.status === 'disponivel').length;
 
     return new Map<string, number>([
       ['/transports', activeTransports],
       ['/agenda', todayEvents],
+      ['/fenasoja-events', todayFenasoja],
       ['/checklist', pendingTasks],
       ['/team', availableMembers],
     ]);
-  }, [transports, events, tasks, members]);
+  }, [transports, events, fenasojaEvents, tasks, members]);
 
   const contextLine = useMemo(() => {
     const parts: string[] = [];
