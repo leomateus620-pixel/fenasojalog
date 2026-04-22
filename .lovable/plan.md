@@ -1,42 +1,66 @@
 
 
-## Corrigir fuso horário do menu Eventos Fenasoja (UTC → SP/Brasília)
+## Habilitar edição das solicitações no menu Mobilidade
 
 ### Diagnóstico
-O formulário grava os horários como **UTC** porque envia a string `datetime-local` (ex: `2026-05-03T10:00`) sem offset, e o Postgres interpreta como UTC. Resultado: ao exibir em SP (UTC-3), a hora aparece 3h adiantada (ex: cadastrei 10:00 → mostra 07:00 ou 13:00 dependendo do caso).
+Na tabela do **Painel de Mobilidade** (print enviado) cada linha já permite **liberar / bloquear / excluir**, mas **não há botão de editar** os dados do integrante (nome, cargo, comissão, modais, QR, observações). O hook `useMobilityMembers` já expõe `updateMember`, mas o componente só usa para mudar `access_status`.
 
-Da mesma forma, na edição o `slice(0,16)` corta direto da string UTC do banco em vez de converter para SP, e o "Repetir diariamente" usa `toISOString()` (UTC) ao clonar — propagando o desvio.
-
-O projeto já tem helpers prontos em `src/lib/utils.ts`:
-- `ensureSPOffset(value)` → adiciona `-03:00` (ou `-02:00` no horário de verão) antes de enviar
-- `utcToSPLocal(iso)` → converte ISO UTC → `YYYY-MM-DDTHH:MM` em SP para o input
+Além disso, hoje a RLS de `UPDATE` em `committee_mobility_members` é restrita (admin/operador). O pedido é: **qualquer login da organização** pode editar.
 
 ### Solução
 
-Aplicar o padrão SP (`mem://architecture/padrao-fuso-horario-sp`) em **3 pontos** do fluxo de Eventos Fenasoja:
+**1. UI — botão Editar + Dialog (`MobilityAdminPanel.tsx`)**
+- Adicionar ícone `Pencil` (lucide) na coluna **Ações**, antes dos botões de status
+- Ao clicar, abrir um `Dialog` Liquid Glass com formulário pré-preenchido contendo:
+  - Nome completo *
+  - Cargo / Função
+  - CPF / Identificador
+  - Comissão (Select com `useOfficialCommittees`)
+  - Checkboxes: Carro Elétrico · Patinete · QR Gratuito
+  - Status (Select: Pendente / Liberado / Bloqueado)
+  - Observações (Textarea)
+- Validação mínima: `member_name` obrigatório; ao menos um modal marcado
+- Submit chama `updateMember.mutateAsync({ id, ...campos })` → toast "Solicitação atualizada"
+- Cache `mobility-members-all` + `mobility-authorizations` invalidado automaticamente
+- Layout responsivo: dialog `max-h-[90dvh]` com scroll interno; grid 1col mobile / 2col desktop
 
-**1. `src/components/fenasoja/EventForm.tsx` — pré-preenchimento na edição**
-Usar `utcToSPLocal()` em vez de `slice(0, 16)` para que o input mostre o horário correto de SP ao editar.
+**2. Permissões — RLS aberta para qualquer membro da org**
+Atualizar política PERMISSIVE de `UPDATE` em `committee_mobility_members` para permitir a todos os membros ativos da organização (não só admin/operador):
 
-**2. `src/components/fenasoja/EventForm.tsx` — envio ao salvar**
-Aplicar `ensureSPOffset()` em `inicio_em` e `fim_em` no `payload` antes de mandar ao banco. Assim a string `2026-05-03T10:00` vira `2026-05-03T10:00-03:00` e o Postgres armazena corretamente.
+```sql
+DROP POLICY IF EXISTS "members_update" ON public.committee_mobility_members;
+CREATE POLICY "members_update_any_org_member"
+ON public.committee_mobility_members
+FOR UPDATE
+USING (public.is_org_member(auth.uid(), org_id))
+WITH CHECK (public.is_org_member(auth.uid(), org_id));
+```
 
-**3. `src/components/fenasoja/EventForm.tsx` — recorrência diária**
-Substituir `newStart.toISOString().slice(0,16)` por uma construção local SP (formatar manualmente com `pt-BR`/`sv-SE` no fuso `America/Sao_Paulo`) e aplicar `ensureSPOffset()` igualmente. Evita desvio cumulativo nos clones.
+Isso atende ao pedido literal: **todos os logins/usuários** da organização poderão editar as solicitações cadastradas.
 
-**4. Correção dos dados já cadastrados (se houver)**
-O único registro existente é o "Evento Parlasul" gravado como `08:00–12:00 UTC` (= `05:00–09:00 SP`), que **já está correto** e seguirá exibindo `05:00 → 09:00` no card. Nenhuma migração de dados necessária.
+> Observação de segurança: mantemos `INSERT` e `DELETE` com regras existentes (apenas admin/operador podem criar/excluir), apenas a **edição** fica liberada para todos. Se o usuário quiser também liberar exclusão para todos, basta confirmar — não está no escopo desta solicitação.
+
+**3. Trigger de sincronização**
+A tabela `mobility_authorizations` é gerada via `sync_internal_mobility_form` a partir dos membros. Após editar, chamar a função RPC `sync_internal_mobility_form(form_id)` no `onSuccess` da mutation para que as autorizações reflitam imediatamente o nome/cargo/modal atualizado nas abas "Carros Elétricos" e "Patinetes".
 
 ### Resultado esperado
-- Cadastrar um evento "10:00 às 12:00" no formulário → card exibe `10:00 → 12:00` (e não 07:00 ou 13:00)
-- Editar um evento existente → input vem pré-preenchido com o horário SP real
-- "Repetir diariamente" mantém o horário SP exato em todas as cópias
-- Banco continua armazenando em UTC (padrão `timestamptz`), mas com o offset SP aplicado corretamente na ida e na volta
+- Cada linha da tabela do Painel ganha um botão **lápis** ao lado de liberar/bloquear/excluir
+- Qualquer usuário logado consegue abrir o dialog, alterar dados e salvar
+- Mudanças se propagam automaticamente para as abas de autorizações (Carro Elétrico / Patinete)
+- Toast de sucesso/erro padrão Liquid Glass
 
 ### Arquivos
-| Arquivo | Mudança |
-|---|---|
-| `src/components/fenasoja/EventForm.tsx` | `utcToSPLocal` no init de edição; `ensureSPOffset` no payload; reformulação do loop "Repetir diariamente" para preservar SP |
 
-Sem migrações de banco. Sem alteração no `EventCard` (já usa `rawTime` em SP).
+| Arquivo | Tipo | Mudança |
+|---|---|---|
+| `src/components/mobility/MobilityAdminPanel.tsx` | Edit | Adiciona botão Editar + Dialog de edição completo |
+| `src/components/mobility/EditMemberDialog.tsx` | Novo | Componente dedicado do formulário de edição |
+| `src/hooks/useMobilityMembers.ts` | Edit | `updateMember.onSuccess` chama RPC `sync_internal_mobility_form` |
+| `supabase/migrations/*.sql` | Migração | Substitui RLS de UPDATE para `is_org_member` |
+
+### Critério de aceite
+1. Login como qualquer perfil (admin, operador, gestor, leitura) → botão **Editar** visível em cada linha
+2. Editar nome de "andressa kunzler" → ao salvar, aparece atualizado tanto no Painel quanto nas abas Carro/Patinete
+3. Marcar/desmarcar modais reflete imediatamente nas autorizações sincronizadas
+4. Sem regressão nos botões existentes (Liberar/Bloquear/Excluir)
 
