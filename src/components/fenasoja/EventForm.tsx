@@ -11,7 +11,7 @@ import { useFenasojaEvents, FENASOJA_RANGE } from '@/hooks/useFenasojaEvents';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { toast } from 'sonner';
-import { getDateSP } from '@/lib/utils';
+import { getDateSP, utcToSPLocal, ensureSPOffset } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 
 interface EventFormProps {
