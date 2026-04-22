@@ -8,7 +8,7 @@ import { Search, FileSpreadsheet, FileDown, ShieldCheck, ShieldX } from 'lucide-
 // Badge import retained only for status badge below
 import { toast } from 'sonner';
 import { exportMobilityAuthorizationsCSV, exportMobilityAuthorizationsPDF } from '@/lib/generateMobilityAuthorizationsExport';
-import { toTitleCase, formatCpf } from '@/lib/textNormalize';
+import { toTitleCase } from '@/lib/textNormalize';
 
 const statusLabels: Record<string, { label: string; class: string }> = {
   pendente: { label: 'Pendente', class: 'bg-warning/10 text-warning border-warning/20' },
@@ -23,11 +23,11 @@ export default function AuthorizationsTab({ type }: { type: 'carro_eletrico' | '
   const [filterCommittee, setFilterCommittee] = useState('all');
 
   // Comissões deduplicadas pela forma normalizada (evita "LOGÍSTICA" e "Logística" como duas opções)
-  const committees = Array.from(
-    new Set(
+  const committees: string[] = Array.from(
+    new Set<string>(
       authorizations
         .map((a: any) => toTitleCase(a.committee_name_snapshot))
-        .filter(Boolean),
+        .filter((v: string) => Boolean(v)),
     ),
   ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
