@@ -26,6 +26,7 @@ import KmEmissoesPage from "./pages/KmEmissoesPage";
 import SystemReportPage from "./pages/SystemReportPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import MobilityAuthPage from "./pages/MobilityAuthPage";
+import FenasojaEventsPage from "./pages/FenasojaEventsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -72,6 +73,7 @@ const App = () => (
                     <Route path="/transports" element={<FullAccessRoute><TransportsPage /></FullAccessRoute>} />
                     <Route path="/guests" element={<FullAccessRoute><GuestsPage /></FullAccessRoute>} />
                     <Route path="/agenda" element={<FullAccessRoute><AgendaPage /></FullAccessRoute>} />
+                    <Route path="/fenasoja-events" element={<FullAccessRoute><FenasojaEventsPage /></FullAccessRoute>} />
                     <Route path="/checklist" element={<FullAccessRoute><ChecklistPage /></FullAccessRoute>} />
                     <Route path="/team" element={<FullAccessRoute><TeamPage /></FullAccessRoute>} />
                     <Route path="/ver-escala" element={<FullAccessRoute><VerEscalaPage /></FullAccessRoute>} />
