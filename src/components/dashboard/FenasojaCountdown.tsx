@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sprout } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const TARGET_ISO = '2026-05-01T00:00:00-03:00';
+const TARGET_ISO = '2026-05-01T10:00:00-03:00';
 const RANGE_START_ISO = '2026-01-01T00:00:00-03:00';
 
 interface Parts {
@@ -126,9 +126,6 @@ export default function FenasojaCountdown() {
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[hsl(var(--gold)/0.12)] text-gold ring-1 ring-[hsl(var(--gold)/0.30)] whitespace-nowrap shrink-0">
-            28/04 → 09/05
-          </span>
         </div>
 
         {/* Digits grid */}
