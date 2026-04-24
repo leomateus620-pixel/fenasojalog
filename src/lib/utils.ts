@@ -175,3 +175,60 @@ export function getEffectiveEstimatedKm(
 
   return normalizedSavedKm ?? knownKm;
 }
+
+/** Canonical one-way driving time in minutes from Santa Rosa to common destinations.
+ *  Based on real Google Maps Routes data. Used as fallback when a transport's
+ *  saved duracao_estimada_min is missing or clearly invalid. */
+export const KNOWN_ONE_WAY_MIN: Record<string, number> = {
+  'Aeroporto_Passo Fundo': 240,
+  'Aeroporto_Chapecó': 240,
+  'Aeroporto_Santo Ângelo': 80,
+  'Aeroporto_Porto Alegre': 390,
+  'Parque': 15,
+  'Hotel': 10,
+  'Centro': 10,
+  'Escolta Policial': 30,
+  'Outros': 30,
+};
+
+/** Default round-trip duration (in minutes) per transport type, used as a last resort. */
+const DEFAULT_TOTAL_MIN: Record<string, number> = {
+  'Aeroporto': 120, 'Hotel': 45, 'Parque': 30, 'Centro': 40, 'Escolta Policial': 90, 'Outros': 60,
+};
+
+/** Get the effective ONE-WAY driving time in minutes.
+ *  Prefers the canonical value for known destinations over a saved value that is
+ *  missing or implausibly short (≤ 10 min for an airport). */
+export function getEffectiveOneWayMin(
+  savedTotalMin: number | null | undefined,
+  titulo: string | null | undefined,
+  vooCidade?: string | null
+): number {
+  const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : (titulo || 'Outros');
+  const known = KNOWN_ONE_WAY_MIN[key];
+  const saved = typeof savedTotalMin === 'number' && savedTotalMin > 0 ? savedTotalMin : null;
+  // For airport trips, anything under 30 min one-way is implausible — prefer canonical
+  if (titulo === 'Aeroporto') {
+    if (known) return known;
+    if (saved && saved >= 60) return Math.round(saved / 2);
+    return 120; // safe default for unknown airport
+  }
+  if (saved && saved > 10) return Math.max(10, Math.round(saved / 2));
+  return known ?? 30;
+}
+
+/** Get the effective ROUND-TRIP duration in minutes (for non-airport transports). */
+export function getEffectiveTotalMin(
+  savedTotalMin: number | null | undefined,
+  titulo: string | null | undefined,
+  vooCidade?: string | null
+): number {
+  const saved = typeof savedTotalMin === 'number' && savedTotalMin > 0 ? savedTotalMin : null;
+  if (saved && saved > 10) return saved;
+  const oneWay = getEffectiveOneWayMin(savedTotalMin, titulo, vooCidade);
+  // Round-trip ≈ 2 × one-way for known long routes; otherwise use type default
+  const key = titulo === 'Aeroporto' && vooCidade ? `Aeroporto_${vooCidade}` : (titulo || 'Outros');
+  if (KNOWN_ONE_WAY_MIN[key]) return oneWay * 2;
+  return DEFAULT_TOTAL_MIN[titulo || 'Outros'] || 60;
+}
+
