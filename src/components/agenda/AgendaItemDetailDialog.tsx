@@ -238,7 +238,7 @@ export function AgendaItemDetailDialog({
             <Button
               size="sm"
               className="flex-1 gap-1.5 rounded-xl"
-              onClick={() => { onOpenChange(false); navigate(`/transportes?open=${item.id}`); }}
+              onClick={() => { onOpenChange(false); navigate(`/transportes?highlight=${item.id}`); }}
             >
               <ExternalLink className="w-4 h-4" /> Abrir em Transportes
             </Button>
