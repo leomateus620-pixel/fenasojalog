@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 /** Build the 10 fixed days of Fenasoja (May 1 → May 10, 2026) */
-function buildFenasojaDays(): string[] {
+function buildOfficialDays(): string[] {
   const days: string[] = [];
   const start = new Date(`${FENASOJA_RANGE.start}T12:00:00`);
   for (let i = 0; i < 10; i++) {
@@ -26,14 +26,23 @@ function buildFenasojaDays(): string[] {
   return days;
 }
 
+const OFFICIAL_DAYS = buildOfficialDays();
+
+
 export default function FenasojaEventsPage() {
   const { events, isLoading, canManage, remove } = useFenasojaEvents();
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
 
-  const days = useMemo(buildFenasojaDays, []);
+  // Build dynamic day list: official days ∪ days with events outside the range
+  const days = useMemo(() => {
+    const set = new Set<string>(OFFICIAL_DAYS);
+    events.forEach((e: any) => set.add(getDateSP(e.inicio_em)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
   const today = todaySP();
-  const initialDay = days.includes(today) ? today : days[0];
+  const initialDay = days.includes(today) ? today : OFFICIAL_DAYS[0];
 
   const [selectedDate, setSelectedDate] = useState<string>(initialDay);
   const [formOpen, setFormOpen] = useState(false);
@@ -123,6 +132,7 @@ export default function FenasojaEventsPage() {
         {days.map((d) => {
           const active = d === selectedDate;
           const isToday = d === today;
+          const isExtra = !OFFICIAL_DAYS.includes(d);
           const count = countByDay.get(d) || 0;
           const dt = parseDateKey(d);
           return (
@@ -135,7 +145,9 @@ export default function FenasojaEventsPage() {
                 'active:scale-[0.96] hover:-translate-y-0.5',
                 active
                   ? 'bg-primary text-primary-foreground border-gold/40 scale-[1.06] animate-gold-pulse motion-reduce:animate-none'
-                  : 'bg-card/50 backdrop-blur-lg border-gold/15 text-foreground hover:bg-card/80 hover:border-gold/30',
+                  : isExtra
+                    ? 'bg-card/30 backdrop-blur-lg border-dashed border-muted-foreground/25 text-muted-foreground hover:bg-card/60 hover:border-muted-foreground/40'
+                    : 'bg-card/50 backdrop-blur-lg border-gold/15 text-foreground hover:bg-card/80 hover:border-gold/30',
               )}
             >
               <span className="text-[10px] uppercase font-medium tracking-wide opacity-80">
@@ -150,9 +162,18 @@ export default function FenasojaEventsPage() {
               {count > 0 && (
                 <span className={cn(
                   'mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none',
-                  active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-gold/20 text-gold',
+                  active
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : isExtra
+                      ? 'bg-muted-foreground/15 text-muted-foreground'
+                      : 'bg-gold/20 text-gold',
                 )}>
                   {count} ev.
+                </span>
+              )}
+              {isExtra && !active && (
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 text-[8px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border leading-none">
+                  Extra
                 </span>
               )}
               {isToday && !active && (
