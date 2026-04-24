@@ -127,6 +127,8 @@ export function useMobilityMembers(formId?: string) {
     members,
     allMembers: allMembers.data || [],
     allMembersLoading: allMembers.isLoading,
+    allMembersError: allMembers.isError,
+    refetchAllMembers: allMembers.refetch,
     isLoading,
     addMember,
     updateMember,
