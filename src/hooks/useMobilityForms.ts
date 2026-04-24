@@ -86,5 +86,5 @@ export function useMobilityForms() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mobility-forms'] }),
   });
 
-  return { forms, isLoading, createForm, updateForm, submitForm, deleteForm };
+  return { forms, isLoading, isError, refetch, createForm, updateForm, submitForm, deleteForm };
 }
