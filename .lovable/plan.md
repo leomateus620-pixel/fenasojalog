@@ -1,42 +1,69 @@
 
 
-## Corrigir contagem regressiva (dias inflacionados em +1)
+## Agenda em 3D Liquid Glass + Detalhe dedicado por card
 
 ### Diagnóstico
-Em `src/components/dashboard/FenasojaCountdown.tsx`, linha 19:
+A `AgendaPage` mistura eventos comuns e transportes em uma lista única. Hoje:
+1. Os cards usam um Liquid Glass básico (`bg-white/10 backdrop-blur-xl`) sem profundidade real, sem 3D, sem micro-animações distintivas.
+2. **Clicar em um card de transporte não faz nada** — o handler `onClick={() => e._source !== 'transport' && openEdit(e)}` ignora explicitamente transportes; somente eventos abrem o modal de edição. O usuário fica sem feedback nem informações.
+3. Cards de eventos abrem direto em modo edição, sem uma visualização rica de leitura.
 
-```ts
-const days = Math.ceil(diff / 86_400_000);
-```
+### O que vai ser construído
 
-`Math.ceil` arredonda **para cima**, então sempre que houver qualquer fração de dia restante (o que é quase sempre o caso), o contador exibe **1 dia a mais** do que realmente falta. Como horas/minutos/segundos já são mostrados em blocos separados via módulo (`diff % 86_400_000`), o correto é usar `Math.floor` para `days` — caso contrário o card mostra, por exemplo, `07d 12h 30m 15s` quando na verdade faltam `6d 12h 30m 15s`.
+#### 1. Novo componente `AgendaItemCard3D` (`src/components/agenda/AgendaItemCard3D.tsx`)
+Card premium exclusivo da Agenda — visual diferenciado, **não** copia o EventCard da Fenasoja:
 
-A data-alvo (`2026-05-01T10:00:00-03:00`) e o fuso (offset `-03:00` explícito = horário de Brasília) estão **corretos**. O problema é apenas o cálculo dos dias.
+- **Estrutura 3D real** com `perspective: 1400px` no container e `transform-style: preserve-3d` no card
+- **Tilt dinâmico no mouse**: handler `onMouseMove` calcula posição relativa e aplica `rotateX/rotateY` sutis (máx ±6deg), com `transition` suave no `mouseleave` para voltar à posição neutra. Em mobile usa apenas press-scale (`active:scale-[0.985]`).
+- **Camadas empilhadas em Z**:
+  - Camada base: superfície em vidro com gradiente direcional verde profundo → dourado translúcido (`from-primary/15 via-card/65 to-gold/8`)
+  - Camada média: borda interna iluminada (`inset_0_1px_0`) + sombra externa em duas etapas (proximidade + distância)
+  - Camada de luz: barra lateral vertical de **6px** em gradiente verde→dourado com `box-shadow` brilhante (identidade visual única por turno: manhã = dourado puro, tarde = verde-âmbar, noite = índigo profundo)
+  - Camada superior: **shimmer diagonal** que cruza o card a cada hover (animação `shimmer-diagonal` já existe no projeto)
+  - Camada flutuante (`translateZ(20px)`): bloco de horário em vidro fosco que "salta" sutilmente do card
+- **Coluna de tempo redesenhada**: relógio digital em fonte mono com `text-shadow` dourado sutil + chip do turno (Manhã/Tarde/Noite) com ícone animado (`Sun` rotaciona devagar, `Sunset` desliza, `Moon` pulsa)
+- **Indicador "EM ANDAMENTO"** quando o evento está acontecendo agora: anel pulsante verde + ponto LED animado + texto deslizante
+- **Status de transporte como badge 3D** (Pendente azul / Em andamento dourado pulsante / Concluído verde com check)
+- **Animação de entrada** escalonada (`animationDelay: index * 60ms`) usando keyframe `card-enter-3d` (já existe no projeto)
+- **Respeita `motion-reduce`**: fallback para `fade-in` simples, sem tilt, sem shimmer
 
-### Verificação rápida (data atual: 24/04/2026)
-- Alvo: 01/05/2026 10:00 SP
-- Agora: 24/04/2026 ~03:35 SP (UTC-3)
-- Diferença real: **~7 dias e 6h**
-- Hoje o card mostra: `08` dias (incorreto, deveria mostrar `07`)
-- Quando o usuário viu mudar para `07`, na verdade faltavam 6 dias e poucas horas
+#### 2. Novo componente `AgendaItemDetailDialog` (`src/components/agenda/AgendaItemDetailDialog.tsx`)
+Diálogo dedicado de **leitura rica** que abre ao clicar em **qualquer** card (evento OU transporte) — corrige o bug do clique sem resposta:
 
-### Mudança
+- Header com gradiente verde→dourado, título grande, badge de status e turno
+- Faixa de horário destacada: início → fim, duração calculada, indicador "está acontecendo agora" se aplicável
+- Para **eventos comuns**: local, responsável (com cargo), comissão, observações em bloco com fundo glass, botões "Editar" e "Excluir" (respeitando `myRole`)
+- Para **transportes**: reaproveita o `TransportWeatherCard` já existente + bloco com origem→destino→retorno (padrão de nomenclatura do projeto), motorista, comissão, hóspedes vinculados (chips), botão "Abrir em Transportes" que navega para `/transportes` e dispara o detalhe completo via query param
+- Layout flex com header fixo e área de scroll central (`max-h-[80dvh]`), seguindo o padrão `guest-dialog-layout` da memória do projeto
+- Animação de entrada `scale-in` + `fade-in` (já existem)
 
-| Arquivo | Linha | De | Para |
-|---|---|---|---|
-| `src/components/dashboard/FenasojaCountdown.tsx` | 19 | `const days = Math.ceil(diff / 86_400_000);` | `const days = Math.floor(diff / 86_400_000);` |
+#### 3. Refatorar `src/pages/AgendaPage.tsx`
+- Substituir o JSX inline dos cards (linhas 372–451) pelo `<AgendaItemCard3D>`
+- Trocar o `onClick` atual por um único handler `setDetailItem(e)` que **funciona para evento E transporte**
+- Adicionar estado `detailItem` e renderizar `<AgendaItemDetailDialog item={detailItem} ... />` quando aberto
+- O modal de edição existente continua sendo acionado a partir do botão "Editar" dentro do detail dialog (não mais pelo clique direto no card)
+- Atualizar o cabeçalho de cada turno (Manhã/Tarde/Noite) com um pequeno marcador 3D (linha em gradiente + ícone)
+
+#### 4. Cores e tokens (sem mudar `index.css`)
+Usar exclusivamente as cores já existentes do projeto:
+- `hsl(var(--primary))` — verde profundo institucional
+- `hsl(var(--gold))` — dourado da identidade Fenasoja
+- `hsl(var(--card))`, `hsl(var(--border))`, `hsl(var(--muted-foreground))`
+- Gradientes derivados via Tailwind arbitrary values, sem cores hardcoded
+
+### Arquivos
+
+| Arquivo | Ação |
+|---|---|
+| `src/components/agenda/AgendaItemCard3D.tsx` | **Criar** — card 3D Liquid Glass com tilt, shimmer, camadas e variantes evento/transporte |
+| `src/components/agenda/AgendaItemDetailDialog.tsx` | **Criar** — diálogo de detalhe rico para qualquer item da agenda |
+| `src/pages/AgendaPage.tsx` | **Editar** — usar os dois novos componentes, adicionar estado `detailItem`, corrigir o clique em transportes |
 
 ### Critério de aceite
-1. Em 24/04/2026 às 10:00 SP, faltando exatamente 7 dias para 01/05 10:00, o card mostra `07d 00h 00m 00s` (e não `08d`)
-2. Quando faltam menos de 24h, mostra `00` dias + horas restantes (não mais `01d 23h`)
-3. Horas, minutos e segundos continuam decrescendo normalmente em sincronia com os dias
-4. Mensagem celebratória ainda aparece corretamente em 01/05/2026 10:00 SP
-5. Barra de progresso e textos auxiliares (`headline`) precisam refletir o novo valor — verificar:
-   - `parts.days > 1` → "Faltam N dias…"
-   - `parts.days === 1` → "Falta 1 dia…"
-   - `parts.days === 0` → "Faltam poucas horas…" (esse caso agora aparece corretamente nas últimas 24h, não só nas últimas <1h como antes)
-
-### Compatibilidade
-- Zero impacto em outros componentes
-- Apenas 1 caractere alterado (`ceil` → `floor`)
+1. Todos os cards da `/agenda` exibem o novo visual 3D Liquid Glass com tilt suave no hover (desktop) e press-scale (mobile)
+2. Clicar em **qualquer card** (evento OU transporte) abre o `AgendaItemDetailDialog` com todas as informações daquele item
+3. O bug atual — clique em transporte não faz nada — fica resolvido
+4. Visual usa apenas as cores do projeto (verde primário + dourado), sem genérico de IA
+5. Animações respeitam `prefers-reduced-motion`
+6. Nenhum hook, RLS, banco ou outro módulo é afetado
 
