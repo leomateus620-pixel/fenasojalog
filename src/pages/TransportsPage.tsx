@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Plus, Check, Clock, X, Pencil, Search, XCircle, Trash2, FileText, Eye, ArrowRight, Plane, Navigation, MapPinOff, Route, Timer, Ruler, Play, Square, History, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn, rawTime, rawDateShort, nowSP, nowSPLocal, ensureSPOffset, getRoundTripKm, getDateSP, getEffectiveEstimatedKm, utcToSPLocal } from '@/lib/utils';
+import { cn, rawTime, rawDateShort, nowSP, nowSPLocal, ensureSPOffset, getRoundTripKm, getDateSP, getEffectiveEstimatedKm, getEffectiveOneWayMin, getEffectiveTotalMin, utcToSPLocal } from '@/lib/utils';
 import { useState, lazy, Suspense, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -155,15 +155,10 @@ async function calcSuggestedDeparture(cidade: string, flightTime: string, isChec
 // Use unified ensureSPOffset from utils (DATA-01 fix)
 const ensureSPTimestamptz = ensureSPOffset;
 
-const estimatedDurationMin: Record<string, number> = {
-  'Aeroporto': 120, 'Hotel': 45, 'Parque': 30, 'Centro': 40, 'Escolta Policial': 90, 'Outros': 60,
-};
-
 const ARRIVAL_GROUND_BUFFER_MIN = 30;
 
 function airportOneWayMin(t: any): number {
-  const total = t.duracao_estimada_min || estimatedDurationMin.Aeroporto || 120;
-  return Math.max(30, Math.round(total / 2));
+  return getEffectiveOneWayMin(t.duracao_estimada_min, t.titulo, t.voo_cidade);
 }
 
 function buildSPDateTime(baseIso: string, hhmm: string): Date | null {
@@ -191,7 +186,7 @@ function estimateReturnTime(t: any): Date | null {
   }
 
   const start = new Date(t.inicio_em);
-  const durationMin = t.duracao_estimada_min || estimatedDurationMin[t.titulo] || 60;
+  const durationMin = getEffectiveTotalMin(t.duracao_estimada_min, t.titulo, t.voo_cidade);
   return new Date(start.getTime() + durationMin * 60000);
 }
 
