@@ -251,6 +251,21 @@ export default function TransportsPage() {
   const { guests, create: createGuest } = useGuests();
   const { commissions } = useCommissions();
   const { user } = useAuth();
+
+  const logisticaCommissionId = useMemo(
+    () => commissions.find((c: any) =>
+      (c.nome || '').toUpperCase().includes('LOGÍSTICA') ||
+      (c.nome || '').toUpperCase().includes('LOGISTICA')
+    )?.id,
+    [commissions]
+  );
+
+  const driverMembers = useMemo(() => {
+    if (!logisticaCommissionId) return [];
+    return members
+      .filter((m: any) => m.commission_id === logisticaCommissionId)
+      .sort((a: any, b: any) => (a.nome_exibicao || '').localeCompare(b.nome_exibicao || ''));
+  }, [members, logisticaCommissionId]);
   const { getGuestsForTransport } = useTransportGuests();
   const [trackingTransportId, _setTrackingTransportId] = useState<string | null>(() => {
     try { return localStorage.getItem('fenasoja_tracking_transport'); } catch { return null; }
