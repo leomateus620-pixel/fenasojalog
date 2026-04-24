@@ -1,25 +1,34 @@
 
 
-## Permitir eventos Fenasoja fora do período 01/05–10/05
+## Exibir dias com eventos fora do período 01/05–10/05 nos chips da Fenasoja
 
 ### Diagnóstico
-Hoje o `EventForm` (`src/components/fenasoja/EventForm.tsx`) bloqueia datas fora da janela `FENASOJA_RANGE` (01/05 a 10/05/2026) via função `isInRange`, exibindo o toast *"Datas devem estar entre 01/05/2026 e 10/05/2026"*. A repetição diária também usa `2026-05-10T23:59` como limite fixo. Isso impede o cadastro de eventos preparatórios (ex.: reuniões em abril) ou pós-evento.
+A página `FenasojaEventsPage` permite **criar** eventos em qualquer data (após a alteração anterior em `EventForm`), mas a lista de chips de dias é gerada por `buildFenasojaDays()` que retorna **apenas os 10 dias fixos de 01/05 a 10/05/2026**. Resultado: um evento criado em 30/04 existe no banco, mas não há chip para selecioná-lo — ele fica invisível na UI.
 
-### Mudanças
+Confirmado em `src/pages/FenasojaEventsPage.tsx`:
+- `buildFenasojaDays()` itera 10 dias a partir de `FENASOJA_RANGE.start` (01/05)
+- `dayEvents` filtra por `selectedDate`, que só pode ser um desses 10 dias
+- Eventos em datas externas nunca aparecem em `dayEvents` nem têm contador
+
+### Mudança
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/fenasoja/EventForm.tsx` | 1. Remover a validação `isInRange` no `handleSave` (e a função `isInRange` se ficar sem uso) — passa a aceitar qualquer data válida. |
-| | 2. No fluxo de **Repetir diariamente**, trocar o limite fixo `2026-05-10T23:59` por um limite configurável: estender até **31/05/2026 23:59** como teto de segurança (evita loops absurdos), mantendo a opção utilizável tanto dentro quanto fora do período principal. |
-| | 3. Atualizar o texto auxiliar do switch *"Cria cópias até 10/05/2026"* para *"Cria cópias diárias por até 30 dias"*. |
-| | 4. Manter o subtítulo do diálogo *"Programação institucional · 01/05 a 10/05/2026"* como referência informativa, mas **não restritiva** (o período oficial continua sendo a referência visual). |
+| `src/pages/FenasojaEventsPage.tsx` | Substituir `buildFenasojaDays()` (estático) por uma lista dinâmica computada via `useMemo` que **une**: (a) os 10 dias oficiais 01/05→10/05 + (b) qualquer dia extra que tenha pelo menos 1 evento, ordenados cronologicamente. |
+| | Marcar visualmente os chips de dias **fora** do período oficial com um badge sutil "Extra" (cor `text-muted-foreground` + borda mais discreta) para deixar claro que não fazem parte da programação institucional principal, sem atrapalhar a leitura. |
+| | Ajustar `initialDay`: se houver `today` na lista combinada, seleciona; senão mantém o primeiro dia oficial (01/05). |
 
-### Compatibilidade
-- Zero alteração de schema, RLS, hooks ou banco
-- Eventos já criados continuam intactos
-- A página `FenasojaEventsPage` apenas lista o que vier do banco — não filtra por data, então novos eventos fora do período aparecem normalmente
-- Critérios de aceite:
-  1. Criar evento em 15/04/2026 ou 20/05/2026 funciona sem erro
-  2. Repetir diariamente respeita o teto de 30 dias
-  3. Eventos dentro do período 01/05–10/05 continuam funcionando exatamente como antes
+### Detalhes técnicos
+- A união usa `Set<string>` de chaves `YYYY-MM-DD` para deduplicar
+- Ordenação por `localeCompare` (formato ISO ordena cronologicamente)
+- Os dias oficiais continuam sempre visíveis mesmo sem eventos (preserva comportamento atual)
+- Dias extras só aparecem quando têm eventos — quando o último evento extra é excluído, o chip some automaticamente
+- Zero impacto em `EventForm`, hooks, banco ou RLS
+
+### Critério de aceite
+1. Evento em 30/04/2026 passa a aparecer com chip próprio antes do chip 01/05
+2. Contador de eventos do chip 30/04 mostra a quantidade correta
+3. Os 10 chips oficiais (01/05→10/05) continuam exibidos mesmo sem eventos
+4. Excluir o último evento de um dia extra remove o chip correspondente
+5. Hoje (24/04) o `initialDay` continua válido — abre em 01/05 por padrão (ou no dia atual se houver evento nele)
 
