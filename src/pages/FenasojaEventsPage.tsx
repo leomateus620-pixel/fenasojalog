@@ -34,9 +34,15 @@ export default function FenasojaEventsPage() {
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
 
-  const days = useMemo(buildFenasojaDays, []);
+  // Build dynamic day list: official days ∪ days with events outside the range
+  const days = useMemo(() => {
+    const set = new Set<string>(OFFICIAL_DAYS);
+    events.forEach((e: any) => set.add(getDateSP(e.inicio_em)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
   const today = todaySP();
-  const initialDay = days.includes(today) ? today : days[0];
+  const initialDay = days.includes(today) ? today : OFFICIAL_DAYS[0];
 
   const [selectedDate, setSelectedDate] = useState<string>(initialDay);
   const [formOpen, setFormOpen] = useState(false);
