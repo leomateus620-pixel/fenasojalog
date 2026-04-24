@@ -1,69 +1,112 @@
 
 
-## Agenda em 3D Liquid Glass + Detalhe dedicado por card
+## Agenda v2 — Cores refinadas, 3D mais marcante e horários idênticos a Transportes
 
 ### Diagnóstico
-A `AgendaPage` mistura eventos comuns e transportes em uma lista única. Hoje:
-1. Os cards usam um Liquid Glass básico (`bg-white/10 backdrop-blur-xl`) sem profundidade real, sem 3D, sem micro-animações distintivas.
-2. **Clicar em um card de transporte não faz nada** — o handler `onClick={() => e._source !== 'transport' && openEdit(e)}` ignora explicitamente transportes; somente eventos abrem o modal de edição. O usuário fica sem feedback nem informações.
-3. Cards de eventos abrem direto em modo edição, sem uma visualização rica de leitura.
 
-### O que vai ser construído
+**1. Bug de horários (crítico)**
+Hoje, ao montar os cards da Agenda em `AgendaPage.tsx` (linhas 154-173), o sistema usa apenas:
+- `inicio_em: t.inicio_em`
+- `fim_em: t.fim_em || t.inicio_em`
 
-#### 1. Novo componente `AgendaItemCard3D` (`src/components/agenda/AgendaItemCard3D.tsx`)
-Card premium exclusivo da Agenda — visual diferenciado, **não** copia o EventCard da Fenasoja:
+Já o `TransportCard` da página `/transportes` exibe:
+- **Saída** = `t.horario_saida || rawTime(t.inicio_em)`
+- **Retorno** = `t.fim_em` ou estimado por `inicio_em + (duracao_estimada_min || preset por título)` via `formatReturnTime()`
+- Para Aeroporto: também mostra **Horário Voo** (`voo_checkin`) / **Desembarque** (`voo_chegada`)
 
-- **Estrutura 3D real** com `perspective: 1400px` no container e `transform-style: preserve-3d` no card
-- **Tilt dinâmico no mouse**: handler `onMouseMove` calcula posição relativa e aplica `rotateX/rotateY` sutis (máx ±6deg), com `transition` suave no `mouseleave` para voltar à posição neutra. Em mobile usa apenas press-scale (`active:scale-[0.985]`).
-- **Camadas empilhadas em Z**:
-  - Camada base: superfície em vidro com gradiente direcional verde profundo → dourado translúcido (`from-primary/15 via-card/65 to-gold/8`)
-  - Camada média: borda interna iluminada (`inset_0_1px_0`) + sombra externa em duas etapas (proximidade + distância)
-  - Camada de luz: barra lateral vertical de **6px** em gradiente verde→dourado com `box-shadow` brilhante (identidade visual única por turno: manhã = dourado puro, tarde = verde-âmbar, noite = índigo profundo)
-  - Camada superior: **shimmer diagonal** que cruza o card a cada hover (animação `shimmer-diagonal` já existe no projeto)
-  - Camada flutuante (`translateZ(20px)`): bloco de horário em vidro fosco que "salta" sutilmente do card
-- **Coluna de tempo redesenhada**: relógio digital em fonte mono com `text-shadow` dourado sutil + chip do turno (Manhã/Tarde/Noite) com ícone animado (`Sun` rotaciona devagar, `Sunset` desliza, `Moon` pulsa)
-- **Indicador "EM ANDAMENTO"** quando o evento está acontecendo agora: anel pulsante verde + ponto LED animado + texto deslizante
-- **Status de transporte como badge 3D** (Pendente azul / Em andamento dourado pulsante / Concluído verde com check)
-- **Animação de entrada** escalonada (`animationDelay: index * 60ms`) usando keyframe `card-enter-3d` (já existe no projeto)
-- **Respeita `motion-reduce`**: fallback para `fade-in` simples, sem tilt, sem shimmer
+Resultado: um transporte com `horario_saida = "08:30"` mas `inicio_em = 07:30` aparece **07:30** na Agenda e **08:30** em Transportes. E quando `fim_em` é `null`, a Agenda mostra o mesmo horário de início no campo de fim, enquanto Transportes mostra um retorno calculado. **Inconsistência total.**
 
-#### 2. Novo componente `AgendaItemDetailDialog` (`src/components/agenda/AgendaItemDetailDialog.tsx`)
-Diálogo dedicado de **leitura rica** que abre ao clicar em **qualquer** card (evento OU transporte) — corrige o bug do clique sem resposta:
+**2. Cores e 3D (cosméticos)**
+- Os gradientes atuais (`from-primary/15 via-card/65 to-gold/10`) ficam apagados sobre o fundo do app — falta saturação institucional
+- A barra lateral por turno usa as mesmas tonalidades verde/dourado nos 3 turnos — não diferencia visualmente manhã/tarde/noite com força
+- O tilt 3D máximo (±6°) é discreto demais para "causar boa impressão"
+- Não há sombra projetada no chão (drop shadow) que reforce o efeito de levitação
+- Os chips de dia (header) ainda usam o glass básico genérico, sem casar com o resto
 
-- Header com gradiente verde→dourado, título grande, badge de status e turno
-- Faixa de horário destacada: início → fim, duração calculada, indicador "está acontecendo agora" se aplicável
-- Para **eventos comuns**: local, responsável (com cargo), comissão, observações em bloco com fundo glass, botões "Editar" e "Excluir" (respeitando `myRole`)
-- Para **transportes**: reaproveita o `TransportWeatherCard` já existente + bloco com origem→destino→retorno (padrão de nomenclatura do projeto), motorista, comissão, hóspedes vinculados (chips), botão "Abrir em Transportes" que navega para `/transportes` e dispara o detalhe completo via query param
-- Layout flex com header fixo e área de scroll central (`max-h-[80dvh]`), seguindo o padrão `guest-dialog-layout` da memória do projeto
-- Animação de entrada `scale-in` + `fade-in` (já existem)
+### O que vai ser entregue
 
-#### 3. Refatorar `src/pages/AgendaPage.tsx`
-- Substituir o JSX inline dos cards (linhas 372–451) pelo `<AgendaItemCard3D>`
-- Trocar o `onClick` atual por um único handler `setDetailItem(e)` que **funciona para evento E transporte**
-- Adicionar estado `detailItem` e renderizar `<AgendaItemDetailDialog item={detailItem} ... />` quando aberto
-- O modal de edição existente continua sendo acionado a partir do botão "Editar" dentro do detail dialog (não mais pelo clique direto no card)
-- Atualizar o cabeçalho de cada turno (Manhã/Tarde/Noite) com um pequeno marcador 3D (linha em gradiente + ícone)
+#### 1. Corrigir horários do merge (crítico — `src/pages/AgendaPage.tsx`)
+Substituir o bloco de transformação de transportes pela mesma lógica usada em `TransportCard`:
 
-#### 4. Cores e tokens (sem mudar `index.css`)
-Usar exclusivamente as cores já existentes do projeto:
-- `hsl(var(--primary))` — verde profundo institucional
-- `hsl(var(--gold))` — dourado da identidade Fenasoja
-- `hsl(var(--card))`, `hsl(var(--border))`, `hsl(var(--muted-foreground))`
-- Gradientes derivados via Tailwind arbitrary values, sem cores hardcoded
+```ts
+// helper inline reutilizando a regra do TransportCard
+const ESTIMATED_DUR: Record<string, number> = {
+  Aeroporto: 120, Hotel: 45, Parque: 30, Centro: 40, 'Escolta Policial': 90, Outros: 60,
+};
+
+const computeAgendaTimes = (t) => {
+  // Saída exibida = horario_saida (texto HH:MM) sobreposto a inicio_em (data),
+  // mantendo a data de inicio_em mas usando o horário declarado quando existir.
+  const saidaIso = t.horario_saida
+    ? mergeDateAndTimeSP(t.inicio_em, t.horario_saida)
+    : t.inicio_em;
+
+  const fimIso = t.fim_em
+    ? t.fim_em
+    : new Date(new Date(saidaIso).getTime() +
+        ((t.duracao_estimada_min || ESTIMATED_DUR[t.titulo] || 60) * 60000)
+      ).toISOString();
+
+  return { saidaIso, fimIso };
+};
+```
+
+- `mergeDateAndTimeSP(iso, "HH:MM")` é uma função utilitária pequena que pega o **dia** de `inicio_em` em SP e injeta o horário do campo `horario_saida`, preservando offset `-03:00` (segue padrão `padrao-fuso-horario-sp`)
+- O objeto enriquecido também passa a carregar `_voo: { checkin, chegada, cidade, numero }` e `_horarioSaidaText: t.horario_saida` para o detail dialog usar
+- Critério verificável: abrir `/agenda` e `/transportes` lado a lado → cada transporte mostra **exatamente** os mesmos horários de Saída e Retorno
+
+#### 2. Detail dialog mostra os mesmos horários ricos (`AgendaItemDetailDialog.tsx`)
+- Bloco "Início → Fim" agora exibe os horários corrigidos
+- Para transportes do tipo **Aeroporto**, adicionar uma faixa extra acima do bloco de horário com:
+  - **Horário do Voo** (badge dourado destacado) quando `_voo.checkin` existir
+  - **Desembarque** (badge azul) quando `_voo.chegada` existir
+  - Cidade + número do voo como sublinha
+- Mantém duração calculada com base nos horários efetivos
+
+#### 3. Refinar cores e 3D nos cards (`AgendaItemCard3D.tsx`)
+Sem alterar `index.css` — usa apenas tokens do projeto (`--primary`, `--gold`, `--card`, `--success`, `--info`):
+
+- **Base mais saturada**: trocar `from-primary/15 via-card/65 to-gold/10` por gradiente em camada dupla:
+  - Camada 1: `bg-[radial-gradient(ellipse_at_top_left,hsl(var(--primary)/0.28),transparent_55%)]`
+  - Camada 2: `bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--gold)/0.22),transparent_60%)]`
+  - Sobre uma base sólida `bg-card/55` com `backdrop-blur-2xl`
+- **Diferenciação real por turno** na barra lateral e na cor do glow:
+  - Manhã: dourado quente `from-gold via-gold/80 to-[hsl(40_95%_60%)]` (toque de âmbar)
+  - Tarde: laranja-verde `from-[hsl(28_90%_55%)] via-gold/70 to-primary/70`
+  - Noite: verde profundo + violeta `from-primary via-primary/80 to-[hsl(220_55%_45%)]`
+- **Tilt mais expressivo**: máx ±10° (em vez de ±6°), com `transition-transform duration-200 ease-out`
+- **Drop shadow projetado** que segue o tilt: `filter: drop-shadow(0 12px 18px hsl(var(--primary)/0.35))` no hover
+- **Bloco de hora flutuante** sobe para `translateZ(28px)` no hover (mais "saltado")
+- **Borda viva** com `inset 0 0 0 1px hsl(var(--gold)/0.18)` permanente + anel pulsante extra quando `isCurrent`
+- **Reflexo superior** mais visível — gradiente `via-gold/55` em vez de `via-gold/40`
+- Continua respeitando `prefers-reduced-motion` (sem tilt, sem shimmer, sem drop-shadow animado)
+
+#### 4. Chips de dias coerentes com o novo card
+- Trocar `bg-white/10 backdrop-blur-lg` (genérico) por chips com mesma assinatura visual:
+  - Inativo: `bg-card/50 border-white/10` + reflexo dourado superior
+  - Ativo: gradiente `from-primary via-primary/90 to-primary/80` + glow `shadow-[0_0_20px_hsl(var(--primary)/0.4)]`
+  - Hoje (não-ativo): ponto dourado pulsante em vez do ponto opaco atual
+- Sutil scale-in escalonado na primeira renderização
+
+#### 5. Cabeçalhos de turno (`ShiftSectionHeader`)
+- Ícone do turno ganha fundo gradiente que combina com a barra lateral do card daquele turno (consistência visual por turno)
+- Linha divisória usa o mesmo gradiente
 
 ### Arquivos
 
-| Arquivo | Ação |
+| Arquivo | Mudança |
 |---|---|
-| `src/components/agenda/AgendaItemCard3D.tsx` | **Criar** — card 3D Liquid Glass com tilt, shimmer, camadas e variantes evento/transporte |
-| `src/components/agenda/AgendaItemDetailDialog.tsx` | **Criar** — diálogo de detalhe rico para qualquer item da agenda |
-| `src/pages/AgendaPage.tsx` | **Editar** — usar os dois novos componentes, adicionar estado `detailItem`, corrigir o clique em transportes |
+| `src/pages/AgendaPage.tsx` | Adicionar `computeAgendaTimes()` + helper `mergeDateAndTimeSP()`, reescrever o `.map()` de transportes para enviar horários corretos e meta de voo. Atualizar visual dos chips de data. |
+| `src/components/agenda/AgendaItemCard3D.tsx` | Refinar gradientes, intensificar tilt (±10°), adicionar drop-shadow no hover, diferenciar turnos por cor real, alinhar `ShiftSectionHeader` ao novo esquema. |
+| `src/components/agenda/AgendaItemDetailDialog.tsx` | Mostrar horários corrigidos; adicionar bloco "Horário do Voo / Desembarque" para transportes Aeroporto. |
+| `src/lib/utils.ts` | (Pequeno) Exportar `mergeDateAndTimeSP(iso, hhmm)` reutilizável — segue padrão `padrao-fuso-horario-sp`. |
 
 ### Critério de aceite
-1. Todos os cards da `/agenda` exibem o novo visual 3D Liquid Glass com tilt suave no hover (desktop) e press-scale (mobile)
-2. Clicar em **qualquer card** (evento OU transporte) abre o `AgendaItemDetailDialog` com todas as informações daquele item
-3. O bug atual — clique em transporte não faz nada — fica resolvido
-4. Visual usa apenas as cores do projeto (verde primário + dourado), sem genérico de IA
-5. Animações respeitam `prefers-reduced-motion`
-6. Nenhum hook, RLS, banco ou outro módulo é afetado
+
+1. Comparando `/agenda` ↔ `/transportes` para o mesmo transporte: **horários idênticos** de Saída e Retorno (incluindo casos com `horario_saida` declarado e casos sem `fim_em`)
+2. Transportes Aeroporto exibem "Horário do Voo" no detail dialog quando `voo_checkin` existir
+3. Cards visivelmente mais "premium": cores mais ricas, 3D perceptível, turnos diferenciados (manhã quente, tarde híbrida, noite profunda)
+4. Chips de dia consistentes com o novo card
+5. Zero alteração em banco, RLS, hooks ou outros módulos
+6. `prefers-reduced-motion` continua respeitado
 
