@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 /** Build the 10 fixed days of Fenasoja (May 1 → May 10, 2026) */
-function buildFenasojaDays(): string[] {
+function buildOfficialDays(): string[] {
   const days: string[] = [];
   const start = new Date(`${FENASOJA_RANGE.start}T12:00:00`);
   for (let i = 0; i < 10; i++) {
@@ -25,6 +25,9 @@ function buildFenasojaDays(): string[] {
   }
   return days;
 }
+
+const OFFICIAL_DAYS = buildOfficialDays();
+const OFFICIAL_DAYS_SET = new Set(OFFICIAL_DAYS);
 
 export default function FenasojaEventsPage() {
   const { events, isLoading, canManage, remove } = useFenasojaEvents();
