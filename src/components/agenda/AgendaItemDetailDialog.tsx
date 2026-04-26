@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Clock, MapPin, User, Users, Pencil, Trash2, Truck, CalendarClock, ArrowRight, Sun, Sunset, Moon,
-  Hourglass, Navigation, ExternalLink, Plane, PlaneLanding,
+  Hourglass, Navigation, ExternalLink, Plane, PlaneLanding, Car,
 } from 'lucide-react';
 import { cn, rawTime } from '@/lib/utils';
 import { TransportWeatherCard } from '@/components/weather/TransportWeatherCard';
