@@ -186,19 +186,40 @@ export default function Dashboard() {
     return [...fromEvents, ...fromTransports];
   }, [events, transports]);
 
-  const todayEvents = useMemo(() => agendaItems.filter((e: any) => toSPDate(e.inicio_em) === todayStr), [agendaItems, todayStr]);
-  const tomorrowEvents = useMemo(() => agendaItems.filter((e: any) => toSPDate(e.inicio_em) === tomorrowStr), [agendaItems, tomorrowStr]);
+  // Janela de 7 dias (hoje → +6) em SP
+  const weekDays = useMemo(() => {
+    const base = new Date(`${todayStr}T12:00:00-03:00`);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      const key = d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'America/Sao_Paulo' })
+        .replace('.', '');
+      return {
+        key,
+        label: i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : weekday.charAt(0).toUpperCase() + weekday.slice(1),
+        ddmm: key.split('-').slice(1).reverse().join('/'),
+      };
+    });
+  }, [todayStr]);
 
-  const fenasojaToday = useMemo(
-    () => fenasojaEvents.filter((e: any) => e.inicio_em && toSPDate(e.inicio_em) === todayStr)
-                        .sort((a: any, b: any) => (a.inicio_em || '').localeCompare(b.inicio_em || '')),
-    [fenasojaEvents, todayStr]
-  );
-  const fenasojaTomorrow = useMemo(
-    () => fenasojaEvents.filter((e: any) => e.inicio_em && toSPDate(e.inicio_em) === tomorrowStr)
-                        .sort((a: any, b: any) => (a.inicio_em || '').localeCompare(b.inicio_em || '')),
-    [fenasojaEvents, tomorrowStr]
-  );
+  const groupByDay = (items: any[]) => {
+    const keys = new Set(weekDays.map(d => d.key));
+    const map: Record<string, any[]> = {};
+    for (const it of items) {
+      if (!it?.inicio_em) continue;
+      const k = toSPDate(it.inicio_em);
+      if (!keys.has(k)) continue;
+      (map[k] ||= []).push(it);
+    }
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => (a.inicio_em || '').localeCompare(b.inicio_em || ''));
+    }
+    return map;
+  };
+
+  const transportsByDay = useMemo(() => groupByDay(agendaItems), [agendaItems, weekDays]);
+  const fenasojaByDay = useMemo(() => groupByDay(fenasojaEvents), [fenasojaEvents, weekDays]);
 
   const getFenasojaShift = (iso: string) => {
     try {
@@ -464,12 +485,13 @@ export default function Dashboard() {
         </div>
       </Section>
 
-      {/* ─── Agenda Dual-Pane ─── */}
+      {/* ─── Agenda Dual-Pane (7 dias) ─── */}
       {(() => {
-        const totalToday = todayEvents.length + fenasojaToday.length;
-        const totalTomorrow = tomorrowEvents.length + fenasojaTomorrow.length;
+        const totalWeekTransports = weekDays.reduce((s, d) => s + (transportsByDay[d.key]?.length || 0), 0);
+        const totalWeekFenasoja = weekDays.reduce((s, d) => s + (fenasojaByDay[d.key]?.length || 0), 0);
+        const rangeLabel = `${weekDays[0].ddmm} – ${weekDays[6].ddmm}`;
         const isLoading = loadEvents || loadFenasoja || loadTransports;
-        const isEmpty = totalToday === 0 && totalTomorrow === 0;
+        const isEmpty = totalWeekTransports === 0 && totalWeekFenasoja === 0;
 
         const renderTransportItem = (e: any) => {
           const responsible = e.responsavel_user_id ? members.find((m: any) => m.user_id === e.responsavel_user_id) : null;
@@ -533,17 +555,42 @@ export default function Dashboard() {
           );
         };
 
+        const renderDayGroup = (
+          source: Record<string, any[]>,
+          renderer: (e: any) => JSX.Element,
+          accentClass: string,
+        ) => (
+          <div className="space-y-3">
+            {weekDays.map(day => {
+              const items = source[day.key] || [];
+              if (!items.length) return null;
+              const isToday = day.key === todayStr;
+              return (
+                <div key={day.key}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${isToday ? accentClass : 'text-muted-foreground'}`}>
+                    <span>{day.label}</span>
+                    <span className="opacity-60">— {day.ddmm}</span>
+                    {isToday && <span className={`ml-1 h-1.5 w-1.5 rounded-full animate-pulse ${accentClass.includes('gold') ? 'bg-gold' : 'bg-primary'}`} />}
+                  </p>
+                  <div className="space-y-1.5">{items.map(renderer)}</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+
         return (
           <div className="liquid-glass-card rounded-2xl p-5 gold-accent">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold flex items-center gap-2 text-foreground tracking-tight">
-                <CalendarDays className="w-4 h-4 text-primary" aria-hidden /> Agenda
-              </h2>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-[10px] font-semibold">
-                  {totalToday} hoje · {totalTomorrow} amanhã
-                </Badge>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex flex-col">
+                <h2 className="text-sm font-bold flex items-center gap-2 text-foreground tracking-tight">
+                  <CalendarDays className="w-4 h-4 text-primary" aria-hidden /> Agenda · Próximos 7 dias
+                </h2>
+                <span className="text-[10px] text-muted-foreground mt-0.5">{rangeLabel}</span>
               </div>
+              <Badge variant="secondary" className="text-[10px] font-semibold">
+                {totalWeekTransports + totalWeekFenasoja} eventos · 7 dias
+              </Badge>
             </div>
 
             {isLoading ? (
@@ -554,13 +601,13 @@ export default function Dashboard() {
             ) : isEmpty ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <AlertCircle className="w-8 h-8 mb-2 opacity-25" />
-                <p className="text-xs font-medium">Nenhum evento ou transporte hoje ou amanhã.</p>
+                <p className="text-xs font-medium">Sem registros nos próximos 7 dias.</p>
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4 sm:divide-x sm:divide-border/40">
                 {/* ── Coluna 1 — Transportes & Agenda ── */}
-                <div className="space-y-3 sm:pr-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-3 sm:pr-4 max-h-[460px] overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between sticky top-0 bg-card/80 backdrop-blur-sm py-1 z-10">
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                       <MapPin className="w-3 h-3" /> Transportes & Agenda
                     </h3>
@@ -568,29 +615,16 @@ export default function Dashboard() {
                       Ver <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
-                  {todayEvents.length === 0 && tomorrowEvents.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground py-4 text-center">Sem transportes nos próximos 2 dias.</p>
+                  {totalWeekTransports === 0 ? (
+                    <p className="text-[11px] text-muted-foreground py-4 text-center">Sem transportes nos próximos 7 dias.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {todayEvents.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1.5">Hoje — {todayStr.split('-').reverse().join('/')}</p>
-                          <div className="space-y-1.5">{todayEvents.map(renderTransportItem)}</div>
-                        </div>
-                      )}
-                      {tomorrowEvents.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-accent uppercase tracking-wider mb-1.5">Amanhã — {tomorrowStr.split('-').reverse().join('/')}</p>
-                          <div className="space-y-1.5">{tomorrowEvents.map(renderTransportItem)}</div>
-                        </div>
-                      )}
-                    </div>
+                    renderDayGroup(transportsByDay, renderTransportItem, 'text-primary')
                   )}
                 </div>
 
                 {/* ── Coluna 2 — Eventos Fenasoja ── */}
-                <div className="space-y-3 sm:pl-4">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-3 sm:pl-4 max-h-[460px] overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between sticky top-0 bg-card/80 backdrop-blur-sm py-1 z-10">
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
                       <Sparkles className="w-3 h-3" /> Eventos Fenasoja
                     </h3>
@@ -598,23 +632,10 @@ export default function Dashboard() {
                       Ver <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
-                  {fenasojaToday.length === 0 && fenasojaTomorrow.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground py-4 text-center">Sem eventos Fenasoja nos próximos 2 dias.</p>
+                  {totalWeekFenasoja === 0 ? (
+                    <p className="text-[11px] text-muted-foreground py-4 text-center">Sem eventos Fenasoja nos próximos 7 dias.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {fenasojaToday.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-wider mb-1.5">Hoje — {todayStr.split('-').reverse().join('/')}</p>
-                          <div className="space-y-1.5">{fenasojaToday.map(renderFenasojaItem)}</div>
-                        </div>
-                      )}
-                      {fenasojaTomorrow.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-accent uppercase tracking-wider mb-1.5">Amanhã — {tomorrowStr.split('-').reverse().join('/')}</p>
-                          <div className="space-y-1.5">{fenasojaTomorrow.map(renderFenasojaItem)}</div>
-                        </div>
-                      )}
-                    </div>
+                    renderDayGroup(fenasojaByDay, renderFenasojaItem, 'text-gold')
                   )}
                 </div>
               </div>
