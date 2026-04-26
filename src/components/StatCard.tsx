@@ -186,7 +186,7 @@ export default function StatCard({
           />
 
           {/* Content */}
-          <div className="relative p-4" style={{ transform: 'translateZ(15px)', transformStyle: 'preserve-3d' }}>
+          <div className="relative p-4 min-h-[124px] flex flex-col" style={{ transform: 'translateZ(15px)', transformStyle: 'preserve-3d' }}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
