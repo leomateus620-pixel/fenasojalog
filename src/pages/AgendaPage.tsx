@@ -5,6 +5,7 @@ import { useCommissions } from '@/hooks/useCommissions';
 import { useCurrentOrg } from '@/hooks/useCurrentOrg';
 import { useGuests } from '@/hooks/useGuests';
 import { useTransportGuests } from '@/hooks/useTransportGuests';
+import { useVehicles } from '@/hooks/useVehicles';
 
 import { Plus, CalendarOff, FileDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -110,6 +111,7 @@ function generateAgendaPDF(
       html += `</div>`;
       html += `<div class="event-time">⏰ ${rawTime(e.inicio_em)} — ${rawTime(e.fim_em)}</div>`;
       if (e.local) html += `<div class="event-meta">📍 <strong>Local:</strong> ${e.local}</div>`;
+      if (e._vehicle) html += `<div class="event-meta">🚙 <strong>Veículo:</strong> ${e._vehicle.placa}${e._vehicle.modelo ? ` · ${e._vehicle.modelo}` : ''}</div>`;
       if (member) html += `<div class="event-meta">👤 <strong>Responsável:</strong> ${member.nome_exibicao}${member.cargo ? ` (${member.cargo})` : ''}</div>`;
       if (comm) html += `<div class="event-meta">👥 <strong>Comissão:</strong> ${comm.nome}</div>`;
       if (e.descricao) html += `<div class="event-desc">${e.descricao}</div>`;
@@ -135,6 +137,7 @@ export default function AgendaPage() {
   const { myRole } = useCurrentOrg();
   const { guests } = useGuests();
   const { getGuestsForTransport } = useTransportGuests();
+  const { vehicles } = useVehicles();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -200,6 +203,8 @@ export default function AgendaPage() {
           ).toISOString();
         }
 
+        const vehicle = t.vehicle_id ? vehicles.find((v: any) => v.id === t.vehicle_id) : null;
+
         return {
           id: t.id,
           titulo: `${statusPrefix}Transporte: ${t.titulo || ''} ${t.origem} → ${t.destino}`.trim(),
@@ -213,6 +218,8 @@ export default function AgendaPage() {
           _transportStatus: t.status,
           _transportTitulo: t.titulo,
           _horarioSaidaText: t.horario_saida || null,
+          _vehicleId: t.vehicle_id || null,
+          _vehicle: vehicle ? { placa: vehicle.placa, modelo: vehicle.modelo } : null,
           _voo: {
             checkin: t.voo_checkin || null,
             chegada: t.voo_chegada || null,
@@ -223,7 +230,7 @@ export default function AgendaPage() {
       });
 
     return [...regularEvents, ...allTransports];
-  }, [events, transports, guests, getGuestsForTransport]);
+  }, [events, transports, guests, getGuestsForTransport, vehicles]);
 
   /* ── dates ── */
   const dates: string[] = useMemo(() => {

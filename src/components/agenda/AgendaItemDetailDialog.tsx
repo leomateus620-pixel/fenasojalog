@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Clock, MapPin, User, Users, Pencil, Trash2, Truck, CalendarClock, ArrowRight, Sun, Sunset, Moon,
-  Hourglass, Navigation, ExternalLink, Plane, PlaneLanding,
+  Hourglass, Navigation, ExternalLink, Plane, PlaneLanding, Car,
 } from 'lucide-react';
 import { cn, rawTime } from '@/lib/utils';
 import { TransportWeatherCard } from '@/components/weather/TransportWeatherCard';
@@ -240,6 +240,25 @@ export function AgendaItemDetailDialog({
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1"><Users className="w-3 h-3" /> Comissão</p>
                   <p className="text-sm font-semibold mt-0.5 truncate">{commission.nome}</p>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Transport-specific: vehicle */}
+          {isTransport && (
+            <div className="rounded-xl border border-white/10 bg-card/30 p-3 backdrop-blur-xl">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1 mb-1">
+                <Car className="w-3 h-3 text-gold" /> Veículo
+              </p>
+              {item._vehicle ? (
+                <div className="flex items-baseline gap-2">
+                  <p className="text-sm font-mono font-bold text-foreground">{item._vehicle.placa}</p>
+                  {item._vehicle.modelo && (
+                    <p className="text-xs text-muted-foreground truncate">· {item._vehicle.modelo}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground/80 italic">Nenhum veículo vinculado</p>
               )}
             </div>
           )}

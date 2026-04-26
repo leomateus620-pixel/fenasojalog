@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { MapPin, User, Users, Sun, Sunset, Moon, ChevronRight, Truck, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { MapPin, User, Users, Sun, Sunset, Moon, ChevronRight, Truck, CalendarClock, CheckCircle2, Car } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, rawTime } from '@/lib/utils';
 import { WeatherMiniSummary } from '@/components/weather/WeatherMiniSummary';
@@ -192,6 +192,19 @@ export function AgendaItemCard3D({ item, shift, index, isCurrent, member, commis
                 <span className="inline-flex items-center gap-1 text-[10px] text-foreground/85">
                   <User className="w-3 h-3 text-foreground/75" />
                   {member.nome_exibicao}
+                </span>
+              )}
+              {isTransport && item._vehicle && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-foreground/90 px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/25">
+                  <Car className="w-3 h-3 text-gold/85" />
+                  <span className="font-mono font-semibold tracking-tight">{item._vehicle.placa}</span>
+                  {item._vehicle.modelo && <span className="text-muted-foreground truncate max-w-[100px]">· {item._vehicle.modelo}</span>}
+                </span>
+              )}
+              {isTransport && !item._vehicle && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70 italic">
+                  <Car className="w-3 h-3" />
+                  Sem veículo
                 </span>
               )}
               {commission && (
