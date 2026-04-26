@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Sprout } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import SoybeanGrain from './SoybeanGrain';
+import SoybeanRain from './SoybeanRain';
 
 const TARGET_ISO = '2026-05-01T10:00:00-03:00';
 const RANGE_START_ISO = '2026-01-01T00:00:00-03:00';
@@ -106,13 +107,19 @@ export default function FenasojaCountdown() {
           }}
         />
 
+        {/* Chuva contínua de grãos de soja — física real */}
+        <SoybeanRain />
+
         {/* Header */}
-        <div className="relative flex items-start justify-between gap-3">
+        <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[hsl(var(--gold)/0.15)] ring-1 ring-[hsl(var(--gold)/0.35)] animate-gold-pulse motion-reduce:animate-none shrink-0"
+              className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[radial-gradient(circle_at_30%_30%,hsl(var(--gold)/0.28),hsl(var(--gold)/0.08))] ring-1 ring-[hsl(var(--gold)/0.45)] animate-gold-pulse motion-reduce:animate-none shrink-0"
+              style={{
+                boxShadow: 'inset 0 1px 0 hsl(var(--gold)/0.35), 0 4px 12px -4px hsl(var(--gold)/0.4)',
+              }}
             >
-              <Sprout className="w-5 h-5 sm:w-6 sm:h-6 text-gold" aria-hidden />
+              <SoybeanGrain size={24} />
             </div>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-extrabold tracking-[0.18em] uppercase text-gold leading-tight">
@@ -129,7 +136,7 @@ export default function FenasojaCountdown() {
         </div>
 
         {/* Digits grid */}
-        <div className="relative mt-4 sm:mt-5 grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="relative z-10 mt-4 sm:mt-5 grid grid-cols-4 gap-2 sm:gap-3">
           <DigitBlock value={parts.days} label="Dias" />
           <DigitBlock value={parts.hours} label="Horas" />
           <DigitBlock value={parts.minutes} label="Min" />
@@ -137,7 +144,7 @@ export default function FenasojaCountdown() {
         </div>
 
         {/* Progress */}
-        <div className="relative mt-4 sm:mt-5">
+        <div className="relative z-10 mt-4 sm:mt-5">
           <div className="h-1.5 w-full rounded-full bg-card/40 overflow-hidden ring-1 ring-inset ring-white/5">
             <div
               className="h-full rounded-full transition-all duration-1000 ease-out"
