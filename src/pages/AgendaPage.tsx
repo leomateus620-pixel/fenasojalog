@@ -202,6 +202,8 @@ export default function AgendaPage() {
           ).toISOString();
         }
 
+        const vehicle = t.vehicle_id ? vehicles.find((v: any) => v.id === t.vehicle_id) : null;
+
         return {
           id: t.id,
           titulo: `${statusPrefix}Transporte: ${t.titulo || ''} ${t.origem} → ${t.destino}`.trim(),
@@ -215,6 +217,8 @@ export default function AgendaPage() {
           _transportStatus: t.status,
           _transportTitulo: t.titulo,
           _horarioSaidaText: t.horario_saida || null,
+          _vehicleId: t.vehicle_id || null,
+          _vehicle: vehicle ? { placa: vehicle.placa, modelo: vehicle.modelo } : null,
           _voo: {
             checkin: t.voo_checkin || null,
             chegada: t.voo_chegada || null,
@@ -225,7 +229,7 @@ export default function AgendaPage() {
       });
 
     return [...regularEvents, ...allTransports];
-  }, [events, transports, guests, getGuestsForTransport]);
+  }, [events, transports, guests, getGuestsForTransport, vehicles]);
 
   /* ── dates ── */
   const dates: string[] = useMemo(() => {
