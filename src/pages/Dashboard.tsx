@@ -235,6 +235,11 @@ export default function Dashboard() {
     [members]
   );
 
+  const pendingTransportsCount = useMemo(
+    () => transports.filter((t: any) => t.status === 'pendente').length,
+    [transports]
+  );
+
   const upcomingTransports = useMemo(() =>
     transports
       .filter((t: any) => t.status === 'pendente')
@@ -317,7 +322,7 @@ export default function Dashboard() {
             value={activeTransports}
             icon={<MapPin className="w-5 h-5" strokeWidth={2.25} />}
             variant="success"
-            trend={`${upcomingTransports.length} pendentes`}
+            trend={`${pendingTransportsCount} pendentes`}
             to="/transports"
             liveActive={activeTransports > 0}
             smartLabel={nextTransportLabel}
