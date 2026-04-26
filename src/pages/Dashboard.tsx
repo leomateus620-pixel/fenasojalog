@@ -199,6 +199,24 @@ export default function Dashboard() {
     [transports]
   );
 
+  // Próximo transporte pendente nas próximas 2h → smart label
+  const nextTransportLabel = useMemo(() => {
+    const now = Date.now();
+    const next = transports
+      .filter((t: any) => t.status === 'pendente' && t.inicio_em)
+      .map((t: any) => ({ t, ts: new Date(t.inicio_em).getTime() }))
+      .filter(({ ts }) => ts > now && ts - now < 2 * 60 * 60 * 1000)
+      .sort((a, b) => a.ts - b.ts)[0];
+    if (!next) return undefined;
+    const mins = Math.round((next.ts - now) / 60000);
+    return mins <= 1 ? 'agora' : mins < 60 ? `em ${mins}min` : `em ${Math.floor(mins / 60)}h${mins % 60 ? mins % 60 + 'm' : ''}`;
+  }, [transports]);
+
+  const urgentTasksCount = useMemo(() =>
+    tasks.filter((t: any) => t.prioridade === 'urgente' && t.status === 'pendente').length,
+    [tasks]
+  );
+
   const pendingTasksList = useMemo(() =>
     tasks
       .filter((t: any) => t.status === 'pendente')
@@ -231,10 +249,44 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Veículos" value={availableVehicles} icon={<Car className="w-5 h-5" />} variant="primary" trend={`${vehicles.length} total`} to="/vehicles" />
-          <StatCard label="Carrinhos" value={cartsInUse} icon={<Zap className="w-5 h-5" />} variant="accent" trend={`${carts.length} elétricos`} to="/electric-carts" />
-          <StatCard label="Transportes" value={activeTransports} icon={<MapPin className="w-5 h-5" />} variant="success" trend={`${upcomingTransports.length} pendentes`} to="/transports" />
-          <StatCard label="Tarefas" value={pendingTasks} icon={<CheckSquare className="w-5 h-5" />} variant="warning" trend="pendentes" to="/checklist" />
+          <StatCard
+            label="Veículos"
+            value={availableVehicles}
+            icon={<Car className="w-5 h-5" strokeWidth={2.25} />}
+            variant="primary"
+            trend={`${vehicles.length} total`}
+            to="/vehicles"
+            progress={vehicles.length ? availableVehicles / vehicles.length : 0}
+          />
+          <StatCard
+            label="Carrinhos"
+            value={cartsInUse}
+            icon={<Zap className="w-5 h-5" strokeWidth={2.25} />}
+            variant="accent"
+            trend={`${carts.length} elétricos`}
+            to="/electric-carts"
+            liveActive={cartsInUse > 0}
+            smartLabel={cartsInUse > 0 ? 'em operação' : undefined}
+          />
+          <StatCard
+            label="Transportes"
+            value={activeTransports}
+            icon={<MapPin className="w-5 h-5" strokeWidth={2.25} />}
+            variant="success"
+            trend={`${upcomingTransports.length} pendentes`}
+            to="/transports"
+            liveActive={activeTransports > 0}
+            smartLabel={nextTransportLabel}
+          />
+          <StatCard
+            label="Tarefas"
+            value={pendingTasks}
+            icon={<CheckSquare className="w-5 h-5" strokeWidth={2.25} />}
+            variant="warning"
+            trend="pendentes"
+            to="/checklist"
+            urgentCount={urgentTasksCount}
+          />
         </div>
       )}
 
