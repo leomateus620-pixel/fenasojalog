@@ -456,6 +456,20 @@ export default function TransportDynamicIsland({
                 <Clock className="w-3 h-3" /> Chegada ~{liveDestRoute.arrivalTime}
               </span>
             )}
+            {liveDestRoute && isActive && etaDeltaMin != null && Math.abs(etaDeltaMin) >= 3 && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold',
+                  etaDeltaMin < 0
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                )}
+              >
+                {etaDeltaMin < 0
+                  ? `↓ ${Math.abs(etaDeltaMin)} min adiantado`
+                  : `↑ ${etaDeltaMin} min atrasado`}
+              </span>
+            )}
           </div>
 
           {/* People info */}
