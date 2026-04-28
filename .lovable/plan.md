@@ -1,68 +1,137 @@
 ## Objetivo
 
-Harmonizar visualmente o menu **Carrinhos Elétricos** elevando dois pontos:
-
-1. **Card "Em uso"** ganha destaque premium com animação leve (pulso/shimmer sutil), reforçando que aquele carrinho está ativo.
-2. **Barra de filtros** (busca + Todos/Disponíveis/Em uso) ganha tratamento Liquid Glass igual ao dos cards, criando coesão visual.
-
-Nenhuma lógica de negócio é alterada — apenas estilização e micro-animações GPU-aceleradas.
+Criar uma terceira aba **Reservas** no menu Carrinhos Elétricos (ao lado de Frota e Autorizados), permitindo agendar antecipadamente a retirada de um carrinho com período definido (início → devolução prevista) e três tipos de retirada: **Membro Fenasoja**, **Empresa Parceira** ou **Outros** (nome livre). Adicionar também a opção "Outros" no fluxo de Retirada imediata existente, mantendo consistência. Usar fuso de SP (America/Sao_Paulo).
 
 ---
 
-## Mudanças
+## 1. Banco de dados
 
-### 1. Card "Em uso" — destaque premium animado
-Arquivo: `src/components/electric-carts/ElectricCartCard.tsx`
+### Nova tabela `cart_reservations`
+Migration nova com:
+- `id uuid PK default gen_random_uuid()`
+- `org_id uuid NOT NULL`
+- `cart_id uuid NOT NULL` (referencia `electric_carts.id`)
+- `tipo_responsavel text NOT NULL` ('interno' | 'empresa' | 'outros')
+- `responsavel_user_id uuid` (quando interno)
+- `comissao text` (snapshot, quando interno)
+- `empresa_slug text` (quando empresa)
+- `nome_externo text` (quando outros — nome livre)
+- `telefone_externo text` (opcional, quando outros)
+- `inicio_em timestamptz NOT NULL` (retirada agendada)
+- `fim_em timestamptz NOT NULL` (devolução prevista)
+- `status text NOT NULL default 'agendada'` ('agendada' | 'em_andamento' | 'concluida' | 'cancelada')
+- `observacoes text`
+- `created_by_user_id uuid NOT NULL`
+- `created_at`, `updated_at` timestamptz
 
-- **Borda viva animada**: anel sutil em `hsl(var(--accent))` com `animate-pulse` lento (3s) apenas no estado `em_uso`, usando `ring-1 ring-accent/40` + glow externo.
-- **Halo intensificado**: o radial gradient atual de accent ganha um segundo halo inferior-esquerdo (verde profundo) e opacidade 70% para profundidade real.
-- **Shimmer leve**: faixa diagonal translúcida (`bg-gradient-to-r from-transparent via-white/8 to-transparent`) varrendo o card a cada ~6s via keyframe novo `cart-shimmer` — performático, GPU-only (transform: translateX).
-- **Badge "EM USO" pulsante**: pequeno indicador no header (dot verde com `animate-pulse`) ao lado do código do carrinho, substituindo a sensação estática.
-- **Botão Devolver**: mantém destaque atual, mas ganha micro hover com brilho interno animado (gradient shift sutil).
-- Cards "Disponível" e "Manutenção" permanecem visualmente calmos (sem animação) para que o "Em uso" seja o foco.
+**Trigger** `set_updated_at` em UPDATE.
 
-### 2. Filtros harmonizados (Liquid Glass)
-Arquivo: `src/components/electric-carts/ElectricCartsFilters.tsx`
+**Trigger de validação** (antes INSERT/UPDATE):
+- garante `fim_em > inicio_em`
+- garante coerência: se `tipo='interno'` exige `responsavel_user_id`; se `'empresa'` exige `empresa_slug`; se `'outros'` exige `nome_externo` (trim não vazio).
+- detecta conflito: rejeita se existir outra reserva para o mesmo `cart_id` com status em ('agendada','em_andamento') cujo intervalo `[inicio_em, fim_em)` sobreponha.
 
-- Envolver busca + segmented control em um **container único** com a mesma linguagem dos cards:
-  - `rounded-2xl border border-border/40`
-  - `bg-gradient-to-br from-card/85 via-card/65 to-card/45 backdrop-blur-2xl`
-  - `shadow-[0_8px_32px_-12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.08)]`
-  - Halo radial decorativo no canto (z-0) igual aos cards.
-- **Input de busca**: fundo translúcido (`bg-background/40 backdrop-blur-sm`), borda suave, ícone com leve glow no focus.
-- **Segmented control**: pílulas com `transform-gpu`, item ativo ganha gradient `from-primary to-primary/85` + `shadow-[0_4px_16px_-4px_hsl(var(--primary)/0.4)]` (mesma sombra dos botões dos cards). Contadores em chip translúcido.
-- Transição suave (`transition-all duration-300`) ao trocar filtro.
+**RLS PERMISSIVE** (mesmo padrão de `electric_carts`):
+- SELECT: `is_org_member(auth.uid(), org_id)`
+- INSERT/UPDATE: `get_user_org_role IN (admin, gestor, operador)`
+- DELETE: `get_user_org_role IN (admin, gestor)`
 
-### 3. Keyframe global
-Arquivo: `tailwind.config.ts`
-
-Adicionar animação `cart-shimmer` (translateX -120% → 220%, 6s ease-in-out infinite) e expor como `animate-cart-shimmer`. Reutilizável caso outros módulos queiram o mesmo efeito futuramente.
+### Atualizar `electric_carts`
+- Adicionar coluna `nome_externo text` (para suportar "Outros" no fluxo de retirada imediata).
+- `tipo_responsavel` já aceita texto livre — passar a aceitar `'outros'` (nenhuma alteração de constraint necessária; ajustar comentário/uso).
 
 ---
 
-## Detalhes Técnicos
+## 2. Hooks
+
+### Novo `src/hooks/useCartReservations.ts`
+Padrão idêntico a `useElectricCarts`:
+- `list` (query por `org_id`, ordenado por `inicio_em` asc) com filtros opcionais.
+- `create` (insert + audit).
+- `update` (update + audit + history opcional).
+- `cancel` (set status `cancelada`).
+- `convertToPickup` (chama `useElectricCarts.pickup` com os dados da reserva e marca status `em_andamento`).
+
+### Atualizar `useElectricCarts.ts`
+- `pickup` aceita `tipo: 'interno' | 'empresa' | 'outros'` e `nome_externo?: string`.
+- Quando `tipo='outros'`: zera `responsavel_user_id`, `comissao`, `empresa_slug` e grava `nome_externo`.
+
+---
+
+## 3. Tipos / Partners
+- `src/lib/partners.ts`: nenhuma alteração.
+- Em UI tratar `'outros'` como ramo separado (ícone `User`, label "Convidado / Externo").
+
+---
+
+## 4. UI — Página `ElectricCartsPage.tsx`
+
+### Tabs
+`Frota | Autorizados | Reservas` (nova aba).
+
+### Aba Reservas (nova)
+Mesma linguagem visual Liquid Glass 3D dos cards atuais:
+- Header com título, contador (Agendadas / Em andamento / Concluídas) e botão `+ Nova Reserva`.
+- Filtros (segmented control reaproveitado do estilo `ElectricCartsFilters`): Período (Hoje / Próximos 7 dias / Todas) + busca por nome/código.
+- Lista de cards `ReservationCard` (novo componente em `src/components/electric-carts/ReservationCard.tsx`):
+  - Glassmorphism `backdrop-blur-2xl`, gradiente sutil, halo radial conforme status:
+    - `agendada` → halo `primary` (verde profundo)
+    - `em_andamento` → halo `accent` + shimmer leve (reaproveita `animate-cart-shimmer`)
+    - `concluida` → tons mutados
+    - `cancelada` → tons destrutivos com strike no título
+  - Conteúdo: código + nome do carrinho, bloco do responsável (avatar/foto/logo/iniciais conforme tipo), faixa horária `dd/MM HH:mm → dd/MM HH:mm` (SP), duração calculada e badge de status.
+  - Ações: `Iniciar Retirada` (quando hora atual >= inicio_em e cart disponível), `Editar`, `Cancelar`.
+- Vazio state com ícone `CalendarClock`.
+
+### Diálogo "Nova Reserva" / "Editar Reserva"
+- Select do carrinho (mostra todos, indicando próximas reservas conflitantes).
+- Tabs com 3 opções: **Membro Fenasoja | Empresa Parceira | Outros**.
+  - "Outros": Input `Nome` (uppercase, obrigatório) + Input `Telefone` (opcional, máscara BR).
+- Dois `DateTimePicker` (Início e Fim previsto), padrão SP, valor inicial = agora SP / agora+2h.
+- Campo `Observações` (textarea curta).
+- Validação client-side (zod) antes do submit; toast em erros do trigger (mensagem direta).
+
+### Aba Frota — diálogo "Registrar Retirada" existente
+- Adicionar terceira aba interna **Outros** (junto de Membro Fenasoja / Empresa Parceira) com input de nome (uppercase). Persiste em `electric_carts.nome_externo` + `tipo_responsavel='outros'`.
+- `ElectricCartCard.tsx` no estado "em uso" passa a renderizar bloco `Outros` com ícone `User` + nome externo (quando `tipo_responsavel='outros'`).
+
+---
+
+## 5. Roteamento e navegação
+- Sem nova rota; tudo dentro de `/electric-carts` via tabs.
+- Reaproveita `ElectricCartsReportPage` (sem alteração nesta etapa).
+
+---
+
+## 6. Detalhes técnicos / regras
 
 ```text
-ElectricCartCard (em_uso)
-├── ring-1 ring-accent/40 + animate-pulse lento (3s)
-├── halo top-right (accent) + halo bottom-left (primary/20)
-├── overlay shimmer absoluto (animate-cart-shimmer, pointer-events-none)
-├── header: dot verde animate-pulse + código
-└── botão Devolver com gradient hover
-
-ElectricCartsFilters (novo wrapper)
-└── glass container
-    ├── Input busca (bg-background/40 + ícone)
-    └── Segmented (pílulas com gradient ativo + chip de contagem)
+Reservation lifecycle
+agendada ──(iniciar retirada)──▶ em_andamento ──(devolução)──▶ concluida
+   │                                  │
+   └──(cancelar)──▶ cancelada         └──(cancelar)──▶ cancelada
 ```
 
-- Sem novas dependências.
-- Sem mudanças em hooks, banco ou rotas.
-- Acessibilidade preservada (contrastes, focus rings, `aria-label`).
-- Performance: animações usam `transform`/`opacity` (GPU), respeitam `prefers-reduced-motion` via Tailwind `motion-safe:`.
+- Conflito: trigger SQL bloqueia overlap entre reservas ativas no mesmo carrinho.
+- "Iniciar Retirada" a partir de uma reserva: chama `pickup` com snapshot da reserva (tipo, responsável, comissão, empresa_slug ou nome_externo) e seta `cart_reservations.status='em_andamento'`. Devolução pelo fluxo padrão do card finaliza a reserva via update no `useCartReservations` (chamada extra após `returnCart` quando houver reserva ativa daquele carrinho).
+- Todas as datas formatadas com `timeZone: 'America/Sao_Paulo'` via helpers já existentes (`nowSP`, `nowSPLocal`, `utcToSPLocal`).
+- Auditoria: cada operação chama `logAudit` (entity `cart_reservations`).
 
-## Arquivos afetados
+---
 
-- `src/components/electric-carts/ElectricCartCard.tsx` — destaque + animação no estado em_uso.
-- `src/components/electric-carts/ElectricCartsFilters.tsx` — redesenho Liquid Glass.
-- `tailwind.config.ts` — keyframe `cart-shimmer`.
+## 7. Arquivos afetados
+
+**Novos**
+- `supabase/migrations/<timestamp>_cart_reservations.sql` (tabela, trigger validação + conflito, RLS, coluna `nome_externo` em `electric_carts`).
+- `src/hooks/useCartReservations.ts`
+- `src/components/electric-carts/ReservationCard.tsx`
+- `src/components/electric-carts/ReservationDialog.tsx` (criar/editar)
+- `src/components/electric-carts/ReservationsTab.tsx` (lista + filtros + dialog)
+
+**Editados**
+- `src/pages/ElectricCartsPage.tsx` — adicionar aba Reservas; adicionar tab "Outros" no diálogo Retirada; passar a finalizar reserva ao devolver.
+- `src/components/electric-carts/ElectricCartCard.tsx` — render do tipo `outros` no estado em uso.
+- `src/hooks/useElectricCarts.ts` — `pickup` suportando `tipo='outros'` e `nome_externo`.
+- `src/lib/utils.ts` — (apenas se necessário) helper de formatação curta de intervalo SP.
+
+Sem novas dependências. Mantém Liquid Glass, fuso SP, RLS isolado por `org_id`, sem efeitos AI.

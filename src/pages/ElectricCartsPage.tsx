@@ -18,6 +18,8 @@ import AuthorizationsTab from '@/components/mobility/AuthorizationsTab';
 import { PARTNERS, getPartner, type PartnerSlug } from '@/lib/partners';
 import ElectricCartCard from '@/components/electric-carts/ElectricCartCard';
 import ElectricCartsFilters, { type CartStatusFilter } from '@/components/electric-carts/ElectricCartsFilters';
+import ReservationsTab from '@/components/electric-carts/ReservationsTab';
+import { User } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; class: string }> = {
   disponivel: { label: 'Disponível', class: 'bg-success/10 text-success border-success/20' },
@@ -39,7 +41,7 @@ export default function ElectricCartsPage() {
   const [editForm, setEditForm] = useState({ codigo: '', nome: '', status: 'disponivel' });
 
   const [pickupOpen, setPickupOpen] = useState(false);
-  const [pickupForm, setPickupForm] = useState<{ cartId: string; userId: string; comissao: string; retirada_em: string; tipo: 'interno' | 'empresa'; empresa_slug: PartnerSlug | '' }>({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
+  const [pickupForm, setPickupForm] = useState<{ cartId: string; userId: string; comissao: string; retirada_em: string; tipo: 'interno' | 'empresa' | 'outros'; empresa_slug: PartnerSlug | ''; nome_externo: string }>({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnId, setReturnId] = useState('');
@@ -101,6 +103,7 @@ export default function ElectricCartsPage() {
       retirada_em: nowSPLocal(),
       tipo: 'interno',
       empresa_slug: '',
+      nome_externo: '',
     });
     setPickupOpen(true);
   };
@@ -109,6 +112,7 @@ export default function ElectricCartsPage() {
     if (!pickupForm.cartId) { toast.error('Selecione um carrinho'); return; }
     if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione um responsável'); return; }
     if (pickupForm.tipo === 'empresa' && !pickupForm.empresa_slug) { toast.error('Selecione a empresa parceira'); return; }
+    if (pickupForm.tipo === 'outros' && !pickupForm.nome_externo.trim()) { toast.error('Informe o nome de quem retira'); return; }
     try {
       await pickup.mutateAsync({
         id: pickupForm.cartId,
@@ -116,9 +120,10 @@ export default function ElectricCartsPage() {
         responsavel_user_id: pickupForm.tipo === 'interno' ? pickupForm.userId : null,
         comissao: pickupForm.tipo === 'interno' ? (pickupForm.comissao || null) : null,
         empresa_slug: pickupForm.tipo === 'empresa' ? pickupForm.empresa_slug : null,
+        nome_externo: pickupForm.tipo === 'outros' ? pickupForm.nome_externo : null,
         retirada_em: pickupForm.retirada_em || nowSP(),
       });
-      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
+      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
       setPickupOpen(false);
       toast.success('Retirada registrada');
     } catch (err: any) { toast.error(err.message); }
@@ -164,6 +169,7 @@ export default function ElectricCartsPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="frota">Frota</TabsTrigger>
           <TabsTrigger value="autorizados">Autorizados</TabsTrigger>
+          <TabsTrigger value="reservas">Reservas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="frota">
@@ -216,11 +222,12 @@ export default function ElectricCartsPage() {
 
             <Tabs
               value={pickupForm.tipo}
-              onValueChange={(v) => setPickupForm({ ...pickupForm, tipo: v as 'interno' | 'empresa', userId: '', comissao: '', empresa_slug: '' })}
+              onValueChange={(v) => setPickupForm({ ...pickupForm, tipo: v as 'interno' | 'empresa' | 'outros', userId: '', comissao: '', empresa_slug: '', nome_externo: '' })}
             >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="interno">Membro Fenasoja</TabsTrigger>
-                <TabsTrigger value="empresa">Empresa Parceira</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="interno">Membro</TabsTrigger>
+                <TabsTrigger value="empresa">Empresa</TabsTrigger>
+                <TabsTrigger value="outros">Outros</TabsTrigger>
               </TabsList>
 
               <TabsContent value="interno" className="space-y-3 mt-3">
@@ -266,6 +273,21 @@ export default function ElectricCartsPage() {
                     );
                   })}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="outros" className="space-y-3 mt-3">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent/30 to-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Convidado / Externo — não cadastrado no sistema</span>
+                </div>
+                <Input
+                  placeholder="NOME COMPLETO"
+                  value={pickupForm.nome_externo}
+                  onChange={(e) => setPickupForm({ ...pickupForm, nome_externo: e.target.value.toUpperCase() })}
+                  className="uppercase"
+                />
               </TabsContent>
             </Tabs>
 
@@ -351,6 +373,10 @@ export default function ElectricCartsPage() {
 
         <TabsContent value="autorizados">
           <AuthorizationsTab type="carro_eletrico" />
+        </TabsContent>
+
+        <TabsContent value="reservas">
+          <ReservationsTab />
         </TabsContent>
       </Tabs>
     </div>
