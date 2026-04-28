@@ -65,11 +65,32 @@ export function useVehicles() {
     return path;
   };
 
-  const getDocumentUrl = async (storagePath: string): Promise<string> => {
+  /**
+   * Extracts a clean storage path from any stored value:
+   *  - Plain path: "<org>/<vehicle>/<file>.pdf" → returned as-is
+   *  - Public URL: ".../object/public/vehicle-documents/<path>" → extracts <path>
+   *  - Signed URL: ".../object/sign/vehicle-documents/<path>?token=..." → extracts <path>
+   */
+  const extractVehicleDocPath = (stored: string): string => {
+    if (!stored) return '';
+    if (!stored.startsWith('http')) return stored;
+    const match = stored.match(/\/object\/(?:sign|public|authenticated)\/vehicle-documents\/(.+?)(?:\?|$)/);
+    return match ? decodeURIComponent(match[1]) : stored;
+  };
+
+  const getDocumentUrl = async (storedValue: string): Promise<string> => {
+    const path = extractVehicleDocPath(storedValue);
+    if (!path) throw new Error('Documento não encontrado. Faça o upload novamente.');
     const { data, error } = await supabase.storage
       .from('vehicle-documents')
-      .createSignedUrl(storagePath, 3600);
-    if (error) throw error;
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) {
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('not found') || msg.includes('object not found')) {
+        throw new Error('Documento não encontrado no storage. Faça o upload novamente.');
+      }
+      throw new Error(error?.message || 'Não foi possível abrir o documento.');
+    }
     return data.signedUrl;
   };
 
