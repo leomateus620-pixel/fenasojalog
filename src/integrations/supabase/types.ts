@@ -91,6 +91,63 @@ export type Database = {
           },
         ]
       }
+      cart_reservations: {
+        Row: {
+          cart_id: string
+          comissao: string | null
+          created_at: string
+          created_by_user_id: string
+          empresa_slug: string | null
+          fim_em: string
+          id: string
+          inicio_em: string
+          nome_externo: string | null
+          observacoes: string | null
+          org_id: string
+          responsavel_user_id: string | null
+          status: string
+          telefone_externo: string | null
+          tipo_responsavel: string
+          updated_at: string
+        }
+        Insert: {
+          cart_id: string
+          comissao?: string | null
+          created_at?: string
+          created_by_user_id: string
+          empresa_slug?: string | null
+          fim_em: string
+          id?: string
+          inicio_em: string
+          nome_externo?: string | null
+          observacoes?: string | null
+          org_id: string
+          responsavel_user_id?: string | null
+          status?: string
+          telefone_externo?: string | null
+          tipo_responsavel: string
+          updated_at?: string
+        }
+        Update: {
+          cart_id?: string
+          comissao?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          empresa_slug?: string | null
+          fim_em?: string
+          id?: string
+          inicio_em?: string
+          nome_externo?: string | null
+          observacoes?: string | null
+          org_id?: string
+          responsavel_user_id?: string | null
+          status?: string
+          telefone_externo?: string | null
+          tipo_responsavel?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       commissions: {
         Row: {
           created_at: string
@@ -264,6 +321,7 @@ export type Database = {
           empresa_slug: string | null
           id: string
           nome: string | null
+          nome_externo: string | null
           observacoes: string | null
           org_id: string
           responsavel_user_id: string | null
@@ -281,6 +339,7 @@ export type Database = {
           empresa_slug?: string | null
           id?: string
           nome?: string | null
+          nome_externo?: string | null
           observacoes?: string | null
           org_id: string
           responsavel_user_id?: string | null
@@ -298,6 +357,7 @@ export type Database = {
           empresa_slug?: string | null
           id?: string
           nome?: string | null
+          nome_externo?: string | null
           observacoes?: string | null
           org_id?: string
           responsavel_user_id?: string | null
