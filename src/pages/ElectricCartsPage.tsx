@@ -18,6 +18,8 @@ import AuthorizationsTab from '@/components/mobility/AuthorizationsTab';
 import { PARTNERS, getPartner, type PartnerSlug } from '@/lib/partners';
 import ElectricCartCard from '@/components/electric-carts/ElectricCartCard';
 import ElectricCartsFilters, { type CartStatusFilter } from '@/components/electric-carts/ElectricCartsFilters';
+import ReservationsTab from '@/components/electric-carts/ReservationsTab';
+import { User } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; class: string }> = {
   disponivel: { label: 'Disponível', class: 'bg-success/10 text-success border-success/20' },
@@ -39,7 +41,7 @@ export default function ElectricCartsPage() {
   const [editForm, setEditForm] = useState({ codigo: '', nome: '', status: 'disponivel' });
 
   const [pickupOpen, setPickupOpen] = useState(false);
-  const [pickupForm, setPickupForm] = useState<{ cartId: string; userId: string; comissao: string; retirada_em: string; tipo: 'interno' | 'empresa'; empresa_slug: PartnerSlug | '' }>({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
+  const [pickupForm, setPickupForm] = useState<{ cartId: string; userId: string; comissao: string; retirada_em: string; tipo: 'interno' | 'empresa' | 'outros'; empresa_slug: PartnerSlug | ''; nome_externo: string }>({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnId, setReturnId] = useState('');
@@ -101,6 +103,7 @@ export default function ElectricCartsPage() {
       retirada_em: nowSPLocal(),
       tipo: 'interno',
       empresa_slug: '',
+      nome_externo: '',
     });
     setPickupOpen(true);
   };
@@ -109,6 +112,7 @@ export default function ElectricCartsPage() {
     if (!pickupForm.cartId) { toast.error('Selecione um carrinho'); return; }
     if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione um responsável'); return; }
     if (pickupForm.tipo === 'empresa' && !pickupForm.empresa_slug) { toast.error('Selecione a empresa parceira'); return; }
+    if (pickupForm.tipo === 'outros' && !pickupForm.nome_externo.trim()) { toast.error('Informe o nome de quem retira'); return; }
     try {
       await pickup.mutateAsync({
         id: pickupForm.cartId,
@@ -116,9 +120,10 @@ export default function ElectricCartsPage() {
         responsavel_user_id: pickupForm.tipo === 'interno' ? pickupForm.userId : null,
         comissao: pickupForm.tipo === 'interno' ? (pickupForm.comissao || null) : null,
         empresa_slug: pickupForm.tipo === 'empresa' ? pickupForm.empresa_slug : null,
+        nome_externo: pickupForm.tipo === 'outros' ? pickupForm.nome_externo : null,
         retirada_em: pickupForm.retirada_em || nowSP(),
       });
-      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
+      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
       setPickupOpen(false);
       toast.success('Retirada registrada');
     } catch (err: any) { toast.error(err.message); }
