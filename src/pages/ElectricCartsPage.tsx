@@ -374,6 +374,10 @@ export default function ElectricCartsPage() {
         <TabsContent value="autorizados">
           <AuthorizationsTab type="carro_eletrico" />
         </TabsContent>
+
+        <TabsContent value="reservas">
+          <ReservationsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
