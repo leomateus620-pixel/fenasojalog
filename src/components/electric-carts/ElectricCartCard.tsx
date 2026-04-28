@@ -163,6 +163,27 @@ export default function ElectricCartCard({ cart, responsavel, nextReservation, n
         </button>
       </div>
 
+      {/* Reservation badge */}
+      {reservationBadge && (
+        <div
+          className={cn(
+            'relative mb-3 rounded-xl border px-3 py-2 flex items-center gap-2',
+            'shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-sm',
+            reservationBadge.variant === 'now' && 'bg-destructive/15 border-destructive/40 text-destructive motion-safe:animate-pulse',
+            reservationBadge.variant === 'soon' && 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300',
+            reservationBadge.variant === 'future' && 'bg-info/15 border-info/40 text-info'
+          )}
+        >
+          <CalendarClock className="w-4 h-4 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider leading-tight truncate">{reservationBadge.label}</p>
+            {nextReservationLabel && (
+              <p className="text-[10px] opacity-80 truncate leading-tight mt-0.5">para {nextReservationLabel}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Available state */}
       {isAvailable && (
         <div className="relative flex-1 flex flex-col justify-between">
