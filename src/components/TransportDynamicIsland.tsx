@@ -94,6 +94,8 @@ export default function TransportDynamicIsland({
 
   const [livePolyline, setLivePolyline] = useState<[number, number][] | undefined>(undefined);
   const lastFetchRef = useRef<number>(0);
+  const lastFetchPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const baselineEtaRef = useRef<number | null>(null);
   const prevIsActiveRef = useRef<boolean>(false);
   const estimatedKm = getEffectiveEstimatedKm(t.distancia_estimada_km, t.titulo, t.voo_cidade, t.destino);
 
