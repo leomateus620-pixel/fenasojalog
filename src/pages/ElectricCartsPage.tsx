@@ -36,7 +36,7 @@ export default function ElectricCartsPage() {
   const [editForm, setEditForm] = useState({ codigo: '', nome: '', status: 'disponivel' });
 
   const [pickupOpen, setPickupOpen] = useState(false);
-  const [pickupForm, setPickupForm] = useState({ cartId: '', userId: '', comissao: '', retirada_em: '' });
+  const [pickupForm, setPickupForm] = useState<{ cartId: string; userId: string; comissao: string; retirada_em: string; tipo: 'interno' | 'empresa'; empresa_slug: PartnerSlug | '' }>({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnId, setReturnId] = useState('');
