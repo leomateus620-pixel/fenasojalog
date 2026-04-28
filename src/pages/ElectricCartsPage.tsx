@@ -1,10 +1,11 @@
 import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
-import { Zap, Wrench, Pencil, Plus, Phone, Clock, ArrowRight } from 'lucide-react';
+import { Zap, Plus, Clock, ArrowRight, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal } from '@/lib/utils';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,8 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AuthorizationsTab from '@/components/mobility/AuthorizationsTab';
 import { PARTNERS, getPartner, type PartnerSlug } from '@/lib/partners';
+import ElectricCartCard from '@/components/electric-carts/ElectricCartCard';
+import ElectricCartsFilters, { type CartStatusFilter } from '@/components/electric-carts/ElectricCartsFilters';
 
 const statusConfig: Record<string, { label: string; class: string }> = {
   disponivel: { label: 'Disponível', class: 'bg-success/10 text-success border-success/20' },
@@ -44,6 +47,25 @@ export default function ElectricCartsPage() {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyCart, setHistoryCart] = useState<any>(null);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<CartStatusFilter>('all');
+
+  const counts = useMemo(() => ({
+    all: carts.length,
+    disponivel: carts.filter((c: any) => c.status === 'disponivel').length,
+    em_uso: carts.filter((c: any) => c.status === 'em_uso').length,
+  }), [carts]);
+
+  const filteredCarts = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return carts.filter((c: any) => {
+      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+      if (!s) return true;
+      return `${c.codigo} ${c.nome || ''}`.toLowerCase().includes(s);
+    });
+  }, [carts, search, statusFilter]);
 
   // Get commission name for a member
   const getMemberCommission = (userId: string) => {
@@ -123,7 +145,12 @@ export default function ElectricCartsPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Carrinhos Elétricos</h1>
           <p className="text-sm text-muted-foreground mt-1">Gerencie os carrinhos elétricos do evento</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Link to="/electric-carts/report">
+            <Button size="sm" variant="outline" className="h-10 sm:h-9 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform">
+              <FileText className="w-4 h-4" /> Relatório
+            </Button>
+          </Link>
           <Button size="sm" variant="outline" onClick={openPickup} className="h-10 sm:h-9 gap-1.5 rounded-xl shadow-sm active:scale-[0.97] transition-transform">
             <Zap className="w-4 h-4" /> Retirada
           </Button>
@@ -273,88 +300,50 @@ export default function ElectricCartsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {carts.map((c: any) => {
+      <ElectricCartsFilters
+        search={search}
+        onSearch={setSearch}
+        status={statusFilter}
+        onStatus={setStatusFilter}
+        counts={counts}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredCarts.map((c: any) => {
           const resp = members.find((m: any) => m.user_id === c.responsavel_user_id);
-          const sc = statusConfig[c.status] || statusConfig.disponivel;
-          const partner = c.tipo_responsavel === 'empresa' ? getPartner(c.empresa_slug) : null;
           return (
-            <div
+            <ElectricCartCard
               key={c.id}
-              className="rounded-xl border bg-card p-4 sm:p-5 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => { setHistoryCart(c); setHistoryOpen(true); }}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-accent/10 text-accent">
-                    <Zap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{c.nome || c.codigo}</p>
-                    <p className="text-xs font-mono text-muted-foreground">{c.codigo}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={(e) => { e.stopPropagation(); setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }} aria-label={`Editar ${c.nome || c.codigo}`} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <Badge variant="outline" className={cn('text-[10px]', sc.class)}>{sc.label}</Badge>
-                </div>
-              </div>
-              {partner && c.status === 'em_uso' && (
-                <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-muted/40 border border-border">
-                  <div className="w-10 h-10 rounded-md bg-white border flex items-center justify-center overflow-hidden shrink-0">
-                    <img src={partner.logo} alt={partner.nome} className="max-w-full max-h-full object-contain" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{partner.nome}</p>
-                    <Badge variant="secondary" className="text-[10px] mt-0.5">Empresa parceira</Badge>
-                  </div>
-                </div>
-              )}
-              {!partner && resp && (
-                <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-primary-foreground" style={{ backgroundColor: resp.avatar_color || 'hsl(142,50%,35%)' }}>
-                    {(resp.nome_exibicao || '?')[0]}
-                  </div>
-                  <span>{resp.nome_exibicao}</span>
-                </div>
-              )}
-              {!partner && c.comissao && c.status === 'em_uso' && (
-                <div className="text-xs text-muted-foreground mb-2">
-                  Comissão: <Badge variant="secondary" className="text-[10px]">{c.comissao}</Badge>
-                </div>
-              )}
-              {c.retirada_em && c.status === 'em_uso' && (
-                <div className="text-xs text-muted-foreground p-2 rounded-lg bg-info/5 border border-info/10 mb-2">
-                  <p>Retirado: {new Date(c.retirada_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
-                </div>
-              )}
-              {c.status === 'manutencao' && (
-                <div className="flex items-center gap-1.5 text-xs text-destructive mt-2">
-                  <Wrench className="w-3 h-3" /> Em manutenção
-                </div>
-              )}
-              <div className="flex gap-2 mt-4">
-                {c.status === 'em_uso' && (
-                  <button onClick={(e) => { e.stopPropagation(); openReturn(c.id); }} aria-label={`Devolver ${c.nome || c.codigo}`} className="flex-1 text-xs font-medium py-2.5 rounded-lg border border-border hover:bg-muted transition-colors focus-ring min-h-[44px]">
-                    Devolver
-                  </button>
-                )}
-              </div>
-            </div>
+              cart={c}
+              responsavel={resp}
+              onEdit={() => { setEditId(c.id); setEditForm({ codigo: c.codigo, nome: c.nome || '', status: c.status }); setEditOpen(true); }}
+              onReturn={() => openReturn(c.id)}
+              onHistory={() => { setHistoryCart(c); setHistoryOpen(true); }}
+            />
           );
         })}
-        {carts.length === 0 && (
+        {filteredCarts.length === 0 && (
           <div className="col-span-full text-center py-16 text-muted-foreground">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/10 flex items-center justify-center">
               <Zap className="w-8 h-8 text-accent/50" />
             </div>
-            <p className="text-sm font-medium">Nenhum carrinho cadastrado</p>
-            <p className="text-xs text-muted-foreground/70 mt-1">Adicione carrinhos elétricos para gerenciar retiradas e devoluções</p>
-            <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Adicionar Carrinho
-            </Button>
+            <p className="text-sm font-medium">
+              {carts.length === 0 ? 'Nenhum carrinho cadastrado' : 'Nenhum carrinho encontrado'}
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              {carts.length === 0
+                ? 'Adicione carrinhos elétricos para gerenciar retiradas e devoluções'
+                : 'Ajuste os filtros para ver mais resultados'}
+            </p>
+            {carts.length === 0 ? (
+              <Button size="sm" className="mt-4" onClick={() => setAddOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" /> Adicionar Carrinho
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" className="mt-4" onClick={() => { setSearch(''); setStatusFilter('all'); }}>
+                Limpar filtros
+              </Button>
+            )}
           </div>
         )}
       </div>
