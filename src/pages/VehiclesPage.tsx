@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 import { Input } from '@/components/ui/input';
@@ -566,6 +566,48 @@ function VehicleDetailContent({ vehicle, members, userId, kmTotal, fuelCostTotal
   const [editFuelId, setEditFuelId] = useState<string | null>(null);
   const [editFuelForm, setEditFuelForm] = useState({ litros: '', valor: '', km_abastecimento: '', posto: '', observacoes: '' });
   const [docUploading, setDocUploading] = useState(false);
+  const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (docPreviewUrl) URL.revokeObjectURL(docPreviewUrl);
+    };
+  }, [docPreviewUrl]);
+
+  const createDocumentBlobUrl = async () => {
+    const signedUrl = await getDocumentUrl(vehicle.documento_url!);
+    const response = await fetch(signedUrl);
+    if (!response.ok) throw new Error('Não foi possível carregar o documento.');
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  };
+
+  const handleViewDocument = async () => {
+    try {
+      const blobUrl = await createDocumentBlobUrl();
+      setDocPreviewUrl((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return blobUrl;
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao abrir documento');
+    }
+  };
+
+  const handleDownloadDocument = async () => {
+    try {
+      const blobUrl = await createDocumentBlobUrl();
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `documento-${vehicle.placa || 'veiculo'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao baixar documento');
+    }
+  };
 
   const openFuelEdit = (f: any) => {
     setEditFuelId(f.id);
