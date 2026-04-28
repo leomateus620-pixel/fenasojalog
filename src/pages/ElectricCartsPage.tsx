@@ -175,7 +175,7 @@ export default function ElectricCartsPage() {
 
       {/* Pickup dialog */}
       <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Registrar Retirada</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Select value={pickupForm.cartId} onValueChange={(v) => setPickupForm({ ...pickupForm, cartId: v })}>
@@ -186,23 +186,62 @@ export default function ElectricCartsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={pickupForm.userId} onValueChange={(v) => {
-              const commission = getMemberCommission(v);
-              setPickupForm({ ...pickupForm, userId: v, comissao: commission || '' });
-            }}>
-              <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
-              <SelectContent>
-                {members.map((m: any) => (
-                  <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {pickupForm.comissao && (
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground">Comissão:</Label>
-                <Badge variant="secondary">{pickupForm.comissao}</Badge>
-              </div>
-            )}
+
+            <Tabs
+              value={pickupForm.tipo}
+              onValueChange={(v) => setPickupForm({ ...pickupForm, tipo: v as 'interno' | 'empresa', userId: '', comissao: '', empresa_slug: '' })}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="interno">Membro Fenasoja</TabsTrigger>
+                <TabsTrigger value="empresa">Empresa Parceira</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="interno" className="space-y-3 mt-3">
+                <Select value={pickupForm.userId} onValueChange={(v) => {
+                  const commission = getMemberCommission(v);
+                  setPickupForm({ ...pickupForm, userId: v, comissao: commission || '' });
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
+                  <SelectContent>
+                    {members.map((m: any) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pickupForm.comissao && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Comissão:</Label>
+                    <Badge variant="secondary">{pickupForm.comissao}</Badge>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="empresa" className="space-y-3 mt-3">
+                <Label className="text-xs text-muted-foreground">Empresa parceira</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PARTNERS.map((p) => {
+                    const selected = pickupForm.empresa_slug === p.slug;
+                    return (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        onClick={() => setPickupForm({ ...pickupForm, empresa_slug: p.slug })}
+                        className={cn(
+                          'rounded-xl border p-3 flex flex-col items-center justify-center gap-2 bg-card hover:bg-muted transition-all min-h-[88px]',
+                          selected ? 'border-primary ring-2 ring-primary/30 shadow-sm' : 'border-border'
+                        )}
+                      >
+                        <div className="w-12 h-12 rounded-md bg-white border flex items-center justify-center overflow-hidden">
+                          <img src={p.logo} alt={p.nome} className="max-w-full max-h-full object-contain" />
+                        </div>
+                        <span className="text-[11px] font-medium text-center leading-tight">{p.nome}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <div>
               <Label className="text-xs text-muted-foreground mb-1 block">Horário de retirada</Label>
               <DateTimePicker value={pickupForm.retirada_em} onChange={(v) => setPickupForm({ ...pickupForm, retirada_em: v })} placeholder="Retirada" />
