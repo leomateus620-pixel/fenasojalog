@@ -77,21 +77,26 @@ export default function ElectricCartsPage() {
       userId: '',
       comissao: '',
       retirada_em: nowSPLocal(),
+      tipo: 'interno',
+      empresa_slug: '',
     });
     setPickupOpen(true);
   };
 
   const handlePickup = async () => {
     if (!pickupForm.cartId) { toast.error('Selecione um carrinho'); return; }
-    if (!pickupForm.userId) { toast.error('Selecione um responsável'); return; }
+    if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione um responsável'); return; }
+    if (pickupForm.tipo === 'empresa' && !pickupForm.empresa_slug) { toast.error('Selecione a empresa parceira'); return; }
     try {
       await pickup.mutateAsync({
         id: pickupForm.cartId,
-        responsavel_user_id: pickupForm.userId,
-        comissao: pickupForm.comissao || null,
+        tipo: pickupForm.tipo,
+        responsavel_user_id: pickupForm.tipo === 'interno' ? pickupForm.userId : null,
+        comissao: pickupForm.tipo === 'interno' ? (pickupForm.comissao || null) : null,
+        empresa_slug: pickupForm.tipo === 'empresa' ? pickupForm.empresa_slug : null,
         retirada_em: pickupForm.retirada_em || nowSP(),
       });
-      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '' });
+      setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '' });
       setPickupOpen(false);
       toast.success('Retirada registrada');
     } catch (err: any) { toast.error(err.message); }
