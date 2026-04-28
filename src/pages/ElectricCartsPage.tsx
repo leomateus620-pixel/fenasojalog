@@ -48,6 +48,25 @@ export default function ElectricCartsPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyCart, setHistoryCart] = useState<any>(null);
 
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<CartStatusFilter>('all');
+
+  const counts = useMemo(() => ({
+    all: carts.length,
+    disponivel: carts.filter((c: any) => c.status === 'disponivel').length,
+    em_uso: carts.filter((c: any) => c.status === 'em_uso').length,
+  }), [carts]);
+
+  const filteredCarts = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return carts.filter((c: any) => {
+      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+      if (!s) return true;
+      return `${c.codigo} ${c.nome || ''}`.toLowerCase().includes(s);
+    });
+  }, [carts, search, statusFilter]);
+
   // Get commission name for a member
   const getMemberCommission = (userId: string) => {
     const member = members.find((m: any) => m.user_id === userId);
