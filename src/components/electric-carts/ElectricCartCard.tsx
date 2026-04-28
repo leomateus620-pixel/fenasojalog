@@ -33,19 +33,54 @@ function formatTime(iso: string): string {
   });
 }
 
-export default function ElectricCartCard({ cart, responsavel, onEdit, onReturn, onHistory }: Props) {
+function formatReservationBadge(r: CartReservation, nowMs: number) {
+  const inicio = new Date(r.inicio_em).getTime();
+  const fim = new Date(r.fim_em).getTime();
+  const isNow = inicio <= nowMs && nowMs <= fim;
+  const within24h = !isNow && inicio - nowMs <= 24 * 3600 * 1000 && inicio - nowMs >= 0;
+  const variant: 'now' | 'soon' | 'future' = isNow ? 'now' : within24h ? 'soon' : 'future';
+
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
+
+  // Day-key helper in SP timezone
+  const spDayKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const todayKey = spDayKey(new Date(nowMs));
+  const tomorrowKey = spDayKey(new Date(nowMs + 86400000));
+  const startKey = spDayKey(new Date(inicio));
+
+  let label = '';
+  if (variant === 'now') {
+    label = `RESERVADO AGORA · até ${fmtTime(r.fim_em)}`;
+  } else if (variant === 'soon') {
+    const dayLabel = startKey === todayKey ? 'hoje' : startKey === tomorrowKey ? 'amanhã' : fmtDate(r.inicio_em);
+    label = `Reservado ${dayLabel} às ${fmtTime(r.inicio_em)}`;
+  } else {
+    label = `Reservado ${fmtDate(r.inicio_em)} às ${fmtTime(r.inicio_em)}`;
+  }
+
+  return { variant, label };
+}
+
+export default function ElectricCartCard({ cart, responsavel, nextReservation, nextReservationLabel, onEdit, onReturn, onHistory }: Props) {
   const partner = cart.tipo_responsavel === 'empresa' ? getPartner(cart.empresa_slug) : null;
   const isAvailable = cart.status === 'disponivel';
   const isInUse = cart.status === 'em_uso';
   const isMaintenance = cart.status === 'manutencao';
 
-  // Tick every minute to refresh "elapsed" badges
-  const [, setTick] = useState(0);
+  // Tick every minute to refresh "elapsed" / reservation badges
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    if (!isInUse) return;
+    if (!isInUse && !nextReservation) return;
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
-  }, [isInUse]);
+  }, [isInUse, nextReservation]);
+
+  const reservationBadge = nextReservation
+    ? formatReservationBadge(nextReservation, Date.now() + tick * 0)
+    : null;
 
   const haloClass = isAvailable
     ? 'bg-[radial-gradient(circle_at_top_right,hsl(var(--success)/0.35),transparent_60%)]'
