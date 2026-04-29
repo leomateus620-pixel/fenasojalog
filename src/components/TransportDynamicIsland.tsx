@@ -149,6 +149,21 @@ export default function TransportDynamicIsland({
     return d ? [d.lat, d.lng] as [number, number] : undefined;
   }, [t, isReturning]);
 
+  // Origin used to draw the route while the driver hasn't published GPS yet.
+  // During the return phase, the "origin" of the live route is the destination of the outbound trip.
+  const originCoords = useMemo(() => {
+    if (isReturning) {
+      const lat = (t.destino_lat_chegada ?? t.destino_lat) ?? null;
+      const lng = (t.destino_lng_chegada ?? t.destino_lng) ?? null;
+      if (lat != null && lng != null) return [lat, lng] as [number, number];
+      const d = getDestCoords(t);
+      return d ? [d.lat, d.lng] as [number, number] : undefined;
+    }
+    const lat = t.origem_lat ?? SANTA_ROSA.lat;
+    const lng = t.origem_lng ?? SANTA_ROSA.lng;
+    return [lat, lng] as [number, number];
+  }, [t, isReturning]);
+
   // Fetch live route + ETA when location updates
   useEffect(() => {
     if (!location || !isActive) return;
