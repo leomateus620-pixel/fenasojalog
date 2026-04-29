@@ -98,11 +98,35 @@ class LocationTracker {
     this.currentTransportId = transportId;
     this.currentUserId = userId;
     this.setState({ isTracking: true, transportId, error: null });
+    this.pushLog(`[gps:start] transport=${transportId} user=${userId}`);
 
     if (!navigator.geolocation) {
       this.setState({ error: 'Geolocalização não suportada neste navegador', isTracking: false });
+      this.pushLog('[gps:start] geolocation API ausente');
       return;
     }
+
+    // Trava extra: confirma no banco que o usuário é o motorista designado.
+    // Se não for, aborta antes mesmo de pedir permissão ao navegador.
+    // (Backend já bloqueia, mas isso evita pedir GPS para visualizadores.)
+    try {
+      const { data: t } = await (supabase as any)
+        .from('transports')
+        .select('motorista_user_id, status')
+        .eq('id', transportId)
+        .maybeSingle();
+      if (t && t.motorista_user_id && t.motorista_user_id !== userId) {
+        this.setState({
+          isTracking: false,
+          transportId: null,
+          error: 'Apenas o motorista designado pode ativar o GPS desta viagem.',
+        });
+        this.pushLog('[gps:start-block] usuário não é o motorista designado');
+        this.currentTransportId = null;
+        this.currentUserId = null;
+        return;
+      }
+    } catch { /* segue mesmo offline — backend ainda bloqueia */ }
 
     // IMPORTANTE: NÃO usar `await` antes de chamar `getCurrentPosition`/`watchPosition`
     // — em iOS/Safari isso quebra o "user gesture" e a permissão falha silenciosamente.
