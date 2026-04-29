@@ -427,21 +427,24 @@ export default function TransportDynamicIsland({
                   </div>
                 }>
                   <div className="relative">
+                    {/* Mapa só com a rota planejada (SEM marker do motorista),
+                        para não confundir origem planejada com posição real. */}
                     <DriverLocationMap
                       latitude={originCoords[0]}
                       longitude={originCoords[1]}
-                      driverName={isReturning ? t.destino : t.origem}
+                      driverName={undefined}
                       className="h-[160px] relative"
-                      routePolyline={livePolyline || routePolyline || previewPolyline}
+                      routePolyline={routePolyline || previewPolyline}
                       destLatLng={destCoords}
                       destLabel={t.destino}
+                      hideDriverMarker
                     />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[1px] rounded-2xl px-3">
-                      <span className="flex items-center gap-2 bg-card/90 px-3 py-1.5 rounded-full text-xs font-medium text-foreground text-center">
+                    <div className="absolute inset-0 flex items-end justify-center pointer-events-none p-2">
+                      <span className="flex items-center gap-2 bg-card/95 px-3 py-1.5 rounded-full text-[11px] font-medium text-foreground border border-border/40 shadow-sm">
                         <Navigation className="w-3.5 h-3.5 animate-pulse text-accent shrink-0" />
                         {location?.isStale
-                          ? `Aguardando localização real… (última há ${Math.round((location.ageSeconds || 0) / 60)} min)`
-                          : 'Aguardando localização real do motorista…'}
+                          ? `GPS sem sinal há ${Math.round((location.ageSeconds || 0) / 60)} min`
+                          : 'Aguardando GPS real do motorista'}
                       </span>
                     </div>
                   </div>
