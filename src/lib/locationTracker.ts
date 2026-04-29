@@ -55,9 +55,25 @@ class LocationTracker {
     error: null,
   };
   private listeners = new Set<Listener>();
+  private logs: string[] = [];
+  private logListeners = new Set<(logs: string[]) => void>();
 
   getDeviceId() { return this.deviceId; }
   getSnapshot(): TrackerSnapshot { return this.state; }
+  getLogs(): string[] { return this.logs; }
+
+  subscribeLogs(fn: (logs: string[]) => void): () => void {
+    this.logListeners.add(fn);
+    fn(this.logs);
+    return () => { this.logListeners.delete(fn); };
+  }
+
+  private pushLog(msg: string) {
+    const stamped = `${new Date().toISOString().slice(11, 19)} ${msg}`;
+    this.logs = [...this.logs.slice(-19), stamped];
+    try { console.info(msg); } catch { /* */ }
+    for (const fn of this.logListeners) fn(this.logs);
+  }
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
