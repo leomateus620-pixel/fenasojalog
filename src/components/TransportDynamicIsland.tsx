@@ -453,24 +453,6 @@ export default function TransportDynamicIsland({
                     </div>
                   </div>
                 </Suspense>
-              ) : !isActive && destCoords && originCoords ? (
-                <Suspense fallback={
-                  <div className="h-[140px] bg-white/5 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MapPin className="w-4 h-4" /> Carregando rota...
-                    </div>
-                  </div>
-                }>
-                  <DriverLocationMap
-                    latitude={originCoords[0]}
-                    longitude={originCoords[1]}
-                    driverName={t.origem}
-                    className="h-[140px] relative"
-                    routePolyline={livePolyline || routePolyline || previewPolyline}
-                    destLatLng={destCoords}
-                    destLabel={t.destino}
-                  />
-                </Suspense>
               ) : null}
             </div>
           )}
