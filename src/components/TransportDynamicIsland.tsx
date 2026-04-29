@@ -488,6 +488,20 @@ export default function TransportDynamicIsland({
             )
           )}
 
+
+          {/* Driver CTA: when this user is the assigned driver but GPS hasn't started here yet */}
+          {isAssignedDriver && !isMyTracking && !gpsClaimedByOther && (isActive || isAtDestination) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTrackingTransportId(t.id);
+              }}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-accent/15 hover:bg-accent/25 text-xs font-semibold text-accent transition-all active:scale-[0.97]"
+            >
+              <Navigation className="w-3.5 h-3.5" /> Iniciar meu GPS desta viagem
+            </button>
+          )}
+
           {/* Metrics row */}
           <div className="flex flex-wrap gap-2">
             {(liveDestRoute || estimatedKm) && (
