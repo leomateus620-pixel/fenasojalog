@@ -2680,6 +2680,17 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      publish_transport_location: {
+        Args: {
+          _accuracy?: number
+          _heading?: number
+          _latitude: number
+          _longitude: number
+          _speed?: number
+          _transport_id: string
+        }
+        Returns: undefined
+      }
       set_transport_guests: {
         Args: { _guest_ids: string[]; _org_id: string; _transport_id: string }
         Returns: undefined

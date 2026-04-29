@@ -1,80 +1,79 @@
-## Diagnóstico
+Diagnóstico confirmado
 
-Investiguei o transporte em questão (Santa Rosa → Aeroporto de Chapecó → Santa Rosa, id `f7833513…`). Encontrei **dois problemas reais** que se combinam:
+Do I know what the issue is? Sim.
 
-**1. Coordenadas e polyline da rota nunca foram salvos no banco**
-A linha do transporte está com:
-- `origem_lat / origem_lng` = NULL
-- `destino_lat / destino_lng` = NULL
-- `rota_polyline` = NULL
+O transporte iniciado agora está em `em_andamento`, tem coordenadas de origem/destino, mas:
 
-Isso aconteceu porque o transporte foi criado por um caminho que **não passa** pelo bloco de criação do `TransportsPage` (que preenche `origem_lat = SANTA_ROSA` e dispara o `fetchRoutePreview` em background). Provavelmente foi criado a partir do Dashboard / Agenda / um fluxo legado, que insere apenas os campos básicos. Resultado: a Dynamic Island até desenha o pino de destino (porque cai no fallback `knownDestCoords['Aeroporto_Chapecó']`), mas **a rota traçada e o cálculo "Live" usam coordenadas erradas/incompletas**, e quando o motorista inicia, o mapa não tem rota base nenhuma.
+1. Não existe linha de localização ao vivo para ele em `transport_locations`.
+2. A rota salva (`rota_polyline`) está vazia para esse e outros transportes ativos/pendentes.
+3. O início da viagem foi feito por um usuário diferente do motorista designado. O código atual tenta ativar o GPS no navegador de quem clicou em “Iniciar”, mas o hook de segurança bloqueia a publicação porque esse usuário não é o motorista do transporte. Resultado: o card fica em “Obtendo localização...” e nenhuma posição real chega ao mapa.
+4. Quando ainda não há GPS ao vivo, o mapa usa o destino como ponto inicial e destino ao mesmo tempo. Por isso a rota visual não aparece corretamente; ele centraliza no aeroporto/cidade de destino em vez de desenhar Santa Rosa → Destino.
+5. A função de início tenta buscar a rota por backend, mas a chamada interna à função de rotas usa credencial de serviço em um endpoint que valida usuário autenticado. Isso falha silenciosamente e deixa `rota_polyline` nulo.
 
-**2. Sessão de tracking nunca foi iniciada para este transporte**
-Não existe nenhum registro em `transport_locations` para `f7833513…`. Ou seja: o navegador do motorista nunca chamou `startTracking()` (provavelmente porque ele iniciou a viagem em outro dispositivo/sessão e este aparelho nem abriu a tela ainda, ou porque a permissão de geolocalização foi negada silenciosamente). Hoje o sistema só ativa GPS quando o próprio motorista clica "Iniciar viagem" nessa sessão — se a viagem já está `em_andamento`, o app **não retoma o tracking automaticamente**.
+Plano de correção
 
-Como consequência o card mostra "Em trânsito" mas o ícone do motorista nunca aparece, e a rota desenhada (quando aparece) é a estática/errada.
+1. Corrigir a ativação do GPS no frontend
+   - Em `TransportsPage.tsx`, só ligar o rastreamento local se o usuário logado for exatamente o motorista designado do transporte.
+   - Se um operador/admin iniciar a viagem de outro motorista, mostrar feedback correto: viagem iniciada, aguardando o motorista abrir o app.
+   - Manter o auto-resume: quando o motorista designado abrir/recarregar o app e tiver transporte ativo, o GPS inicia automaticamente.
 
-## O que vamos corrigir
+2. Tornar a gravação da localização robusta e atômica
+   - Criar uma função segura no banco para publicar localização (`publish_transport_location`), validando no servidor:
+     - usuário autenticado;
+     - usuário é o motorista designado do transporte;
+     - transporte está em fase ativa (`em_andamento`, `em_retorno` ou `chegou_destino`);
+     - usuário pertence à organização do transporte.
+   - Essa função fará `insert ... on conflict (transport_id) do update`, eliminando conflito de “linha fantasma” e evitando o fluxo frágil atual de update/delete/insert no cliente.
+   - Ajustar `useLocationTracking.ts` para chamar essa função em vez de escrever diretamente em `transport_locations`.
+   - Reforçar as políticas da tabela para impedir que qualquer membro da organização publique localização em transporte que não é dele.
 
-### A. Backfill no `start` da viagem (Edge Function `transport-lifecycle`)
-Quando uma viagem inicia, se o transporte estiver sem `origem_lat/lng`, `destino_lat/lng` ou `rota_polyline`, a Edge Function vai:
-- Preencher `origem_lat/lng` com Santa Rosa (ou com o que estiver no transporte) por padrão.
-- Resolver `destino_lat/lng` a partir da tabela canônica de destinos conhecidos (Aeroporto Chapecó, Passo Fundo, Santo Ângelo, POA, etc.) ou do `voo_cidade`.
-- Chamar `estimate-return` no modo rota para obter a polyline base e gravar em `rota_polyline`, `distancia_estimada_km`, `duracao_estimada_min` (apenas se ainda não existir).
+3. Corrigir a visualização da rota quando ainda não há GPS ao vivo
+   - Em `TransportDynamicIsland.tsx`, criar `originCoords` usando `origem_lat/origem_lng` com fallback Santa Rosa.
+   - Enquanto não existe localização ao vivo, renderizar a rota de `originCoords` até `destCoords`, não destino → destino.
+   - Assim, mesmo antes do motorista abrir o app, o card mostra Santa Rosa → Santo Ângelo/Chapecó/etc. corretamente.
+   - Depois que o GPS chegar, o mapa muda para motorista atual → destino em tempo real.
 
-Isso garante que **todo transporte iniciado tem coordenadas e rota**, independentemente de como foi criado.
+4. Corrigir a geração de rota no backend para próximos inícios
+   - Em `transport-lifecycle`, ajustar o backfill de rota para chamar a função de rotas com o token do usuário autenticado que iniciou a ação, não com credencial de serviço.
+   - Adicionar logs controlados para quando a rota não puder ser gerada, evitando falhas silenciosas.
+   - Garantir que novos transportes iniciados recebam, no mínimo, coordenadas válidas; e, quando a API de mapas responder, `rota_polyline`, distância e duração.
 
-### B. Recuperação imediata do transporte atual (one-shot SQL)
-Migration que preenche para o transporte `f7833513…` (e quaisquer outros `em_andamento` com `destino_lat IS NULL`):
-- `origem_lat = -27.8708`, `origem_lng = -54.4814` (Santa Rosa).
-- `destino_lat = -27.1342`, `destino_lng = -52.6566` (Aeroporto de Chapecó), ou o conhecido para o `voo_cidade`/título.
+5. Reparar dados atuais para todos os transportes
+   - Limpar localizações antigas de transportes concluídos/cancelados/pendentes, mantendo apenas linhas de viagens realmente ativas.
+   - Backfill de coordenadas faltantes para ativos e pendentes com destinos conhecidos:
+     - Santa Rosa como origem padrão;
+     - Aeroporto de Santo Ângelo;
+     - Aeroporto de Chapecó;
+     - Aeroporto de Passo Fundo;
+     - Aeroporto de Porto Alegre.
+   - Para rotas faltantes, preencher polylines reais quando possível usando a função de rotas; se a API não retornar rota, deixar o frontend com fallback visual Santa Rosa → Destino para não quebrar a navegação.
 
-A polyline de rota será regenerada pela própria Dynamic Island na próxima atualização Live (ela já busca `LIVE_ROUTE` quando há localização do motorista).
-
-### C. Auto-retomar tracking quando o motorista abre o app
-No `TransportsPage` (e no `useLocationTracking`), ao montar a página:
-- Se existe um transporte `em_andamento` ou `em_retorno` cujo `motorista_user_id === user.id`, definir automaticamente `trackingTransportId` e disparar `startTracking()` — sem precisar do clique "Iniciar".
-- Persistir esse id em `localStorage` (já existe `fenasoja_tracking_transport`) para sobreviver a refresh.
-- Mostrar um aviso discreto se a permissão de geolocalização estiver `denied`, com botão "Reativar localização".
-
-### D. Indicador honesto no card quando não há localização
-Quando o transporte está `em_andamento` mas `transport_locations` está vazio há mais de ~2 min, o overlay "Obtendo localização do motorista…" passa a exibir também:
-- "Aguardando o motorista abrir o app" + botão para **copiar/enviar link via WhatsApp** ao motorista pedindo para abrir a tela.
-
-Assim o operador entende o estado real em vez de achar que está travado.
-
-## Detalhes técnicos
+6. Validação end-to-end
+   - Conferir no banco se os transportes ativos/pendentes não estão mais com coordenadas críticas vazias.
+   - Conferir se não restam linhas fantasmas em `transport_locations` para viagens inativas.
+   - Testar o fluxo esperado:
 
 ```text
-Fluxo após correção
-┌────────────────────────────────────────────────────────────┐
-│ Usuário cria transporte (qualquer fluxo)                   │
-│   └─► pode ou não ter coords/rota                          │
-│                                                            │
-│ Motorista clica "Iniciar"  ──►  transport-lifecycle:start │
-│   ├─ DELETE transport_locations stale                      │
-│   ├─ BACKFILL origem_lat/lng se nulo (Santa Rosa)          │
-│   ├─ BACKFILL destino_lat/lng via knownDestCoords          │
-│   ├─ BACKFILL rota_polyline via estimate-return            │
-│   └─ status = em_andamento                                 │
-│                                                            │
-│ App do motorista (qualquer aba/refresh)                    │
-│   └─ detecta transporte em_andamento dele                  │
-│       └─► startTracking() automático → upsert location     │
-│                                                            │
-│ Operador vê: ícone do motorista + rota real até o destino  │
-└────────────────────────────────────────────────────────────┘
+Operador inicia viagem de outro motorista
+  -> status vira Em trânsito
+  -> mapa mostra rota Santa Rosa -> Destino
+  -> mensagem: aguardando motorista abrir o app
+
+Motorista designado abre o app
+  -> rastreamento inicia automaticamente
+  -> localização é publicada no backend
+  -> operador vê marcador Ao vivo
+  -> rota passa a ser Motorista atual -> Destino
 ```
 
-### Arquivos a alterar
-- `supabase/functions/transport-lifecycle/index.ts` — backfill em `handleStart` (e `handleStartReturn`).
-- `supabase/migrations/<novo>.sql` — corrigir as linhas atualmente quebradas.
-- `src/pages/TransportsPage.tsx` — auto-retomar tracking se sou o motorista de uma viagem ativa.
-- `src/hooks/useLocationTracking.ts` — pequeno helper para retomar a partir do `localStorage`.
-- `src/components/TransportDynamicIsland.tsx` — mensagem mais clara quando não há `location` há > 2 min.
+Arquivos/áreas que serão alterados
 
-### Sem mudanças
-- Schema permanece igual (apenas `UPDATE` de dados).
-- RLS já está correta (alterada na rodada anterior).
-- Sem novas dependências.
+- `src/hooks/useLocationTracking.ts`
+- `src/pages/TransportsPage.tsx`
+- `src/components/TransportDynamicIsland.tsx`
+- `supabase/functions/transport-lifecycle/index.ts`
+- Nova migration para função segura de localização, limpeza de fantasmas e backfill de dados atuais
+
+<lov-actions>
+<lov-link url="https://docs.lovable.dev/tips-tricks/troubleshooting">Troubleshooting docs</lov-link>
+</lov-actions>
