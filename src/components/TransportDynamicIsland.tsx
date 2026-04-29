@@ -141,6 +141,9 @@ export default function TransportDynamicIsland({
   // During return phase, "destination" of tracking = origin of the trip
   const destCoords = useMemo(() => {
     if (isReturning) {
+      if (t.origem_lat == null || t.origem_lng == null) {
+        console.warn('[transport] origem_lat/lng ausente — usando fallback Santa Rosa para retorno', t.id);
+      }
       const lat = t.origem_lat ?? SANTA_ROSA.lat;
       const lng = t.origem_lng ?? SANTA_ROSA.lng;
       return [lat, lng] as [number, number];
@@ -158,6 +161,9 @@ export default function TransportDynamicIsland({
       if (lat != null && lng != null) return [lat, lng] as [number, number];
       const d = getDestCoords(t);
       return d ? [d.lat, d.lng] as [number, number] : undefined;
+    }
+    if (t.origem_lat == null || t.origem_lng == null) {
+      console.warn('[transport] origem_lat/lng ausente — usando fallback Santa Rosa para ida', t.id);
     }
     const lat = t.origem_lat ?? SANTA_ROSA.lat;
     const lng = t.origem_lng ?? SANTA_ROSA.lng;
