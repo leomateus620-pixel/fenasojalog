@@ -389,7 +389,7 @@ export default function TransportDynamicIsland({
           {/* Map area — only render for active phases (never for pendente/concluido/cancelado) */}
           {(isActive || isAtDestination) && (
             <div className="rounded-2xl overflow-hidden border border-border/30">
-              {location && !location.isStale && isActive ? (
+              {(destCoords || originCoords) && (
                 <Suspense fallback={
                   <div className="h-[160px] bg-muted/30 flex items-center justify-center">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -399,57 +399,41 @@ export default function TransportDynamicIsland({
                 }>
                   <div className="relative cursor-pointer group" onClick={() => setMapFullscreen(true)}>
                     <DriverLocationMap
-                      latitude={location.latitude}
-                      longitude={location.longitude}
-                      accuracy={location.accuracy}
-                      speed={location.speed}
+                      latitude={location && !location.isStale ? location.latitude : null}
+                      longitude={location && !location.isStale ? location.longitude : null}
+                      accuracy={location && !location.isStale ? location.accuracy : null}
+                      speed={location && !location.isStale ? location.speed : null}
                       driverName={driverName}
                       className="h-[160px] relative"
                       routePolyline={livePolyline || routePolyline || previewPolyline}
+                      originLatLng={originCoords}
+                      originLabel={isReturning ? t.destino : t.origem}
                       destLatLng={destCoords}
-                      destLabel={t.destino}
+                      destLabel={isReturning ? t.origem : t.destino}
+                      hideDriverMarker={!location || location.isStale}
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-card/80 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-medium text-foreground border border-border/40">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      {location.ageSeconds < 60 ? 'Ao vivo' : `Há ${Math.round(location.ageSeconds / 60)} min`}
-                    </div>
+                    {location && !location.isStale ? (
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-card/80 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-medium text-foreground border border-border/40">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {location.ageSeconds < 60 ? 'Ao vivo' : `Há ${Math.round(location.ageSeconds / 60)} min`}
+                        {!isAssignedDriver && <span className="ml-1 text-muted-foreground">· visualizando</span>}
+                      </div>
+                    ) : (
+                      <div className="absolute inset-x-0 bottom-2 flex justify-center pointer-events-none px-2">
+                        <span className="flex items-center gap-2 bg-card/95 px-3 py-1.5 rounded-full text-[11px] font-medium text-foreground border border-border/40 shadow-sm">
+                          <Navigation className="w-3.5 h-3.5 animate-pulse text-accent shrink-0" />
+                          {location?.isStale
+                            ? `GPS sem sinal há ${Math.round((location.ageSeconds || 0) / 60)} min`
+                            : 'Aguardando localização real do motorista'}
+                        </span>
+                      </div>
+                    )}
                     <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card/80 backdrop-blur-sm rounded-lg p-1.5 border border-border/40">
                       <Expand className="w-3.5 h-3.5 text-foreground/70" />
                     </div>
                   </div>
                 </Suspense>
-              ) : isActive && destCoords && originCoords ? (
-                <Suspense fallback={
-                  <div className="h-[160px] bg-muted/30 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Navigation className="w-4 h-4 animate-pulse" /> Carregando mapa...
-                    </div>
-                  </div>
-                }>
-                  <div className="relative">
-                    {/* Mapa só com a rota planejada (SEM marker do motorista),
-                        para não confundir origem planejada com posição real. */}
-                    <DriverLocationMap
-                      latitude={originCoords[0]}
-                      longitude={originCoords[1]}
-                      driverName={undefined}
-                      className="h-[160px] relative"
-                      routePolyline={routePolyline || previewPolyline}
-                      destLatLng={destCoords}
-                      destLabel={t.destino}
-                      hideDriverMarker
-                    />
-                    <div className="absolute inset-0 flex items-end justify-center pointer-events-none p-2">
-                      <span className="flex items-center gap-2 bg-card/95 px-3 py-1.5 rounded-full text-[11px] font-medium text-foreground border border-border/40 shadow-sm">
-                        <Navigation className="w-3.5 h-3.5 animate-pulse text-accent shrink-0" />
-                        {location?.isStale
-                          ? `GPS sem sinal há ${Math.round((location.ageSeconds || 0) / 60)} min`
-                          : 'Aguardando GPS real do motorista'}
-                      </span>
-                    </div>
-                  </div>
-                </Suspense>
-              ) : null}
+              )}
             </div>
           )}
 
