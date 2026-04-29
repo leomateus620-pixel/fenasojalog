@@ -201,7 +201,7 @@ export default function TransportDynamicIsland({
       } catch { /* keep null */ }
     })();
     return () => { cancelled = true; };
-  }, [location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
+  }, [isActive, isAtDestination, location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
 
 
   // Fetch live route + ETA when location updates
