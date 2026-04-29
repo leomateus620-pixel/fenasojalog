@@ -474,16 +474,22 @@ export default function TransportDynamicIsland({
           )}
 
 
-          {/* Driver CTA: when this user is the assigned driver but GPS hasn't started here yet */}
-          {isAssignedDriver && !isMyTracking && !gpsClaimedByOther && (isActive || isAtDestination) && (
+          {/* Driver CTA: enquanto NÃO houver coordenada real recebida deste motorista,
+              mostre o botão para liberar/refazer a permissão de GPS via gesto direto. */}
+          {isAssignedDriver && !gpsClaimedByOther && (isActive || isAtDestination) && (!location || location.isStale) && (
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
+                // Gesto direto do usuário → libera watchPosition no iOS/Safari
                 setTrackingTransportId(t.id);
+                try {
+                  await locationTracker.startTracking();
+                } catch { /* erros aparecem no painel acima */ }
               }}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-accent/15 hover:bg-accent/25 text-xs font-semibold text-accent transition-all active:scale-[0.97]"
+              className="w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-accent text-accent-foreground text-sm font-semibold transition-all active:scale-[0.97] shadow-md"
             >
-              <Navigation className="w-3.5 h-3.5" /> Iniciar meu GPS desta viagem
+              <Navigation className="w-4 h-4" />
+              {isMyTracking ? 'Reativar GPS desta viagem' : 'Ativar GPS desta viagem'}
             </button>
           )}
 
