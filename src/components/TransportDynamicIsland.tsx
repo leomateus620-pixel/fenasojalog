@@ -168,6 +168,7 @@ export default function TransportDynamicIsland({
   // (origin -> destination) so the map shows the planned path instead of just a marker.
   const [previewPolyline, setPreviewPolyline] = useState<[number, number][] | undefined>(undefined);
   useEffect(() => {
+    if (!(isActive || isAtDestination)) return;
     if (location || routePolyline || !originCoords || !destCoords) return;
     let cancelled = false;
     (async () => {
