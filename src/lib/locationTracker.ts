@@ -256,6 +256,7 @@ class LocationTracker {
       speed: speed ?? null,
       error: null,
     });
+    this.pushLog(`[gps:fix] lat=${latitude.toFixed(6)} lng=${longitude.toFixed(6)} acc=${Math.round(accuracy || 0)}m`);
 
     try {
       const { error: rpcErr } = await (supabase as any).rpc('publish_transport_location', {
