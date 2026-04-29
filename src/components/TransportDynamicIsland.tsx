@@ -414,7 +414,7 @@ export default function TransportDynamicIsland({
                       speed={location.speed}
                       driverName={driverName}
                       className="h-[160px] relative"
-                      routePolyline={livePolyline || routePolyline}
+                      routePolyline={livePolyline || routePolyline || previewPolyline}
                       destLatLng={destCoords}
                       destLabel={t.destino}
                     />
@@ -441,7 +441,7 @@ export default function TransportDynamicIsland({
                       longitude={originCoords[1]}
                       driverName={isReturning ? t.destino : t.origem}
                       className="h-[160px] relative"
-                      routePolyline={livePolyline || routePolyline}
+                      routePolyline={livePolyline || routePolyline || previewPolyline}
                       destLatLng={destCoords}
                       destLabel={t.destino}
                     />
@@ -466,7 +466,7 @@ export default function TransportDynamicIsland({
                     longitude={originCoords[1]}
                     driverName={t.origem}
                     className="h-[140px] relative"
-                    routePolyline={livePolyline || routePolyline}
+                    routePolyline={livePolyline || routePolyline || previewPolyline}
                     destLatLng={destCoords}
                     destLabel={t.destino}
                   />
@@ -591,7 +591,7 @@ export default function TransportDynamicIsland({
               accuracy={location?.accuracy}
               speed={location?.speed}
               driverName={driverName}
-              routePolyline={livePolyline || routePolyline}
+              routePolyline={livePolyline || routePolyline || previewPolyline}
               destLatLng={destCoords}
               destLabel={t.destino}
               origemLabel={t.origem}
