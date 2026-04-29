@@ -423,6 +423,42 @@ async function handleArriveDestination(admin: any, userId: string, payload: any)
     after_data: updates,
   });
 
+  // Auto-register one-way (ida) leg in vehicle_usage (B.2)
+  if (transport.vehicle_id && transport.km_retirada != null && transport.distancia_estimada_km) {
+    try {
+      const kmIda = Math.round(Number(transport.distancia_estimada_km) / 2);
+      const kmRetirada = Number(transport.km_retirada);
+      const kmChegadaDestino = kmRetirada + kmIda;
+      const obs = `Ida automática — transporte ${id}`;
+
+      const { data: existing } = await admin
+        .from("vehicle_usage")
+        .select("id")
+        .eq("vehicle_id", transport.vehicle_id)
+        .eq("observacoes", obs)
+        .maybeSingle();
+
+      if (!existing) {
+        await admin.from("vehicle_usage").insert({
+          org_id: orgId,
+          vehicle_id: transport.vehicle_id,
+          responsavel_user_id: transport.motorista_user_id,
+          km_saida: kmRetirada,
+          km_chegada: kmChegadaDestino,
+          retirada_em: transport.inicio_real_em || now,
+          devolucao_em: now,
+          observacoes: obs,
+        });
+        await admin
+          .from("vehicles")
+          .update({ km_atual: kmChegadaDestino })
+          .eq("id", transport.vehicle_id);
+      }
+    } catch (e) {
+      console.error("[transport-lifecycle] Auto vehicle_usage (ida) failed:", e);
+    }
+  }
+
   return ok({ data: updated });
 }
 
