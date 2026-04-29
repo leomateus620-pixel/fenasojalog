@@ -89,22 +89,17 @@ export function useLocationTracking(transportId: string | null) {
     };
 
     try {
-      // 1) Try UPDATE first (most common case once tracking is established).
-      const { data: updated, error: updateErr } = await (supabase as any)
-        .from('transport_locations')
-        .update(payload)
-        .eq('transport_id', tid)
-        .select('transport_id');
-
-      // 2) If RLS blocked the update OR no row matched (first tick / stale row from another
-      //    driver), fall back to delete + insert so the current driver becomes the row owner.
-      if (updateErr || !updated || updated.length === 0) {
-        await (supabase as any).from('transport_locations').delete().eq('transport_id', tid);
-        const { error: insertErr } = await (supabase as any)
-          .from('transport_locations')
-          .insert(payload);
-        if (insertErr) console.error('Failed to insert location row:', insertErr);
-      }
+      // Atomic upsert via security-definer RPC. The RPC validates the caller is the
+      // assigned driver and the trip is active, then UPSERTs the row by transport_id.
+      const { error: rpcErr } = await (supabase as any).rpc('publish_transport_location', {
+        _transport_id: tid,
+        _latitude: latitude,
+        _longitude: longitude,
+        _accuracy: accuracy ?? null,
+        _speed: speed ?? null,
+        _heading: heading ?? null,
+      });
+      if (rpcErr) console.error('Failed to publish location:', rpcErr);
     } catch (err) {
       console.error('Failed to update location:', err);
     }

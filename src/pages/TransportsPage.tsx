@@ -310,14 +310,24 @@ export default function TransportsPage() {
 
   // Auto-resume tracking: if I'm the assigned driver of an active transport and
   // tracking isn't running yet (cold start, refresh, switched device), start it.
+  // If the tracked id no longer belongs to me / no longer active, clear it so the
+  // operator UI doesn't keep showing "Obtendo localização..." for someone else's trip.
   useEffect(() => {
     if (!user?.id || !transports || transports.length === 0) return;
     const mine = transports.find((t: any) =>
       t.motorista_user_id === user.id &&
       (t.status === 'em_andamento' || t.status === 'em_retorno')
     );
-    if (mine && trackingTransportId !== mine.id) {
-      setTrackingTransportId(mine.id);
+    if (mine) {
+      if (trackingTransportId !== mine.id) setTrackingTransportId(mine.id);
+      return;
+    }
+    if (trackingTransportId) {
+      const tracked = transports.find((t: any) => t.id === trackingTransportId);
+      if (!tracked || tracked.motorista_user_id !== user.id ||
+          (tracked.status !== 'em_andamento' && tracked.status !== 'em_retorno')) {
+        setTrackingTransportId(null);
+      }
     }
   }, [user?.id, transports, trackingTransportId, setTrackingTransportId]);
 
