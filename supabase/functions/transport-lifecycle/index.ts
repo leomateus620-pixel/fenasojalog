@@ -494,6 +494,8 @@ async function handleCompleteReturn(admin: any, userId: string, payload: any) {
     status: "concluido",
     fim_retorno_em: now,
     fim_real_em: now,
+    tracking_started_by_user_id: null,
+    tracking_started_at: null,
   };
   if (vehicleUsage?.km_chegada != null) {
     updates.km_devolucao = vehicleUsage.km_chegada;
