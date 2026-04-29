@@ -43,6 +43,26 @@ export function useLocationTracking(transportId: string | null) {
     const u = userRef.current;
     if (!tid || !oid || !u) return;
 
+    // Safety guard: only the driver currently assigned to the transport may publish location.
+    // Prevents a stale tracking session (e.g. driver was swapped) from polluting the live map.
+    try {
+      const { data: t } = await (supabase as any)
+        .from('transports')
+        .select('motorista_user_id, status')
+        .eq('id', tid)
+        .single();
+      if (!t || t.motorista_user_id !== u.id || (t.status !== 'em_andamento' && t.status !== 'em_retorno' && t.status !== 'chegou_destino')) {
+        // No longer the assigned driver (or trip not active) — stop and clean up locally.
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        try { localStorage.removeItem('fenasoja_tracking_transport'); } catch { /* silent */ }
+        setState(s => ({ ...s, isTracking: false }));
+        return;
+      }
+    } catch { /* network blip — keep trying */ }
+
     const { latitude, longitude, accuracy, speed, heading } = pos.coords;
 
     setState(prev => ({
