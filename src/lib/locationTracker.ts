@@ -55,9 +55,25 @@ class LocationTracker {
     error: null,
   };
   private listeners = new Set<Listener>();
+  private logs: string[] = [];
+  private logListeners = new Set<(logs: string[]) => void>();
 
   getDeviceId() { return this.deviceId; }
   getSnapshot(): TrackerSnapshot { return this.state; }
+  getLogs(): string[] { return this.logs; }
+
+  subscribeLogs(fn: (logs: string[]) => void): () => void {
+    this.logListeners.add(fn);
+    fn(this.logs);
+    return () => { this.logListeners.delete(fn); };
+  }
+
+  private pushLog(msg: string) {
+    const stamped = `${new Date().toISOString().slice(11, 19)} ${msg}`;
+    this.logs = [...this.logs.slice(-19), stamped];
+    try { console.info(msg); } catch { /* */ }
+    for (const fn of this.logListeners) fn(this.logs);
+  }
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
@@ -98,11 +114,35 @@ class LocationTracker {
     this.currentTransportId = transportId;
     this.currentUserId = userId;
     this.setState({ isTracking: true, transportId, error: null });
+    this.pushLog(`[gps:start] transport=${transportId} user=${userId}`);
 
     if (!navigator.geolocation) {
       this.setState({ error: 'Geolocalização não suportada neste navegador', isTracking: false });
+      this.pushLog('[gps:start] geolocation API ausente');
       return;
     }
+
+    // Trava extra: confirma no banco que o usuário é o motorista designado.
+    // Se não for, aborta antes mesmo de pedir permissão ao navegador.
+    // (Backend já bloqueia, mas isso evita pedir GPS para visualizadores.)
+    try {
+      const { data: t } = await (supabase as any)
+        .from('transports')
+        .select('motorista_user_id, status')
+        .eq('id', transportId)
+        .maybeSingle();
+      if (t && t.motorista_user_id && t.motorista_user_id !== userId) {
+        this.setState({
+          isTracking: false,
+          transportId: null,
+          error: 'Apenas o motorista designado pode ativar o GPS desta viagem.',
+        });
+        this.pushLog('[gps:start-block] usuário não é o motorista designado');
+        this.currentTransportId = null;
+        this.currentUserId = null;
+        return;
+      }
+    } catch { /* segue mesmo offline — backend ainda bloqueia */ }
 
     // IMPORTANTE: NÃO usar `await` antes de chamar `getCurrentPosition`/`watchPosition`
     // — em iOS/Safari isso quebra o "user gesture" e a permissão falha silenciosamente.
@@ -216,6 +256,7 @@ class LocationTracker {
       speed: speed ?? null,
       error: null,
     });
+    this.pushLog(`[gps:fix] lat=${latitude.toFixed(6)} lng=${longitude.toFixed(6)} acc=${Math.round(accuracy || 0)}m`);
 
     try {
       const { error: rpcErr } = await (supabase as any).rpc('publish_transport_location', {
@@ -230,20 +271,22 @@ class LocationTracker {
       });
       if (rpcErr) {
         const msg = String(rpcErr.message || rpcErr);
-        // Erros realmente terminais (outro dono confirmado pelo banco)
         if (/dispositivo|Outro usu/i.test(msg)) {
           this.setState({ error: msg });
+          this.pushLog(`[gps:publish-block] ${msg}`);
           this.stopInternal();
           return;
         }
-        // Demais erros (rede, ownership transitório durante reset de fase) →
-        // mantém a UI viva, segue tentando no próximo tick do watchPosition.
         console.warn('[gps] publish recoverable error:', msg);
         this.setState({ error: 'Tentando reconectar a localização…' });
+        this.pushLog(`[gps:publish-error] ${msg}`);
+      } else {
+        this.pushLog('[gps:publish-ok]');
       }
     } catch (err) {
       console.warn('[gps] publish exception (will retry):', err);
       this.setState({ error: 'Conexão instável — tentando novamente…' });
+      this.pushLog(`[gps:publish-exception] ${String(err)}`);
     }
   }
 }
