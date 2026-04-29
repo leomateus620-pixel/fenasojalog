@@ -81,6 +81,7 @@ export default function TransportDynamicIsland({
   onCycleStatus,
   onDetail,
 }: TransportDynamicIslandProps) {
+  const { user } = useAuth();
   const isReturning = t.status === 'em_retorno';
   const isAtDestination = t.status === 'chegou_destino';
   const isActive = t.status === 'em_andamento' || isReturning;
@@ -88,6 +89,8 @@ export default function TransportDynamicIsland({
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const isCancelled = t.status === 'cancelado';
   const isDone = t.status === 'concluido';
+  const isAssignedDriver = !!user?.id && t.motorista_user_id === user.id;
+  const gpsClaimedByOther = !!t.tracking_started_by_user_id && t.tracking_started_by_user_id !== user?.id;
 
   // Stream live location during outbound and return phases (and pin while at destination)
   const location = useTransportLocation((isActive || isAtDestination) ? t.id : null);
