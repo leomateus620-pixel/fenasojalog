@@ -1,143 +1,134 @@
-Plano para eliminar os bloqueios atuais do GPS e estabilizar a navegação em tempo real
+Plano de correção do GPS, mapas e rotas dos transportes
 
-Diagnóstico confirmado
+Diagnóstico encontrado
 
-1. O principal bloqueio está na regra atual de rastreamento: o app e a função `publish_transport_location` só aceitam localização quando o usuário logado é exatamente o `motorista_user_id` cadastrado no transporte.
-   - Se outro motorista/operação inicia a viagem, o app não publica GPS.
-   - O banco rejeita a publicação com “Apenas o motorista designado pode publicar localização”.
-   - Resultado: a viagem fica `em_andamento`, mas a tabela de localização fica vazia e o mapa mostra apenas “aguardando”.
+1. A Dynamic Island está exibindo mapa em transportes pendentes porque o componente mostra preview de rota quando existe `rota_polyline` ou `previewPolyline`, mesmo com `status = pendente`. Isso bate com os anexos: cards pendentes renderizam mini mapa antes de a viagem iniciar.
 
-2. Há transportes ativos sem linha em `transport_locations` e sem `rota_polyline` gravada.
-   - A consulta confirmou transportes `em_andamento` sem localização ao vivo.
-   - Também há pendentes/ativos sem rota gravada, apesar de a chamada à Maps API retornar rota corretamente no navegador.
+2. O rastreamento ao vivo hoje não está preso ao usuário que iniciou a viagem. O fluxo atual salva um `trackingTransportId` no `localStorage` do navegador e também tenta auto-retomar por `motorista_user_id`. Isso pode fazer:
+   - um usuário que apenas abriu/operou a tela publicar localização sem ser o iniciador real;
+   - um transporte de teste continuar salvo localmente no navegador;
+   - o motorista designado começar a publicar localização ao abrir o app, mesmo se outra pessoa iniciou a viagem.
 
-3. A tela de mapa em fullscreen pode abrir centrada no destino quando não existe GPS ao vivo, o que cria uma visualização incorreta da navegação.
+3. O banco está sem linhas ao vivo em `transport_locations` para os transportes ativos no momento. Ou seja, os mapas ativos estão sem GPS publicado de fato e acabam caindo para preview/fallback.
 
-4. O mapa 3D (`NavigationMap3D`) não cria a camada de rota se a polyline chegar depois do carregamento inicial do mapa. Isso pode deixar a navegação sem linha mesmo quando a Maps API respondeu corretamente.
+4. Há inconsistências reais de georreferência:
+   - existem transportes “Aeroporto” para Santo Ângelo com `voo_cidade` nulo e coordenadas de destino nulas; quando o código tenta resolver, pode cair em fallback errado.
+   - destinos genéricos como “Centro / Passo Fundo” ou hotel/cidade estão usando fallback de Santa Rosa/Hotel quando não possuem coordenadas exatas.
+   - origem está sendo salva quase sempre como Santa Rosa fixa, mesmo quando o texto operacional indica “hotel até cidade de destino”. Para esses casos, a origem precisa ser geocodificada pelo endereço/hotel, não assumida como Parque/Santa Rosa.
 
-5. O hook de leitura de localização usa `.single()`, gerando 406 quando ainda não há localização. Isso não deveria ser tratado como falha real do fluxo.
+Correção proposta
 
-Objetivo da correção
+1. Esconder mapas nos pendentes
+- Alterar `TransportDynamicIsland.tsx` para renderizar mapa somente quando o transporte estiver em viagem ou em fase de acompanhamento:
+  - `em_andamento`
+  - `chegou_destino`
+  - `em_retorno`
+- Para `pendente`, manter apenas a linha compacta com rota “Partida → Destino → Retorno”, status, tempo/distância e botão “Iniciar”, sem mapa.
+- Remover a condição que mostra mapa para pendentes quando existe `rota_polyline`/preview.
 
-A partir da correção, qualquer membro operacional autenticado da organização que iniciar ou assumir o rastreamento de uma viagem ativa poderá publicar a própria localização para aquele transporte. O mapa deverá priorizar sempre a rota dinâmica via Google Maps Routes API entre a posição real atual e o destino, sem depender exclusivamente do motorista originalmente cadastrado.
+2. Separar “visualizar mapa” de “publicar GPS”
+- Qualquer usuário autenticado da organização continuará podendo abrir detalhes/mapa e acompanhar transportes de outros motoristas.
+- Apenas o usuário/dispositivo que iniciou aquela fase da viagem publicará GPS ao vivo.
+- Remover o comportamento que auto-retoma GPS por `motorista_user_id`.
+- Remover risco de `localStorage` antigo interferir em transportes de teste.
 
-Fluxo desejado após a correção
-
+Fluxo desejado:
 ```text
-Motorista/operador inicia a viagem
-        ↓
-App ativa GPS desse usuário imediatamente
-        ↓
-Banco aceita a localização se o usuário pertence à organização e o transporte está ativo
-        ↓
-Mapa recebe atualização em tempo real
-        ↓
-Maps API calcula rota atual → destino
-        ↓
-Tela exibe carro ao vivo + rota + ETA
+Usuário A clica Iniciar
+  -> backend marca tracking_started_by_user_id = Usuário A
+  -> somente navegador do Usuário A liga GPS para esse transporte
+
+Usuário B abre o mesmo transporte
+  -> vê mapa e localização ao vivo publicada pelo Usuário A
+  -> não publica a própria localização automaticamente
 ```
 
-Alterações planejadas
+3. Persistir no backend quem iniciou o rastreamento
+- Criar migração para adicionar campos de controle no transporte, por exemplo:
+  - `tracking_started_by_user_id`
+  - `tracking_started_at`
+  - `tracking_phase` ou reaproveitar `fase_atual`
+- Ao iniciar ida (`start`), gravar o usuário que clicou em iniciar.
+- Ao iniciar retorno (`start_return`), atualizar o usuário que iniciou a volta.
+- Ajustar `publish_transport_location` para aceitar publicação prioritariamente do `tracking_started_by_user_id` do transporte ativo.
+- Para evitar bloqueios em transportes antigos/sem dono de tracking, permitir fallback seguro: se o transporte ativo ainda não tiver `tracking_started_by_user_id`, o primeiro membro autenticado que publicar assume esse campo automaticamente.
 
-1. Remover o bloqueio “somente motorista cadastrado” no GPS
+4. Limpar cache/localStorage de testes
+- Trocar a chave simples `fenasoja_tracking_transport` por uma chave com dono/fase, por exemplo contendo:
+  - `transportId`
+  - `userId`
+  - `phase`
+  - `startedAt`
+- Ao carregar a página, validar contra o transporte atual:
+  - status precisa estar ativo;
+  - usuário logado precisa ser o `tracking_started_by_user_id`;
+  - fase precisa bater;
+  - se não bater, limpar o cache imediatamente.
+- Isso evita que testes feitos pelo usuário atual atrapalhem o motorista depois.
 
-- Atualizar a função `publish_transport_location` para permitir publicação quando:
-  - usuário está autenticado;
-  - usuário pertence à mesma organização do transporte;
-  - transporte está em status ativo: `em_andamento`, `em_retorno` ou `chegou_destino`.
-- A localização publicada continuará registrando o `driver_user_id` real de quem está enviando o GPS.
-- Isso permite que outro motorista assuma ou inicie a viagem sem travar o acompanhamento.
+5. Corrigir origem/destino e geocodificação
+- Centralizar a resolução de coordenadas em uma função única usada pelo backend:
+  - aeroportos por cidade quando `voo_cidade` existir;
+  - se `titulo = Aeroporto` mas `voo_cidade` estiver vazio, inferir pelo texto de `destino` (“Santo Ângelo”, “Passo Fundo”, “Chapecó”, “Porto Alegre”);
+  - destinos de cidade/hotel/outros via Google Maps API/Geocoding quando não houver coordenada salva;
+  - origem via Google Maps API quando o texto não for claramente Santa Rosa/Parque.
+- Ajustar `estimate-return` e `transport-lifecycle` para usarem essa mesma lógica.
+- Recalcular `rota_polyline`, distância e duração quando origem/destino forem corrigidos.
 
-2. Ajustar o app para ativar o GPS de quem iniciou/assumiu a viagem
+6. Corrigir os dados já cadastrados
+- Criar migração/rotina de reparo para os transportes pendentes/ativos:
+  - Santo Ângelo sem `voo_cidade`: preencher `voo_cidade = 'Santo Ângelo'` quando `destino` indicar Santo Ângelo;
+  - Passo Fundo sem coordenadas: preencher coordenadas corretas quando o destino indicar Passo Fundo;
+  - apagar polylines curtas/incorretas antigas (`poly_len` muito pequeno ou rota gerada com fallback);
+  - remover registros de `transport_locations` de transportes não ativos;
+  - preencher `tracking_started_by_user_id` dos ativos a partir do `audit_log` quando existir.
+- Para casos que dependem de endereço exato de hotel, usar Google Maps API para geocodificar e salvar coordenadas antes de gerar a rota.
 
-Em `TransportsPage.tsx`:
-
-- Quando alguém clicar em “Iniciar”, o app passará a ativar o GPS desse usuário, mesmo que ele não seja o motorista originalmente cadastrado.
-- O auto-resume continuará funcionando para o motorista cadastrado quando ele abrir o app, mas não limpará mais o rastreamento apenas porque o usuário atual é diferente do `motorista_user_id`.
-- A validação local vai checar somente se o transporte ainda está ativo.
-- Adicionar/ajustar ação visual para “Ativar meu GPS neste transporte” em viagens ativas, permitindo que um motorista assuma o rastreamento manualmente quando necessário.
-
-3. Tornar o hook de GPS mais tolerante e confiável
-
-Em `useLocationTracking.ts`:
-
-- Remover a checagem local que bloqueia usuários diferentes do motorista cadastrado.
-- Manter validação de status ativo para evitar GPS em viagens finalizadas/canceladas.
-- Trocar a publicação para a RPC ajustada.
-- Não apagar a última localização quando o usuário apenas desativa o rastreamento local; a localização só deve ser removida pelo fluxo de conclusão/cancelamento da viagem.
-- Usar `maybeSingle()` na leitura inicial para evitar erro 406 quando ainda não existe localização.
-- Adicionar tentativa inicial com `getCurrentPosition` antes/junto do `watchPosition`, para publicar uma primeira posição rapidamente.
-
-4. Priorizar Maps API para rota ao vivo
-
-Em `TransportDynamicIsland.tsx`:
-
-- Sempre que houver localização ao vivo, chamar a Maps API via função backend para calcular:
-  - polyline da posição atual até o destino;
-  - distância restante;
-  - tempo estimado;
-  - horário aproximado de chegada.
-- Se a rota dinâmica ainda estiver carregando, manter a rota planejada/preview como fallback visual, sem deixar o mapa em branco.
-- Corrigir destino/origem com `!= null` para não ignorar coordenadas válidas.
-- Corrigir o fullscreen para usar origem/última localização correta quando ainda não existe GPS, em vez de centralizar no destino como se o carro já estivesse lá.
-- Exibir claramente quando é “Ao vivo” e quando é “rota prevista aguardando GPS”.
-
-5. Corrigir renderização da rota no mapa 3D
-
-Em `NavigationMap3D.tsx`:
-
-- Se a polyline chegar depois do mapa carregar, criar a source/layer da rota dinamicamente.
-- Atualizar a rota sempre que a Maps API retornar uma polyline nova.
-- Garantir que a linha de navegação apareça no modo 3D e no modo dividido.
-
-6. Melhorar geração e persistência de rotas
-
-Em `transport-lifecycle`:
-
-- Gerar coordenadas e rota no início da viagem de forma mais robusta.
-- Evitar depender de chamada interna com token do usuário para gerar `rota_polyline`; a função pode consultar a Maps API diretamente com a chave backend já configurada.
-- Ao iniciar ida ou retorno, preencher quando ausente:
-  - `origem_lat/lng`;
-  - `destino_lat/lng`;
-  - `rota_polyline`;
-  - duração e distância quando a Maps API retornar.
-
-Em `estimate-return`:
-
-- Manter Google Maps Routes API como prioridade.
-- Conter falhas externas com resposta estruturada `{ fallback: true }`, sem quebrar a tela.
-- Validar melhor coordenadas e retornar mensagens úteis para debug.
-
-7. Reparar dados existentes
-
-Criar uma nova migração para:
-
-- Atualizar a função `publish_transport_location` com a regra sem bloqueio por motorista cadastrado.
-- Garantir que `transport_locations` esteja com realtime adequado e, se necessário, `REPLICA IDENTITY FULL` para eventos mais completos.
-- Backfill de coordenadas de origem/destino dos transportes pendentes/ativos.
-- Limpar apenas localizações realmente inválidas de transportes finalizados/cancelados, sem apagar localização de viagens ativas.
-
-8. Validação após implementação
-
-Após aplicar as mudanças, validar:
-
-- Transporte iniciado por usuário diferente do motorista cadastrado publica localização corretamente.
-- `transport_locations` recebe/atualiza linha em tempo real.
-- Card do transporte mostra “Ao vivo”.
-- Rota da Maps API aparece no mini mapa e no fullscreen.
-- Modo 3D recebe a polyline mesmo quando ela chega depois do carregamento.
-- Transportes ativos sem GPS ainda exibem rota planejada correta, sem mapa em branco e sem centralizar erroneamente no destino.
+7. Ajustes visuais e de experiência
+- Em transporte ativo sem GPS ainda, mostrar um estado claro: “Aguardando GPS do usuário que iniciou a viagem”, sem usar destino errado como posição do carro.
+- Em mapas ativos, priorizar sempre:
+  1. localização ao vivo publicada em `transport_locations`;
+  2. rota Google Maps da posição ao vivo até destino;
+  3. rota planejada origem → destino somente como fallback visual.
+- O mapa em tela cheia continuará disponível para acompanhamento por qualquer membro da organização.
 
 Arquivos que serão alterados
 
-- `src/hooks/useLocationTracking.ts`
-- `src/pages/TransportsPage.tsx`
 - `src/components/TransportDynamicIsland.tsx`
-- `src/components/transport/NavigationMap3D.tsx`
+  - esconder mapa em pendentes;
+  - ajustar fallback visual;
+  - abrir mapa apenas para transporte ativo/chegou destino/retorno.
+
+- `src/pages/TransportsPage.tsx`
+  - remover auto tracking por motorista designado;
+  - validar cache por usuário/fase;
+  - ativar GPS somente quando o usuário atual iniciou a fase da viagem.
+
+- `src/hooks/useLocationTracking.ts`
+  - publicar GPS somente quando o backend confirmar que o usuário atual é o dono do tracking da fase;
+  - limpar cache inválido;
+  - manter assinatura realtime para visualização por qualquer usuário autorizado.
+
 - `supabase/functions/transport-lifecycle/index.ts`
+  - gravar `tracking_started_by_user_id` no start/start_return;
+  - corrigir backfill de origem/destino;
+  - gerar rota via Google Maps API com origem/destino corretos.
+
 - `supabase/functions/estimate-return/index.ts`
-- nova migration em `supabase/migrations/`
+  - aceitar origem/destino explícitos corretamente;
+  - melhorar fallback por texto/cidade;
+  - evitar retornar rota de Santa Rosa quando o destino real é Santo Ângelo/Passo Fundo.
+
+- `supabase/migrations/*`
+  - adicionar campos de tracking;
+  - atualizar `publish_transport_location`;
+  - corrigir dados existentes e remover dados/cache de tracking no banco.
 
 Resultado esperado
 
-O acompanhamento deixa de depender rigidamente do motorista cadastrado. Quem estiver com o app aberto e iniciar/assumir o transporte publicará o GPS, a localização aparecerá em tempo real para a operação, e a rota até o destino será recalculada prioritariamente pela Maps API.
+- Pendentes não mostram mapa na Dynamic Island.
+- Qualquer usuário consegue abrir e acompanhar o mapa de qualquer transporte permitido.
+- A localização ao vivo vem do usuário que iniciou a viagem/fase, não necessariamente do motorista cadastrado e não de quem apenas visualizou.
+- Cache local de testes não interfere nos motoristas.
+- Santo Ângelo, Passo Fundo e demais destinos passam a usar coordenadas corretas e rotas geradas pela Maps API.
+- Transportes ativos sem GPS mostram estado de espera correto, sem marcador/rota enganosa.
