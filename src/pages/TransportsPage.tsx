@@ -290,15 +290,40 @@ export default function TransportsPage() {
       .sort((a: any, b: any) => (a.nome_exibicao || '').localeCompare(b.nome_exibicao || ''));
   }, [members, logisticaCommissionId]);
   const { getGuestsForTransport } = useTransportGuests();
-  const [trackingTransportId, _setTrackingTransportId] = useState<string | null>(() => {
-    try { return localStorage.getItem('fenasoja_tracking_transport'); } catch { return null; }
-  });
-  const setTrackingTransportId = useCallback((id: string | null) => {
-    _setTrackingTransportId(id);
-    try { id ? localStorage.setItem('fenasoja_tracking_transport', id) : localStorage.removeItem('fenasoja_tracking_transport'); } catch { /* silent */ }
-  }, []);
-  const locationTracker = useLocationTracking(trackingTransportId);
 
+  // ── Tracking persistence (per-user, per-phase) ──
+  const TRACKING_KEY = 'fenasoja_tracking';
+  const readStoredTracking = (): { transportId: string; userId: string; phase: string } | null => {
+    try {
+      const raw = localStorage.getItem(TRACKING_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.transportId && parsed.userId && parsed.phase) return parsed;
+    } catch { /* ignore */ }
+    return null;
+  };
+  const writeStoredTracking = (id: string, phase: string) => {
+    try {
+      if (!user?.id) return;
+      localStorage.setItem(TRACKING_KEY, JSON.stringify({
+        transportId: id, userId: user.id, phase, startedAt: new Date().toISOString(),
+      }));
+    } catch { /* silent */ }
+  };
+  const clearStoredTracking = () => {
+    try { localStorage.removeItem(TRACKING_KEY); } catch { /* silent */ }
+    // Also clear legacy key from older versions
+    try { localStorage.removeItem('fenasoja_tracking_transport'); } catch { /* silent */ }
+  };
+
+  const [trackingTransportId, _setTrackingTransportId] = useState<string | null>(null);
+  const setTrackingTransportId = useCallback((id: string | null, phase: string = 'ida') => {
+    _setTrackingTransportId(id);
+    if (id) writeStoredTracking(id, phase);
+    else clearStoredTracking();
+  }, [user?.id]);
+
+  const locationTracker = useLocationTracking(trackingTransportId);
   const locationTrackerRef = useRef(locationTracker);
   locationTrackerRef.current = locationTracker;
 
@@ -308,27 +333,50 @@ export default function TransportsPage() {
     }
   }, [trackingTransportId]);
 
-  // Auto-resume tracking on cold start / refresh:
-  // - Prefer a trip where I'm the assigned driver and it's active.
-  // - Otherwise, if a previously chosen tracked id is still active, keep it.
-  // - Clear the stored id if the trip no longer exists or is no longer active.
+  // Auto-resume on cold start ONLY for the user who actually owns GPS for an active trip.
+  // We do NOT auto-resume just because the user is the assigned motorista_user_id.
   useEffect(() => {
     if (!user?.id || !transports || transports.length === 0) return;
     const ACTIVE = ['em_andamento', 'em_retorno', 'chegou_destino'];
-    const mine = transports.find((t: any) =>
-      t.motorista_user_id === user.id && ACTIVE.includes(t.status)
+
+    // 1) DB ownership: this user already owns GPS for some active trip
+    const ownedActive = transports.find((t: any) =>
+      ACTIVE.includes(t.status) && t.tracking_started_by_user_id === user.id
     );
-    if (mine && trackingTransportId !== mine.id) {
-      setTrackingTransportId(mine.id);
+    if (ownedActive) {
+      if (trackingTransportId !== ownedActive.id) {
+        _setTrackingTransportId(ownedActive.id);
+        writeStoredTracking(ownedActive.id, ownedActive.fase_atual || 'ida');
+      }
       return;
     }
+
+    // 2) Local cache from this user, transport still active and unclaimed (or claimed by us)
+    const stored = readStoredTracking();
+    if (stored && stored.userId === user.id) {
+      const tracked = transports.find((t: any) => t.id === stored.transportId);
+      const stillMine = tracked
+        && ACTIVE.includes(tracked.status)
+        && (!tracked.tracking_started_by_user_id || tracked.tracking_started_by_user_id === user.id);
+      if (stillMine) {
+        if (trackingTransportId !== stored.transportId) _setTrackingTransportId(stored.transportId);
+        return;
+      }
+      clearStoredTracking();
+    }
+
+    // 3) Anything currently tracked that is no longer valid for this user → clear
     if (trackingTransportId) {
       const tracked = transports.find((t: any) => t.id === trackingTransportId);
-      if (!tracked || !ACTIVE.includes(tracked.status)) {
-        setTrackingTransportId(null);
+      const invalid = !tracked
+        || !ACTIVE.includes(tracked.status)
+        || (tracked.tracking_started_by_user_id && tracked.tracking_started_by_user_id !== user.id);
+      if (invalid) {
+        _setTrackingTransportId(null);
+        clearStoredTracking();
       }
     }
-  }, [user?.id, transports, trackingTransportId, setTrackingTransportId]);
+  }, [user?.id, transports, trackingTransportId]);
 
 
   const [searchParams, setSearchParams] = useSearchParams();

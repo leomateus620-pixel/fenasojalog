@@ -2155,6 +2155,8 @@ export type Database = {
           status: Database["public"]["Enums"]["transport_status"]
           tipo: string | null
           titulo: string | null
+          tracking_started_at: string | null
+          tracking_started_by_user_id: string | null
           updated_at: string
           vehicle_id: string | null
           voo_checkin: string | null
@@ -2198,6 +2200,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["transport_status"]
           tipo?: string | null
           titulo?: string | null
+          tracking_started_at?: string | null
+          tracking_started_by_user_id?: string | null
           updated_at?: string
           vehicle_id?: string | null
           voo_checkin?: string | null
@@ -2241,6 +2245,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["transport_status"]
           tipo?: string | null
           titulo?: string | null
+          tracking_started_at?: string | null
+          tracking_started_by_user_id?: string | null
           updated_at?: string
           vehicle_id?: string | null
           voo_checkin?: string | null

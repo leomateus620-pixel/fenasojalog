@@ -247,7 +247,14 @@ async function handleStart(admin: any, userId: string, payload: any, authHeader?
   const now = new Date().toISOString();
   const { data: updated, error: updateErr } = await admin
     .from("transports")
-    .update({ ...geoPatch, status: "em_andamento", inicio_real_em: now, fase_atual: "ida" })
+    .update({
+      ...geoPatch,
+      status: "em_andamento",
+      inicio_real_em: now,
+      fase_atual: "ida",
+      tracking_started_by_user_id: userId,
+      tracking_started_at: now,
+    })
     .eq("id", id)
     .select()
     .single();
@@ -437,6 +444,9 @@ async function handleStartReturn(admin: any, userId: string, payload: any, authH
     status: "em_retorno",
     inicio_retorno_em: now,
     fase_atual: "volta",
+    // The user who clicks "Iniciar volta" becomes the GPS owner for the return phase
+    tracking_started_by_user_id: userId,
+    tracking_started_at: now,
   };
 
   const { data: updated, error: updateErr } = await admin
@@ -484,6 +494,8 @@ async function handleCompleteReturn(admin: any, userId: string, payload: any) {
     status: "concluido",
     fim_retorno_em: now,
     fim_real_em: now,
+    tracking_started_by_user_id: null,
+    tracking_started_at: null,
   };
   if (vehicleUsage?.km_chegada != null) {
     updates.km_devolucao = vehicleUsage.km_chegada;

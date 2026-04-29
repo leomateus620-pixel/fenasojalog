@@ -168,6 +168,7 @@ export default function TransportDynamicIsland({
   // (origin -> destination) so the map shows the planned path instead of just a marker.
   const [previewPolyline, setPreviewPolyline] = useState<[number, number][] | undefined>(undefined);
   useEffect(() => {
+    if (!(isActive || isAtDestination)) return;
     if (location || routePolyline || !originCoords || !destCoords) return;
     let cancelled = false;
     (async () => {
@@ -200,7 +201,7 @@ export default function TransportDynamicIsland({
       } catch { /* keep null */ }
     })();
     return () => { cancelled = true; };
-  }, [location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
+  }, [isActive, isAtDestination, location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
 
 
   // Fetch live route + ETA when location updates
@@ -395,8 +396,8 @@ export default function TransportDynamicIsland({
         <div className="px-4 pb-4 space-y-3">
           <div className="h-px bg-border/40" />
 
-          {/* Map area */}
-          {(isActive || ((t.rota_polyline || previewPolyline) && !isDone)) && (
+          {/* Map area — only render for active phases (never for pendente/concluido/cancelado) */}
+          {(isActive || isAtDestination) && (
             <div className="rounded-2xl overflow-hidden border border-border/30">
               {location && isActive ? (
                 <Suspense fallback={
@@ -452,24 +453,6 @@ export default function TransportDynamicIsland({
                       </span>
                     </div>
                   </div>
-                </Suspense>
-              ) : !isActive && destCoords && originCoords ? (
-                <Suspense fallback={
-                  <div className="h-[140px] bg-white/5 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MapPin className="w-4 h-4" /> Carregando rota...
-                    </div>
-                  </div>
-                }>
-                  <DriverLocationMap
-                    latitude={originCoords[0]}
-                    longitude={originCoords[1]}
-                    driverName={t.origem}
-                    className="h-[140px] relative"
-                    routePolyline={livePolyline || routePolyline || previewPolyline}
-                    destLatLng={destCoords}
-                    destLabel={t.destino}
-                  />
                 </Suspense>
               ) : null}
             </div>
