@@ -395,8 +395,8 @@ export default function TransportDynamicIsland({
         <div className="px-4 pb-4 space-y-3">
           <div className="h-px bg-border/40" />
 
-          {/* Map area */}
-          {(isActive || ((t.rota_polyline || previewPolyline) && !isDone)) && (
+          {/* Map area — only render for active phases (never for pendente/concluido/cancelado) */}
+          {(isActive || isAtDestination) && (
             <div className="rounded-2xl overflow-hidden border border-border/30">
               {location && isActive ? (
                 <Suspense fallback={
