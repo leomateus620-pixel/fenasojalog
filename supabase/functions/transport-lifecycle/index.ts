@@ -147,6 +147,10 @@ async function handleStart(admin: any, userId: string, payload: any) {
     allGuests = guestsData || [];
   }
 
+  // Clear any stale live-location row from a previous start (different driver, retry, etc.)
+  // so the current driver's GPS upserts can succeed without RLS UPDATE conflicts.
+  await admin.from("transport_locations").delete().eq("transport_id", id);
+
   const now = new Date().toISOString();
   const { data: updated, error: updateErr } = await admin
     .from("transports")
