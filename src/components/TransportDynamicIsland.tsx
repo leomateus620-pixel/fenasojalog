@@ -149,6 +149,60 @@ export default function TransportDynamicIsland({
     return d ? [d.lat, d.lng] as [number, number] : undefined;
   }, [t, isReturning]);
 
+  // Origin used to draw the route while the driver hasn't published GPS yet.
+  // During the return phase, the "origin" of the live route is the destination of the outbound trip.
+  const originCoords = useMemo(() => {
+    if (isReturning) {
+      const lat = (t.destino_lat_chegada ?? t.destino_lat) ?? null;
+      const lng = (t.destino_lng_chegada ?? t.destino_lng) ?? null;
+      if (lat != null && lng != null) return [lat, lng] as [number, number];
+      const d = getDestCoords(t);
+      return d ? [d.lat, d.lng] as [number, number] : undefined;
+    }
+    const lat = t.origem_lat ?? SANTA_ROSA.lat;
+    const lng = t.origem_lng ?? SANTA_ROSA.lng;
+    return [lat, lng] as [number, number];
+  }, [t, isReturning]);
+
+  // When the trip has no live GPS yet and no saved polyline, fetch a base route
+  // (origin -> destination) so the map shows the planned path instead of just a marker.
+  const [previewPolyline, setPreviewPolyline] = useState<[number, number][] | undefined>(undefined);
+  useEffect(() => {
+    if (location || routePolyline || !originCoords || !destCoords) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`;
+        const res = await fetch(baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+          },
+          body: JSON.stringify({
+            mode: 'ROUTE_PREVIEW',
+            origin_lat: originCoords[0],
+            origin_lng: originCoords[1],
+            dest_lat: destCoords[0],
+            dest_lng: destCoords[1],
+            destination: isReturning ? t.origem : t.destino,
+          }),
+        });
+        const data = await res.json();
+        if (!cancelled && data?.polyline && !data.fallback) {
+          try {
+            const decoded = decodePolyline(data.polyline);
+            if (decoded.length > 1) setPreviewPolyline(decoded);
+          } catch { /* ignore */ }
+        }
+      } catch { /* keep null */ }
+    })();
+    return () => { cancelled = true; };
+  }, [location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
+
+
   // Fetch live route + ETA when location updates
   useEffect(() => {
     if (!location || !isActive) return;
@@ -342,7 +396,7 @@ export default function TransportDynamicIsland({
           <div className="h-px bg-border/40" />
 
           {/* Map area */}
-          {(isActive || (t.rota_polyline && !isDone)) && (
+          {(isActive || ((t.rota_polyline || previewPolyline) && !isDone)) && (
             <div className="rounded-2xl overflow-hidden border border-border/30">
               {location && isActive ? (
                 <Suspense fallback={
@@ -360,7 +414,7 @@ export default function TransportDynamicIsland({
                       speed={location.speed}
                       driverName={driverName}
                       className="h-[160px] relative"
-                      routePolyline={livePolyline || routePolyline}
+                      routePolyline={livePolyline || routePolyline || previewPolyline}
                       destLatLng={destCoords}
                       destLabel={t.destino}
                     />
@@ -373,7 +427,7 @@ export default function TransportDynamicIsland({
                     </div>
                   </div>
                 </Suspense>
-              ) : isActive && !location && destCoords ? (
+              ) : isActive && !location && destCoords && originCoords ? (
                 <Suspense fallback={
                   <div className="h-[160px] bg-muted/30 flex items-center justify-center">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -383,10 +437,11 @@ export default function TransportDynamicIsland({
                 }>
                   <div className="relative">
                     <DriverLocationMap
-                      latitude={destCoords[0]}
-                      longitude={destCoords[1]}
+                      latitude={originCoords[0]}
+                      longitude={originCoords[1]}
+                      driverName={isReturning ? t.destino : t.origem}
                       className="h-[160px] relative"
-                      routePolyline={livePolyline || routePolyline}
+                      routePolyline={livePolyline || routePolyline || previewPolyline}
                       destLatLng={destCoords}
                       destLabel={t.destino}
                     />
@@ -398,7 +453,7 @@ export default function TransportDynamicIsland({
                     </div>
                   </div>
                 </Suspense>
-              ) : !isActive && destCoords ? (
+              ) : !isActive && destCoords && originCoords ? (
                 <Suspense fallback={
                   <div className="h-[140px] bg-white/5 flex items-center justify-center">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -407,10 +462,11 @@ export default function TransportDynamicIsland({
                   </div>
                 }>
                   <DriverLocationMap
-                    latitude={destCoords[0]}
-                    longitude={destCoords[1]}
+                    latitude={originCoords[0]}
+                    longitude={originCoords[1]}
+                    driverName={t.origem}
                     className="h-[140px] relative"
-                    routePolyline={livePolyline || routePolyline}
+                    routePolyline={livePolyline || routePolyline || previewPolyline}
                     destLatLng={destCoords}
                     destLabel={t.destino}
                   />
@@ -535,7 +591,7 @@ export default function TransportDynamicIsland({
               accuracy={location?.accuracy}
               speed={location?.speed}
               driverName={driverName}
-              routePolyline={livePolyline || routePolyline}
+              routePolyline={livePolyline || routePolyline || previewPolyline}
               destLatLng={destCoords}
               destLabel={t.destino}
               origemLabel={t.origem}
