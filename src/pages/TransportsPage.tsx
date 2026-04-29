@@ -75,21 +75,11 @@ function getDestCoords(t: any): { lat: number; lng: number } | null {
 async function fetchTravelMinutes(cidade: string): Promise<number | null> {
   try {
     const destination = `Aeroporto_${cidade}`;
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({ origin_lat: SANTA_ROSA_LAT, origin_lng: SANTA_ROSA_LNG, destination }),
-      }
-    );
-    const data = await res.json();
-    if (data.fallback || !data.duration_minutes) return null;
+    const { data, error } = await supabase.functions.invoke('estimate-return', {
+      body: { origin_lat: SANTA_ROSA_LAT, origin_lng: SANTA_ROSA_LNG, destination },
+    });
+    if (error) return null;
+    if (data?.fallback || !data?.duration_minutes) return null;
     return data.duration_minutes;
   } catch {
     return null;
@@ -101,28 +91,18 @@ async function fetchRoutePreview(destKey: string, customLat?: number, customLng?
   try {
     const destLat = customLat || (knownDestCoords[destKey] || knownDestCoords['Outros']).lat;
     const destLng = customLng || (knownDestCoords[destKey] || knownDestCoords['Outros']).lng;
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          mode: 'ROUTE_PREVIEW',
-          origin_lat: SANTA_ROSA_LAT,
-          origin_lng: SANTA_ROSA_LNG,
-          dest_lat: destLat,
-          dest_lng: destLng,
-          destination: destKey,
-        }),
-      }
-    );
-    const data = await res.json();
-    if (data.fallback) return null;
+    const { data, error } = await supabase.functions.invoke('estimate-return', {
+      body: {
+        mode: 'ROUTE_PREVIEW',
+        origin_lat: SANTA_ROSA_LAT,
+        origin_lng: SANTA_ROSA_LNG,
+        dest_lat: destLat,
+        dest_lng: destLng,
+        destination: destKey,
+      },
+    });
+    if (error) return null;
+    if (data?.fallback) return null;
     return { duration_minutes: data.duration_minutes, distance_km: data.distance_km, polyline: data.polyline };
   } catch {
     return null;
