@@ -42,20 +42,40 @@ export function useLocationTracking(transportId: string | null) {
     const u = userRef.current;
     if (!tid || !u) return;
 
-    // Light status check — don't block on network errors, just attempt RPC.
+    // Status + ownership check
     try {
       const { data: t } = await (supabase as any)
         .from('transports')
-        .select('status')
+        .select('status, tracking_started_by_user_id')
         .eq('id', tid)
         .maybeSingle();
-      if (t && !ACTIVE_STATUSES.has(t.status)) {
+      if (!t) {
+        // Transport gone — drop tracking entirely
         if (watchIdRef.current !== null) {
           navigator.geolocation.clearWatch(watchIdRef.current);
           watchIdRef.current = null;
         }
-        try { localStorage.removeItem('fenasoja_tracking_transport'); } catch { /* silent */ }
+        try { localStorage.removeItem('fenasoja_tracking'); } catch { /* silent */ }
         setState(s => ({ ...s, isTracking: false }));
+        return;
+      }
+      if (!ACTIVE_STATUSES.has(t.status)) {
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        try { localStorage.removeItem('fenasoja_tracking'); } catch { /* silent */ }
+        setState(s => ({ ...s, isTracking: false }));
+        return;
+      }
+      // If someone else already owns the GPS for this trip, stop publishing silently.
+      if (t.tracking_started_by_user_id && t.tracking_started_by_user_id !== u.id) {
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        try { localStorage.removeItem('fenasoja_tracking'); } catch { /* silent */ }
+        setState(s => ({ ...s, isTracking: false, error: null }));
         return;
       }
     } catch { /* keep going */ }
