@@ -183,25 +183,17 @@ export default function TransportDynamicIsland({
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/estimate-return`;
-        const res = await fetch(baseUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${session?.access_token || ''}`,
-          },
-          body: JSON.stringify({
+        const { data, error } = await supabase.functions.invoke('estimate-return', {
+          body: {
             mode: 'ROUTE_PREVIEW',
             origin_lat: originCoords[0],
             origin_lng: originCoords[1],
             dest_lat: destCoords[0],
             dest_lng: destCoords[1],
             destination: isReturning ? t.origem : t.destino,
-          }),
+          },
         });
-        const data = await res.json();
+        if (error) return;
         if (!cancelled && data?.polyline && !data.fallback) {
           try {
             const decoded = decodePolyline(data.polyline);
