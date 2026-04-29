@@ -582,12 +582,12 @@ export default function TransportDynamicIsland({
           </div>
 
           {/* Fullscreen map dialog with split view */}
-          {(location || destCoords) && (
+          {(location || destCoords || originCoords) && (
             <FullscreenMapDialog
               open={mapFullscreen}
               onOpenChange={setMapFullscreen}
-              latitude={location?.latitude ?? destCoords![0]}
-              longitude={location?.longitude ?? destCoords![1]}
+              latitude={location?.latitude ?? originCoords?.[0] ?? destCoords![0]}
+              longitude={location?.longitude ?? originCoords?.[1] ?? destCoords![1]}
               accuracy={location?.accuracy}
               speed={location?.speed}
               driverName={driverName}
