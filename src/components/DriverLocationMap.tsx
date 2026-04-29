@@ -13,9 +13,12 @@ interface DriverLocationMapProps {
   destLatLng?: [number, number];
   destLabel?: string;
   zoomControl?: boolean;
+  /** Quando true, NÃO renderiza o pin do motorista (usado para mostrar
+   * apenas a rota planejada enquanto não há GPS real do dispositivo). */
+  hideDriverMarker?: boolean;
 }
 
-export default function DriverLocationMap({ latitude, longitude, accuracy, speed, driverName, className, routePolyline, destLatLng, destLabel, zoomControl = false }: DriverLocationMapProps) {
+export default function DriverLocationMap({ latitude, longitude, accuracy, speed, driverName, className, routePolyline, destLatLng, destLabel, zoomControl = false, hideDriverMarker = false }: DriverLocationMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
