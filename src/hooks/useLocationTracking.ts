@@ -72,14 +72,16 @@ export function useTransportLocation(transportId: string | null) {
 
     let cancelled = false;
 
-    (async () => {
+    const refetch = async () => {
       const { data } = await (supabase as any)
         .from('transport_locations')
         .select('*')
         .eq('transport_id', transportId)
         .maybeSingle();
-      if (!cancelled && data) setLocation(data);
-    })();
+      if (!cancelled) setLocation(data || null);
+    };
+
+    void refetch();
 
     const channel = supabase
       .channel(`location-${transportId}`)
@@ -101,8 +103,17 @@ export function useTransportLocation(transportId: string | null) {
       )
       .subscribe();
 
+    // Recover the live pin after tab suspend / reconnect — Realtime can drop
+    // silently when the device locks or the network flaps.
+    const onVisible = () => { if (document.visibilityState === 'visible') void refetch(); };
+    const onOnline = () => { void refetch(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
       supabase.removeChannel(channel);
     };
   }, [transportId]);

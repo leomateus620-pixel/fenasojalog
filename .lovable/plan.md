@@ -1,67 +1,74 @@
-## Diagnóstico
 
-Confirmei no banco que **nenhuma viagem ativa** tem `tracking_device_id` ou `tracking_started_by_user_id` preenchidos:
+## Resumo da auditoria
 
-| Viagem | Motorista | Status | Owner GPS |
-|---|---|---|---|
-| Vladimir → Passo Fundo | VLADIMIR | em_retorno | (vazio) |
-| Ricardo C. → Santo Ângelo | RICARDO C. | em_andamento | (vazio) |
-| Lucas → Chapecó | LUCAS | chegou_destino | (vazio) |
-| Marcelo → PREFEITO MANTEI | MARCELO | chegou_destino | (vazio) |
-| Micael → Santo Ângelo | MICAEL | chegou_destino | (vazio) |
+Fiz a varredura do fluxo: `useTransports` + `transport-lifecycle` (RBAC + admin client), `locationTracker` (singleton com `watchPosition`, ownership por usuário+device via RPC `publish_transport_location`), `useLocationTracking`/`useTransportLocation` (Realtime via `postgres_changes`), `TransportDynamicIsland` (auto-arm GPS, mapa Leaflet, ETA via `estimate-return`) e as Edge Functions `places-autocomplete` e `estimate-return`.
 
-A tabela `transport_locations` está vazia para essas viagens.
+**O fluxo está arquiteturalmente correto.** Os transportes ativos hoje no banco (`em_retorno`) estão com `tracking_started_by_user_id = NULL` e sem linhas em `transport_locations` — isso significa que os motoristas designados (`motorista_user_id`) não estão com a aba aberta no celular para reivindicar o GPS. A UI já mostra "Aguardando o motorista abrir o app…" nesse caso e existe o auto-arm + botão "Iniciar meu GPS desta viagem", então a parte mais crítica é estabilizar erros que estão impedindo a tela funcionar e melhorar a recuperação.
 
-### Causa raiz
+## Bugs reais encontrados (com causa)
 
-O hook `useLocationTracking` só chama `startTracking()` quando `trackingTransportId` está preenchido (linha 330-334 de `TransportsPage.tsx`). E `trackingTransportId` só é preenchido por **3 caminhos**:
+1. **401 em `estimate-return`** — `TransportsPage.tsx` (linhas 78-90, 104-123) e `TransportDynamicIsland.tsx` (186-203, 250-271) chamam `fetch` direto com `Authorization: Bearer ${session?.access_token || ''}`. Se a sessão ainda não carregou, vai `Bearer ` vazio → 401 → mapa sem rota nem ETA. É exatamente o mesmo padrão que já corrigimos em `places-autocomplete`.
+2. **GPS não retoma sozinho ao perder ownership** — quando o `publish` no `locationTracker` falha porque outro usuário/device já dono, o tracker chama `stopInternal()` permanentemente. Se o "outro usuário" era um coordenador antigo e o lifecycle limpou ownership numa transição de fase, o motorista correto não rearma sozinho e o card fica preso.
+3. **Auto-arm não dispara em pages que não sejam `/transports`** — o `useEffect` de auto-arm vive em `TransportsPage`. Se o motorista abrir o app numa rota diferente (Dashboard, Escala), o GPS não inicia. Isso explica casos de "abriu o app e nada".
+4. **`stopInternal` zera coordenadas mesmo durante erro recuperável** — perde o último ponto bom da UI e cria um piscar de "Aguardando…".
+5. **`useTransportLocation` não revalida ao reconectar** — se a aba foi suspensa (mobile bloqueou tela), o canal Realtime pode reabrir vazio. Falta um refetch no `visibilitychange`/`online`.
+6. **Restrição da Google Maps API key** — a key precisa estar com restrição **None** (regra do projeto memorizada). Validar no Cloud antes de mexer em código.
 
-1. **Auto-resume**: o usuário **já era dono** (`tracking_started_by_user_id === user.id`) — circular, depende de já ter publicado antes.
-2. **Cache local**: o usuário precisou já ter clicado uma vez nesse navegador.
-3. **Clique manual** em algum botão (não óbvio para o motorista).
+## O que NÃO está quebrado (não vamos mexer)
 
-Como nenhum motorista nunca foi “marcado dono” no banco (depende do primeiro publish, e o publish depende do tracking estar rodando), o ciclo nunca começa. Resultado: motoristas abrem o app e o GPS **nunca arma** sozinho — por isso o mapa ao vivo nunca aparece, nem na ida nem na volta.
+- RBAC do `transport-lifecycle` (admin client + verificação de role via `get_user_org_role`).
+- RPC `publish_transport_location` (já garante motorista designado, ownership por user e device, status ativo).
+- Reset de ownership a cada transição de fase no lifecycle (`start`, `arrive_destination`, `start_return`).
+- Realtime em `transport_locations` filtrado por `transport_id`.
+- Fluxo de ida → chegou_destino → em_retorno → concluido (já implementado e em uso).
+- Janela 29/04–10/05 e flag `somente_ida`.
 
-## Correção proposta
+## Plano de correção (cirúrgico, sem refactor)
 
-Fazer o tracking **armar automaticamente** assim que o motorista designado abre o app e existe uma viagem ativa atribuída a ele, sem depender do estado do banco.
+### 1. Corrigir 401 em `estimate-return` (idem ao fix de `places-autocomplete`)
+Trocar os 4 `fetch` brutos por `supabase.functions.invoke('estimate-return', { body })`. Locais:
+- `src/pages/TransportsPage.tsx` — `fetchTravelMinutes` e `fetchRoutePreview`.
+- `src/components/TransportDynamicIsland.tsx` — preview polyline e LIVE_ROUTE.
 
-### 1. `src/pages/TransportsPage.tsx` — auto-claim por motorista designado
+`functions.invoke` anexa o JWT da sessão automaticamente e aguarda a sessão estar pronta, eliminando o `Bearer ` vazio.
 
-Adicionar uma 4ª regra no `useEffect` de auto-resume, antes da regra do cache local:
+### 2. `locationTracker`: retomar GPS quando a viagem ainda é minha
+- Quando o `publish` retornar erro de ownership, **não destruir o watch** se a checagem mostrar que `motorista_user_id === uid` e `tracking_started_by_user_id IS NULL` ou `=== uid`. Apenas re-tentar.
+- Manter `latitude/longitude` na UI durante erros transitórios (não zerar no `stopInternal` quando a parada foi por erro recuperável).
+- Garantir que ao mudar para um transporte novo o tracker faça `getCurrentPosition` imediato (já faz) e mantenha `watchPosition` mesmo se o primeiro `publish` falhar.
 
-- Se existir uma viagem em status ativo (`em_andamento`, `em_retorno`, `chegou_destino`) **com `motorista_user_id === user.id`** **e** o GPS ainda não pertence a outro usuário (ou já é nosso, ou está vazio), seleciona ela como `trackingTransportId` automaticamente.
-- Critério de desempate quando há mais de uma: prioridade `em_retorno` → `em_andamento` → `chegou_destino`, depois `inicio_em` mais recente.
-- Se já existir owner em outro user (`tracking_started_by_user_id !== user.id` e `!= null`), **não** tenta — respeita o motorista atual.
+### 3. Auto-arm GPS global (App-level), não só em `/transports`
+Extrair o `useEffect` de auto-arm para um hook `useDriverAutoArm()` montado uma vez no `App`/`Layout`, para que o motorista designado tenha seu GPS reivindicado assim que abre o app em qualquer rota. Mantém a mesma lógica de prioridade já validada (DB ownership → cache local → designated driver → cleanup).
 
-Isso garante que Vladimir abrindo o app vê o GPS dele iniciar sozinho na viagem em retorno; Ricardo C. abrindo vê iniciar na ida dele; etc.
+### 4. `useTransportLocation`: refetch em visibilidade/reconexão
+- Recarregar a última posição quando `document.visibilitychange === 'visible'` ou `window.online`.
+- Já temos o canal Realtime; só adicionar o refetch evita "card sem live" depois de tela bloqueada.
 
-### 2. `src/components/TransportDynamicIsland.tsx` — botão visível “Iniciar GPS”
+### 5. UX/feedback claros (não invasivo)
+- Mensagem específica quando `motorista_user_id` é diferente do usuário logado e o card está aguardando: "Aguardando o motorista X abrir o app".
+- Indicador de "última atualização há Xs" no card ao vivo (usando `location.updated_at`).
+- Toast amigável quando Maps API falha (já há `try/catch`, só exibir uma vez por sessão para não spammar).
 
-Hoje o aviso “Aguardando o motorista abrir o app…” aparece para os observadores, mas o motorista designado vendo o próprio card não tem um CTA óbvio caso o auto-arm falhe (permissão negada antes, etc.). Adicionar:
+### 6. Verificações operacionais (sem código)
+- Confirmar que `GOOGLE_MAPS_API_KEY` no Cloud está com restrição **None** (memória do projeto).
+- Avisar (toast/onboarding curto) que o motorista precisa abrir o app no celular dele uma vez para o GPS começar — esse é o único caminho seguro com a RPC atual.
 
-- Se `t.motorista_user_id === user.id` **e** `!isMyTracking` **e** status ativo → mostrar botão “Iniciar meu GPS desta viagem” que chama `setTrackingTransportId(t.id, t.fase_atual)`.
-- Mantém o aviso atual para os outros usuários.
+## Arquivos que vamos mexer
 
-### 3. Resetar tracking ao trocar de viagem ativa
+- `src/pages/TransportsPage.tsx` — 2 funções fetch → `invoke`; mover auto-arm para hook global.
+- `src/components/TransportDynamicIsland.tsx` — 2 fetch → `invoke`; UX de última atualização.
+- `src/lib/locationTracker.ts` — não destruir state em erros recuperáveis; retry inteligente.
+- `src/hooks/useLocationTracking.ts` — `useTransportLocation` com refetch em `visibilitychange`/`online`.
+- `src/hooks/useDriverAutoArm.ts` — novo hook; montado em `src/App.tsx` (ou layout).
+- Sem alterações no banco, RPCs, RLS ou Edge Functions.
 
-No mesmo `useEffect` de auto-resume, se o motorista já está com `trackingTransportId = A` mas A já não é mais ativa (concluída/cancelada) e existe outra viagem ativa B atribuída a ele, trocar de A → B (o singleton `locationTracker.start()` já trata o swap limpamente).
+## Critérios de aceite
 
-### 4. Sem mudanças de banco/RLS
+- Sem 401 em `estimate-return` mesmo logo após login.
+- Motorista designado vê o pino vivo dele ao abrir o app em qualquer rota, não só `/transports`.
+- Card mostra "atualizado há Xs" e não "pisca" quando ocorre erro temporário de GPS.
+- Mapa volta a aparecer automaticamente após reconexão/tela bloqueada.
+- Coordenadores que iniciam viagem remotamente continuam não travando o GPS para o motorista (fluxo atual preservado).
+- Nenhum usuário, RLS ou política altera-se; histórico e transportes existentes seguem funcionando.
 
-O backend já está correto:
-- `publish_transport_location` valida motorista designado e device_id
-- `arrive_destination` e `start_return` já limpam `tracking_*` para a próxima fase reivindicar limpo
-- `reset_transport_tracking` está disponível como auxiliar
-
-## Arquivos a alterar
-
-- `src/pages/TransportsPage.tsx` — nova regra de auto-arm para motorista designado + swap entre viagens
-- `src/components/TransportDynamicIsland.tsx` — CTA “Iniciar meu GPS” para o motorista quando o auto-arm não disparou
-
-## Resultado esperado
-
-Após a mudança:
-- **Vladimir** abrindo o app → GPS arma automaticamente na viagem Santa Rosa→Passo Fundo (em_retorno) → mapa ao vivo aparece para todo mundo.
-- **Ricardo C., Lucas, Marcelo, Micael** abrindo cada um o app → cada um arma na própria viagem, sem misturar.
-- Quem **não é o motorista** continua vendo apenas o mapa ao vivo (read-only) via `useTransportLocation`, sem nunca publicar.
+Posso seguir implementando esse plano?
