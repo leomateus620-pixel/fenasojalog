@@ -417,8 +417,12 @@ async function handleStartReturn(admin: any, userId: string, payload: any) {
   // so the current driver can write fresh GPS without RLS conflicts.
   await admin.from("transport_locations").delete().eq("transport_id", id);
 
+  // Ensure origem coordinates exist (return phase tracks toward the origin).
+  const geoPatch = await backfillTransportGeo(admin, transport);
+
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = {
+    ...geoPatch,
     status: "em_retorno",
     inicio_retorno_em: now,
     fase_atual: "volta",
