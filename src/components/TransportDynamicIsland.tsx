@@ -206,9 +206,9 @@ export default function TransportDynamicIsland({
   }, [isActive, isAtDestination, location, routePolyline, originCoords, destCoords, isReturning, t.origem, t.destino]);
 
 
-  // Fetch live route + ETA when location updates
+  // Fetch live route + ETA when location updates (apenas com GPS real recente)
   useEffect(() => {
-    if (!location || !isActive) return;
+    if (!location || location.isStale || !isActive) return;
     const now = Date.now();
 
     // Adaptive throttle:
