@@ -83,10 +83,12 @@ export default function DriverGpsBanner() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground leading-tight">
-            Você é o motorista desta viagem
+            {snap.error ? 'GPS precisa da sua permissão' : 'Você é o motorista desta viagem'}
           </p>
           <p className="text-[11px] text-muted-foreground leading-tight truncate">
-            {target.origem} → {target.destino} · toque para enviar sua localização
+            {snap.error
+              ? snap.error
+              : `${target.origem} → ${target.destino} · toque para enviar sua localização`}
           </p>
         </div>
         <button
@@ -94,7 +96,7 @@ export default function DriverGpsBanner() {
           disabled={starting}
           className="shrink-0 h-9 px-3 rounded-xl bg-accent text-accent-foreground text-xs font-semibold disabled:opacity-60 active:scale-95 transition-transform"
         >
-          {starting ? 'Ativando…' : 'Ativar GPS'}
+          {starting ? 'Ativando…' : snap.error ? 'Tentar novamente' : 'Ativar GPS'}
         </button>
         <button
           onClick={() => setDismissed(true)}
