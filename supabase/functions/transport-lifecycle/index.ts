@@ -229,10 +229,14 @@ async function handleStart(admin: any, userId: string, payload: any) {
   // so the current driver's GPS upserts can succeed without RLS UPDATE conflicts.
   await admin.from("transport_locations").delete().eq("transport_id", id);
 
+  // Backfill missing geo data so the live map and the route polyline render
+  // correctly regardless of which flow created the transport.
+  const geoPatch = await backfillTransportGeo(admin, transport);
+
   const now = new Date().toISOString();
   const { data: updated, error: updateErr } = await admin
     .from("transports")
-    .update({ status: "em_andamento", inicio_real_em: now, fase_atual: "ida" })
+    .update({ ...geoPatch, status: "em_andamento", inicio_real_em: now, fase_atual: "ida" })
     .eq("id", id)
     .select()
     .single();
