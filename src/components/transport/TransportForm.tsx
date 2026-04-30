@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { Check, Plus, MapPin, LocateFixed, Loader2, Search, X } from 'lucide-react';
+import { Check, Plus, MapPin, Loader2, Search, X, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEffectiveEstimatedKm } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -65,9 +65,11 @@ interface TransportFormProps {
   availableVehicles?: any[];
 }
 
-const SANTA_ROSA = { lat: -27.8708, lng: -54.4814 };
+// Origem padrão de TODOS os transportes — Parque de Exposições Alfredo Leandro Carlson
+const SANTA_ROSA = { lat: -27.84502, lng: -54.47892 };
+const PARQUE_FENASOJA_LABEL = 'Parque de Exposições Alfredo Leandro Carlson — Santa Rosa, RS';
 const knownDestCoords: Record<string, { lat: number; lng: number }> = {
-  'Parque': { lat: -27.8708, lng: -54.4814 },
+  'Parque': { lat: -27.84502, lng: -54.47892 },
   'Hotel': { lat: -27.8711, lng: -54.4769 },
   'Aeroporto_Chapecó': { lat: -27.1342, lng: -52.6566 },
   'Aeroporto_Santo Ângelo': { lat: -28.2817, lng: -54.1691 },
@@ -87,36 +89,15 @@ export default function TransportForm({
 }: TransportFormProps) {
   const [apiKm, setApiKm] = useState<number | null>(null);
   const [loadingKm, setLoadingKm] = useState(false);
-  const [detectingOrigin, setDetectingOrigin] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
-  // ── Auto-detect origin city on mount ──
+  // ── Origem fixa: sempre Parque de Exposições Alfredo Leandro Carlson ──
+  // Garante o valor mesmo se o form for inicializado vazio (ex.: edição de registro antigo).
   useEffect(() => {
-    if (isEdit || data.origem) return;
-    detectOrigin();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const detectOrigin = async () => {
-    if (!navigator.geolocation) return;
-    setDetectingOrigin(true);
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: false })
-      );
-      const { latitude, longitude } = pos.coords;
-      const { data: result, error } = await supabase.functions.invoke('places-autocomplete', {
-        body: { mode: 'reverse', lat: latitude, lng: longitude },
-      });
-      if (error) throw error;
-      if (result?.city) {
-        setData((prev: any) => ({ ...prev, origem: String(result.city).toUpperCase() }));
-      }
-    } catch {
-      // silently fail - user can type manually
-    } finally {
-      setDetectingOrigin(false);
+    if (!data.origem || !data.origem.toLowerCase().includes('parque')) {
+      setData((prev: any) => ({ ...prev, origem: PARQUE_FENASOJA_LABEL }));
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch real road distance when titulo/voo_cidade changes or custom coords are set
   useEffect(() => {
@@ -195,30 +176,25 @@ export default function TransportForm({
                 </SelectContent>
               </Select>
 
-              {/* Origin field with auto-detect */}
+              {/* Origem fixa — Parque de Exposições Alfredo Leandro Carlson */}
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Origem</Label>
-                <div className="relative">
-                  <Input
-                    placeholder={detectingOrigin ? 'Detectando localização...' : 'Origem'}
-                    value={data.origem}
-                    onChange={(e) => setData({ ...data, origem: e.target.value })}
-                    className="pr-10"
-                    disabled={detectingOrigin}
-                  />
-                  <button
-                    type="button"
-                    onClick={detectOrigin}
-                    disabled={detectingOrigin}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted/80 transition-colors text-muted-foreground hover:text-primary disabled:opacity-50"
-                    title="Detectar localização atual"
-                  >
-                    {detectingOrigin ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <LocateFixed className="w-4 h-4" />
-                    )}
-                  </button>
+                <div className="flex items-start gap-2 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-foreground leading-tight">
+                      Parque de Exposições Alfredo Leandro Carlson
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      R. Chile, Glória — Santa Rosa, RS
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/80 mt-1 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      Origem padrão de todos os transportes da Fenasoja
+                    </p>
+                  </div>
                 </div>
               </div>
 
