@@ -1,73 +1,32 @@
-# Corrigir horários -3h dos Carrinhos Elétricos
+# Melhorar visibilidade dos cards — Carrinhos Elétricos
 
-## Diagnóstico
+A imagem enviada mostra o card "RESERVADO PRESIDENCIA - G05" praticamente vazio: o título aparece, mas o **nome do retirador, comissão, horários de retirada/devolução e duração** estão muito apagados (cinza claro sobre vidro translúcido) ou nem aparecem em destaque. O objetivo é tornar essas informações cadastradas claramente legíveis sem perder a identidade Liquid Glass.
 
-O bug existia no envio: até a correção anterior, os campos `retirada_em`, `devolucao_em`, `inicio_em` e `fim_em` eram enviados **sem offset de timezone**. O Postgres interpretou os valores como **UTC**, então uma retirada digitada às **08:30 (SP)** ficou armazenada como **08:30 UTC** — que ao ser exibida em `America/Sao_Paulo` aparece como **05:30** (-3h).
+## O que vai mudar
 
-Verificação no banco confirma:
+### 1. Card de carrinho **em uso** (`ElectricCartCard.tsx`)
+- **Nome do retirador / parceiro / convidado**: aumentar para `text-base font-bold text-foreground` (hoje `text-sm font-semibold`) e remover o `truncate` agressivo (passar a `break-words` em 2 linhas).
+- **Bloco do responsável**: trocar `bg-muted/40` (muito apagado) por `bg-background/70 border-border` com `shadow-inner` mais marcado, garantindo contraste sólido sobre o vidro.
+- **Comissão**: badge atual é `text-[10px]` em `secondary` — passar para badge sólido `bg-primary/15 text-primary border-primary/30 text-[11px] font-bold uppercase`.
+- **Horário de retirada**: hoje é `text-xs muted` + `text-sm bold`. Ampliar para rótulo `text-[11px] font-semibold uppercase text-muted-foreground` e valor `text-base font-bold text-foreground`. O "há Xmin" passa para badge âmbar discreto ao lado.
+- Adicionar (quando existir) **linha extra de telefone** do convidado externo, igual ao ReservationCard.
 
-| Tabela | Registros afetados |
-|---|---|
-| `electric_carts.retirada_em` / `devolucao_em` | 11 registros ativos |
-| `cart_reservations.inicio_em` / `fim_em` | 5 registros |
-| `cart_history.after_data` (snapshots JSONB) | 17 eventos de retirada/devolução |
+### 2. Card de **reserva** (`ReservationCard.tsx`) — o do print
+- **Nome do responsável**: `text-base font-bold` (hoje `text-sm font-semibold`) e bloco com `bg-background/70` para sair do "fantasma".
+- **Comissão / "Convidado / Externo" / "Empresa parceira"**: badges com cor sólida (primary/accent) em vez de `variant="secondary"` translúcido.
+- **Período (Retirada / Devolução)**:
+  - Rótulos "RETIRADA" / "DEVOLUÇÃO" em `text-[11px] font-bold uppercase text-foreground/80` (hoje `muted-foreground` quase invisível).
+  - Data + hora separadas em duas linhas: data em `text-xs text-muted-foreground` e hora em `text-lg font-bold text-foreground` (destaque principal).
+  - Backgrounds dos blocos passam de `bg-primary/10` para `bg-primary/15 border-primary/30` com `shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]`.
+- **Duração**: chip dedicado `bg-muted/60 border-border px-2 py-1 rounded-md` em vez de texto solto cinza.
+- **Observações**: remover `italic` + `muted-foreground` apagado; usar `text-sm text-foreground/80` dentro de um bloco `bg-muted/40 rounded-lg p-2`.
 
-Exemplo real (G24 - JEFERSON): cadastrado às 08:30 SP, salvo como `2026-04-30 08:30:00+00` (UTC) → exibido como **05:30**. Correto seria `2026-04-30 11:30:00+00`.
+### 3. Ajustes globais de contraste
+- Reduzir o `opacity-80` aplicado a reservas concluídas/canceladas para `opacity-90` (ainda diferencia, mas mantém leitura).
+- Garantir que nenhum texto principal use `text-muted-foreground` — apenas rótulos auxiliares.
 
-## O código já está corrigido
+## Arquivos afetados
+- `src/components/electric-carts/ElectricCartCard.tsx`
+- `src/components/electric-carts/ReservationCard.tsx`
 
-A correção do envio (commit anterior) garante que **novos registros** sejam gravados com offset SP (`-03:00`). Esta migration corrige apenas o **legado**.
-
-## Migration de correção
-
-Soma `+3 horas` em todos os timestamps gravados antes do fix:
-
-```sql
--- 1) electric_carts: retirada_em e devolucao_em
-UPDATE electric_carts
-SET retirada_em = retirada_em + interval '3 hours'
-WHERE retirada_em IS NOT NULL;
-
-UPDATE electric_carts
-SET devolucao_em = devolucao_em + interval '3 hours'
-WHERE devolucao_em IS NOT NULL;
-
--- 2) cart_reservations: inicio_em e fim_em
-UPDATE cart_reservations
-SET inicio_em = inicio_em + interval '3 hours',
-    fim_em    = fim_em    + interval '3 hours';
-
--- 3) cart_history: snapshots JSONB (retirada/devolucao)
-UPDATE cart_history
-SET after_data = jsonb_set(
-      after_data,
-      '{retirada_em}',
-      to_jsonb(((after_data->>'retirada_em')::timestamptz + interval '3 hours')::text)
-    )
-WHERE after_data ? 'retirada_em' AND after_data->>'retirada_em' IS NOT NULL;
-
-UPDATE cart_history
-SET after_data = jsonb_set(
-      after_data,
-      '{devolucao_em}',
-      to_jsonb(((after_data->>'devolucao_em')::timestamptz + interval '3 hours')::text)
-    )
-WHERE after_data ? 'devolucao_em' AND after_data->>'devolucao_em' IS NOT NULL;
-```
-
-## Risco e Mitigação
-
-- **Risco:** se algum registro já estiver correto, ficará +3h adiantado.
-- **Mitigação:** a auditoria mostra padrão 100% uniforme — nenhum registro foi gravado com offset antes do fix. Todos precisam do +3h.
-- Backup automático do Lovable Cloud permite reverter se necessário.
-
-## Resultado Esperado
-
-- G24 JEFERSON: `08:30+00` → `11:30+00` → exibido como **08:30 SP** ✅
-- Todos os cards passam a refletir o horário real digitado pelo usuário.
-- Novos cadastros já saem corretos pela correção do código aplicada anteriormente.
-
-## Arquivos
-
-- Nova migration SQL (executada via tool `supabase--migration`).
-- Nenhuma mudança adicional de código — o frontend já está correto.
+Sem mudanças de dados, schema ou lógica — apenas tipografia, cores e hierarquia visual para destacar o que já está cadastrado.
