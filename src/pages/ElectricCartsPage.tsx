@@ -193,17 +193,40 @@ export default function ElectricCartsPage() {
 
   const handlePickup = async () => {
     if (!pickupForm.cartId) { toast.error('Selecione um carrinho'); return; }
-    if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione um responsável'); return; }
+    if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione quem retira'); return; }
     if (pickupForm.tipo === 'empresa' && !pickupForm.empresa_slug) { toast.error('Selecione a empresa parceira'); return; }
     if (pickupForm.tipo === 'outros' && !pickupForm.nome_externo.trim()) { toast.error('Informe o nome de quem retira'); return; }
+
+    // Aviso (sem bloqueio): mais de 1 carrinho por comissão
+    if (pickupForm.comissao) {
+      const ativos = activeByCommission.get(pickupForm.comissao.trim()) || [];
+      if (ativos.length > 0) {
+        const lista = ativos.map((a) => `${a.nome} (${a.retiradoPor || 's/ responsável'})`).join(', ');
+        toast.warning(
+          `Atenção: comissão "${pickupForm.comissao}" já possui carrinho em uso — ${lista}. Recomendado: 1 carrinho por comissão.`,
+          { duration: 7000 }
+        );
+      }
+    }
+
+    // Quando vier de "Autorizado", salvar como 'outros' + comissao + nome
+    const isFromAuth = pickupForm.tipo === 'interno' && pickupForm.userId.startsWith('auth:');
+    const tipoFinal: 'interno' | 'empresa' | 'outros' = isFromAuth ? 'outros' : pickupForm.tipo;
+
     try {
       await pickup.mutateAsync({
         id: pickupForm.cartId,
-        tipo: pickupForm.tipo,
-        responsavel_user_id: pickupForm.tipo === 'interno' ? pickupForm.userId : null,
-        comissao: pickupForm.tipo === 'interno' ? (pickupForm.comissao || null) : null,
-        empresa_slug: pickupForm.tipo === 'empresa' ? pickupForm.empresa_slug : null,
-        nome_externo: pickupForm.tipo === 'outros' ? pickupForm.nome_externo : null,
+        tipo: tipoFinal,
+        responsavel_user_id: tipoFinal === 'interno' ? pickupForm.userId : null,
+        comissao:
+          tipoFinal === 'interno' || tipoFinal === 'outros'
+            ? (pickupForm.comissao || null)
+            : null,
+        empresa_slug: tipoFinal === 'empresa' ? pickupForm.empresa_slug : null,
+        nome_externo:
+          tipoFinal === 'outros'
+            ? (isFromAuth ? pickupForm.nome_externo : pickupForm.nome_externo)
+            : null,
         retirada_em: pickupForm.retirada_em || nowSP(),
       });
       setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
