@@ -2,6 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentOrg } from './useCurrentOrg';
 
+/**
+ * Fonte única de verdade para KM rodados = tabela `vehicle_usage`.
+ *
+ * Cada transporte concluído gera automaticamente 2 registros em `vehicle_usage`
+ * ("Ida automática" + "Volta automática") via edge function `transport-lifecycle`,
+ * cuja soma já equivale a `transports.km_devolucao - km_retirada`.
+ *
+ * Por isso NÃO somamos as duas fontes — isso causaria duplicidade (cada
+ * viagem contaria 2x). `vehicle_usage.km_rodados` é uma coluna GENERATED ALWAYS
+ * (`km_chegada - km_saida`), garantindo integridade.
+ */
 export function useVehicleUsage(vehicleId?: string) {
   const { orgId } = useCurrentOrg();
   const qc = useQueryClient();
@@ -23,43 +34,13 @@ export function useVehicleUsage(vehicleId?: string) {
     staleTime: 30000,
   });
 
-  const { data: allTransports = [] } = useQuery({
-    queryKey: ['transports_km_all', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await (supabase as any)
-        .from('transports')
-        .select('vehicle_id, km_retirada, km_devolucao')
-        .eq('org_id', orgId)
-        .not('km_retirada', 'is', null)
-        .not('km_devolucao', 'is', null);
-      return data || [];
-    },
-    enabled: !!orgId,
-    staleTime: 30000,
-  });
-
-  // KM from transports
-  const transportKm = allTransports.reduce((sum: number, t: any) => {
-    const diff = Number(t.km_devolucao) - Number(t.km_retirada);
-    return sum + (isNaN(diff) || diff < 0 ? 0 : diff);
-  }, 0);
-
-  const transportKmByVehicle = allTransports.reduce((map: Record<string, number>, t: any) => {
-    if (!t.vehicle_id) return map;
-    const diff = Number(t.km_devolucao) - Number(t.km_retirada);
-    const val = isNaN(diff) || diff < 0 ? 0 : diff;
-    map[t.vehicle_id] = (map[t.vehicle_id] || 0) + val;
-    return map;
-  }, {} as Record<string, number>);
-
-  // KM from direct vehicle_usage records (km_rodados is DB-generated)
-  const usageKm = usages.reduce((sum: number, u: any) => {
+  // KM total a partir de vehicle_usage (fonte canônica)
+  const totalKm = usages.reduce((sum: number, u: any) => {
     const val = Number(u.km_rodados);
     return sum + (isNaN(val) || val <= 0 ? 0 : val);
   }, 0);
 
-  const usageKmByVehicle = usages.reduce((map: Record<string, number>, u: any) => {
+  const kmByVehicle = usages.reduce((map: Record<string, number>, u: any) => {
     if (!u.vehicle_id) return map;
     const val = Number(u.km_rodados);
     if (!isNaN(val) && val > 0) {
@@ -67,15 +48,6 @@ export function useVehicleUsage(vehicleId?: string) {
     }
     return map;
   }, {} as Record<string, number>);
-
-  // Merge both sources
-  const totalKm = transportKm + usageKm;
-
-  const allVehicleIds = new Set([...Object.keys(transportKmByVehicle), ...Object.keys(usageKmByVehicle)]);
-  const kmByVehicle: Record<string, number> = {};
-  allVehicleIds.forEach(id => {
-    kmByVehicle[id] = (transportKmByVehicle[id] || 0) + (usageKmByVehicle[id] || 0);
-  });
 
   const createUsage = useMutation({
     mutationFn: async (usage: Record<string, any>) => {
@@ -110,5 +82,5 @@ export function useVehicleUsage(vehicleId?: string) {
     },
   });
 
-  return { usages, allTransports, totalKm, kmByVehicle, isLoading, createUsage, updateUsage };
+  return { usages, totalKm, kmByVehicle, isLoading, createUsage, updateUsage };
 }
