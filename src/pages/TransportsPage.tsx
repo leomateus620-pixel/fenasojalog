@@ -1239,6 +1239,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
         whatsappGuests={startTripWhatsappGuests}
         driverName={startTripDriverName}
         startedAt={startTripStartedAt}
+        isAirport={startTripTitulo === 'Aeroporto'}
       />
     </div>
   );
