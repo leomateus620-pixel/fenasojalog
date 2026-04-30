@@ -31,6 +31,8 @@ interface StartTripDialogProps {
   whatsappGuests?: WhatsAppGuestData[];
   driverName?: string;
   startedAt?: string;
+  /** Quando true, exibe a seção "Agentes & Parceiros". Apenas transportes do tipo Aeroporto devem habilitar. */
+  isAirport?: boolean;
 }
 
 function GuestSection({ guest, isOnly }: { guest: WhatsAppGuestData; isOnly: boolean }) {
