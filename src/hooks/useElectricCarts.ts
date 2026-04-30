@@ -86,7 +86,7 @@ export function useElectricCarts() {
         updatePayload.nome_externo = null;
       } else if (tipoFinal === 'outros') {
         updatePayload.responsavel_user_id = null;
-        updatePayload.comissao = null;
+        updatePayload.comissao = comissao || null;
         updatePayload.empresa_slug = null;
         updatePayload.nome_externo = (nome_externo || '').trim().toUpperCase() || null;
       } else {

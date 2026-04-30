@@ -14,8 +14,9 @@ import { useCartReservations, type CartReservation, type ReservationTipo } from 
 import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
+import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
 import { toast } from 'sonner';
-import { User } from 'lucide-react';
+import { User, AlertTriangle } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -39,7 +40,18 @@ export default function ReservationDialog({ open, onOpenChange, reservation }: P
   const { carts } = useElectricCarts();
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
-  const { create, update } = useCartReservations();
+  const { authorizations } = useMobilityAuthorizations('carro_eletrico');
+  const { create, update, reservations } = useCartReservations();
+
+  const sortedAuthorizations = useMemo(() => {
+    const norm = (s: string) => (s || '').toLocaleLowerCase('pt-BR');
+    return [...authorizations].sort((a: any, b: any) => {
+      const sa = a.access_status === 'liberado' ? 0 : 1;
+      const sb = b.access_status === 'liberado' ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return norm(a.member_name).localeCompare(norm(b.member_name));
+    });
+  }, [authorizations]);
 
   const [cartId, setCartId] = useState('');
   const [tipo, setTipo] = useState<ReservationTipo>('interno');
@@ -97,25 +109,82 @@ export default function ReservationDialog({ open, onOpenChange, reservation }: P
     return map;
   }, [members, commissions]);
 
+  const authNameToCommission = useMemo(() => {
+    const map = new Map<string, string>();
+    authorizations.forEach((a: any) => {
+      const key = (a.member_name || '').trim().toLocaleLowerCase('pt-BR');
+      if (key && !map.has(key)) map.set(key, a.committee_name_snapshot || '');
+    });
+    return map;
+  }, [authorizations]);
+
+  // Conflito por comissão: outras reservas ATIVAS sobrepostas no mesmo período
+  const overlappingByCommission = useMemo(() => {
+    if (!comissao || !inicio || !fim) return [] as Array<{ cartCodigo: string; quem: string }>;
+    const start = new Date(inicio).getTime();
+    const end = new Date(fim).getTime();
+    if (!(end > start)) return [];
+    const list: Array<{ cartCodigo: string; quem: string }> = [];
+    reservations.forEach((r: any) => {
+      if (reservation && r.id === reservation.id) return;
+      if (!(r.status === 'agendada' || r.status === 'em_andamento')) return;
+      const rs = new Date(r.inicio_em).getTime();
+      const re = new Date(r.fim_em).getTime();
+      if (!(rs < end && re > start)) return;
+      let rComissao: string | null = r.comissao || null;
+      let quem = r.nome_externo || '';
+      if (!rComissao && r.responsavel_user_id) {
+        rComissao = memberCommissionMap.get(r.responsavel_user_id) || null;
+        const m = members.find((mm: any) => mm.user_id === r.responsavel_user_id);
+        if (m?.nome_exibicao) quem = m.nome_exibicao;
+      }
+      if (!rComissao && r.nome_externo) {
+        rComissao = authNameToCommission.get(r.nome_externo.trim().toLocaleLowerCase('pt-BR')) || null;
+      }
+      if (rComissao && rComissao.trim() === comissao.trim()) {
+        const cart = carts.find((c: any) => c.id === r.cart_id);
+        list.push({ cartCodigo: cart?.nome || cart?.codigo || 'Carrinho', quem });
+      }
+    });
+    return list;
+  }, [comissao, inicio, fim, reservations, reservation, members, memberCommissionMap, authNameToCommission, carts]);
+
   const handleSubmit = async () => {
     if (submittingRef.current) return;
     if (!cartId) { toast.error('Selecione o carrinho'); return; }
     if (!inicio || !fim) { toast.error('Defina o período'); return; }
     if (new Date(fim) <= new Date(inicio)) { toast.error('A devolução deve ser depois do início'); return; }
-    if (tipo === 'interno' && !userId) { toast.error('Selecione o membro'); return; }
+    if (tipo === 'interno' && !userId) { toast.error('Selecione quem retira'); return; }
     if (tipo === 'empresa' && !empresaSlug) { toast.error('Selecione a empresa parceira'); return; }
     if (tipo === 'outros' && !nomeExterno.trim()) { toast.error('Informe o nome'); return; }
 
+    // Aviso (sem bloqueio): 2 reservas para a mesma comissão no mesmo período
+    if (overlappingByCommission.length > 0) {
+      const lista = overlappingByCommission
+        .map((o) => `${o.cartCodigo}${o.quem ? ` (${o.quem})` : ''}`)
+        .join(', ');
+      toast.warning(
+        `Atenção: comissão "${comissao}" já tem reserva sobreposta — ${lista}. Recomendado: 1 carrinho por comissão.`,
+        { duration: 7000 }
+      );
+    }
+
+    const isFromAuth = tipo === 'interno' && userId.startsWith('auth:');
+    const tipoFinal: ReservationTipo = isFromAuth ? 'outros' : tipo;
+
     submittingRef.current = true;
     try {
-      const payload = {
+      const payload: any = {
         cart_id: cartId,
-        tipo_responsavel: tipo,
-        responsavel_user_id: tipo === 'interno' ? userId : null,
-        comissao: tipo === 'interno' ? comissao || null : null,
-        empresa_slug: tipo === 'empresa' ? empresaSlug : null,
-        nome_externo: tipo === 'outros' ? nomeExterno : null,
-        telefone_externo: tipo === 'outros' ? telefoneExterno || null : null,
+        tipo_responsavel: tipoFinal,
+        responsavel_user_id: tipoFinal === 'interno' ? userId : null,
+        comissao:
+          tipoFinal === 'interno' || tipoFinal === 'outros'
+            ? (comissao || null)
+            : null,
+        empresa_slug: tipoFinal === 'empresa' ? empresaSlug : null,
+        nome_externo: tipoFinal === 'outros' ? nomeExterno : null,
+        telefone_externo: tipoFinal === 'outros' ? telefoneExterno || null : null,
         inicio_em: new Date(inicio).toISOString(),
         fim_em: new Date(fim).toISOString(),
         observacoes: obs || null,
@@ -160,24 +229,74 @@ export default function ReservationDialog({ open, onOpenChange, reservation }: P
 
           <Tabs value={tipo} onValueChange={(v) => { setTipo(v as ReservationTipo); }}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="interno">Membro</TabsTrigger>
+              <TabsTrigger value="interno">Autorizado</TabsTrigger>
               <TabsTrigger value="empresa">Empresa</TabsTrigger>
               <TabsTrigger value="outros">Outros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="interno" className="space-y-3 mt-3">
-              <Select value={userId} onValueChange={(v) => { setUserId(v); setComissao(memberCommissionMap.get(v) || ''); }}>
+              <Select
+                value={userId}
+                onValueChange={(v) => {
+                  if (v.startsWith('auth:')) {
+                    const id = v.slice(5);
+                    const a: any = sortedAuthorizations.find((x: any) => x.id === id);
+                    setUserId(v);
+                    setNomeExterno((a?.member_name || '').toUpperCase());
+                    setComissao(a?.committee_name_snapshot || '');
+                    return;
+                  }
+                  setUserId(v);
+                  setNomeExterno('');
+                  setComissao(memberCommissionMap.get(v) || '');
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[60dvh]">
+                  {sortedAuthorizations.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Autorizados (Carro Elétrico)
+                      </div>
+                      {sortedAuthorizations.map((a: any) => (
+                        <SelectItem key={`auth-${a.id}`} value={`auth:${a.id}`}>
+                          <span className="font-medium">{a.member_name}</span>
+                          <span className="text-muted-foreground"> — {a.committee_name_snapshot}</span>
+                          {a.access_status !== 'liberado' && (
+                            <span className="ml-2 text-[10px] text-amber-600">({a.access_status})</span>
+                          )}
+                        </SelectItem>
+                      ))}
+                      {members.length > 0 && (
+                        <div className="px-2 py-1 mt-1 text-[10px] uppercase tracking-wider text-muted-foreground border-t">
+                          Membros internos
+                        </div>
+                      )}
+                    </>
+                  )}
                   {members.map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {comissao && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Label className="text-xs text-muted-foreground">Comissão:</Label>
                   <Badge variant="secondary">{comissao}</Badge>
+                </div>
+              )}
+              {overlappingByCommission.length > 0 && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="text-xs leading-snug">
+                    <p className="font-semibold">Esta comissão já tem reserva no período.</p>
+                    <p className="opacity-90">
+                      {overlappingByCommission
+                        .map((o) => `${o.cartCodigo}${o.quem ? ` (${o.quem})` : ''}`)
+                        .join(', ')}
+                    </p>
+                    <p className="opacity-80 mt-0.5">Recomendado: 1 carrinho por comissão. Você pode prosseguir.</p>
+                  </div>
                 </div>
               )}
             </TabsContent>

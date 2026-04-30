@@ -1,7 +1,8 @@
 import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
-import { Zap, Plus, Clock, ArrowRight, FileText } from 'lucide-react';
+import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
+import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal } from '@/lib/utils';
 import { useMemo, useState } from 'react';
@@ -34,6 +35,62 @@ export default function ElectricCartsPage() {
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
   const { reservations } = useCartReservations();
+  const { authorizations } = useMobilityAuthorizations('carro_eletrico');
+
+  // Sorted authorized list (only liberados appear first; pendentes ainda visíveis ao final)
+  const sortedAuthorizations = useMemo(() => {
+    const norm = (s: string) => (s || '').toLocaleLowerCase('pt-BR');
+    return [...authorizations].sort((a: any, b: any) => {
+      const sa = a.access_status === 'liberado' ? 0 : 1;
+      const sb = b.access_status === 'liberado' ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return norm(a.member_name).localeCompare(norm(b.member_name));
+    });
+  }, [authorizations]);
+
+  // Map: nome (lower) -> committee_name_snapshot (para resolver comissão de retiradores externos atuais)
+  const authNameToCommission = useMemo(() => {
+    const map = new Map<string, string>();
+    authorizations.forEach((a: any) => {
+      const key = (a.member_name || '').trim().toLocaleLowerCase('pt-BR');
+      if (key && !map.has(key)) map.set(key, a.committee_name_snapshot || '');
+    });
+    return map;
+  }, [authorizations]);
+
+  // Para cada comissão, lista carrinhos atualmente em uso
+  const activeByCommission = useMemo(() => {
+    const map = new Map<string, Array<{ codigo: string; nome: string; retiradoPor: string }>>();
+    const pushItem = (comissao: string, item: { codigo: string; nome: string; retiradoPor: string }) => {
+      const key = (comissao || '').trim();
+      if (!key) return;
+      const arr = map.get(key) || [];
+      arr.push(item);
+      map.set(key, arr);
+    };
+    carts.filter((c: any) => c.status === 'em_uso').forEach((c: any) => {
+      let comissao: string | null = c.comissao || null;
+      let retiradoPor = c.nome_externo || '';
+      if (!comissao && c.responsavel_user_id) {
+        const m = members.find((mm: any) => mm.user_id === c.responsavel_user_id);
+        if (m) {
+          retiradoPor = m.nome_exibicao || retiradoPor;
+          if (m.commission_id) {
+            const com = commissions.find((cc: any) => cc.id === m.commission_id);
+            comissao = com?.nome || null;
+          }
+        }
+      }
+      if (!comissao && c.nome_externo) {
+        const key = c.nome_externo.trim().toLocaleLowerCase('pt-BR');
+        comissao = authNameToCommission.get(key) || null;
+      }
+      if (comissao) {
+        pushItem(comissao, { codigo: c.codigo, nome: c.nome || c.codigo, retiradoPor });
+      }
+    });
+    return map;
+  }, [carts, members, commissions, authNameToCommission]);
 
   // Map next active/upcoming reservation per cart with resolved label
   const nextReservationByCart = useMemo(() => {
@@ -136,17 +193,40 @@ export default function ElectricCartsPage() {
 
   const handlePickup = async () => {
     if (!pickupForm.cartId) { toast.error('Selecione um carrinho'); return; }
-    if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione um responsável'); return; }
+    if (pickupForm.tipo === 'interno' && !pickupForm.userId) { toast.error('Selecione quem retira'); return; }
     if (pickupForm.tipo === 'empresa' && !pickupForm.empresa_slug) { toast.error('Selecione a empresa parceira'); return; }
     if (pickupForm.tipo === 'outros' && !pickupForm.nome_externo.trim()) { toast.error('Informe o nome de quem retira'); return; }
+
+    // Aviso (sem bloqueio): mais de 1 carrinho por comissão
+    if (pickupForm.comissao) {
+      const ativos = activeByCommission.get(pickupForm.comissao.trim()) || [];
+      if (ativos.length > 0) {
+        const lista = ativos.map((a) => `${a.nome} (${a.retiradoPor || 's/ responsável'})`).join(', ');
+        toast.warning(
+          `Atenção: comissão "${pickupForm.comissao}" já possui carrinho em uso — ${lista}. Recomendado: 1 carrinho por comissão.`,
+          { duration: 7000 }
+        );
+      }
+    }
+
+    // Quando vier de "Autorizado", salvar como 'outros' + comissao + nome
+    const isFromAuth = pickupForm.tipo === 'interno' && pickupForm.userId.startsWith('auth:');
+    const tipoFinal: 'interno' | 'empresa' | 'outros' = isFromAuth ? 'outros' : pickupForm.tipo;
+
     try {
       await pickup.mutateAsync({
         id: pickupForm.cartId,
-        tipo: pickupForm.tipo,
-        responsavel_user_id: pickupForm.tipo === 'interno' ? pickupForm.userId : null,
-        comissao: pickupForm.tipo === 'interno' ? (pickupForm.comissao || null) : null,
-        empresa_slug: pickupForm.tipo === 'empresa' ? pickupForm.empresa_slug : null,
-        nome_externo: pickupForm.tipo === 'outros' ? pickupForm.nome_externo : null,
+        tipo: tipoFinal,
+        responsavel_user_id: tipoFinal === 'interno' ? pickupForm.userId : null,
+        comissao:
+          tipoFinal === 'interno' || tipoFinal === 'outros'
+            ? (pickupForm.comissao || null)
+            : null,
+        empresa_slug: tipoFinal === 'empresa' ? pickupForm.empresa_slug : null,
+        nome_externo:
+          tipoFinal === 'outros'
+            ? (isFromAuth ? pickupForm.nome_externo : pickupForm.nome_externo)
+            : null,
         retirada_em: pickupForm.retirada_em || nowSP(),
       });
       setPickupForm({ cartId: '', userId: '', comissao: '', retirada_em: '', tipo: 'interno', empresa_slug: '', nome_externo: '' });
@@ -251,27 +331,77 @@ export default function ElectricCartsPage() {
               onValueChange={(v) => setPickupForm({ ...pickupForm, tipo: v as 'interno' | 'empresa' | 'outros', userId: '', comissao: '', empresa_slug: '', nome_externo: '' })}
             >
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="interno">Membro</TabsTrigger>
+                <TabsTrigger value="interno">Autorizado</TabsTrigger>
                 <TabsTrigger value="empresa">Empresa</TabsTrigger>
                 <TabsTrigger value="outros">Outros</TabsTrigger>
               </TabsList>
 
               <TabsContent value="interno" className="space-y-3 mt-3">
-                <Select value={pickupForm.userId} onValueChange={(v) => {
-                  const commission = getMemberCommission(v);
-                  setPickupForm({ ...pickupForm, userId: v, comissao: commission || '' });
-                }}>
+                <Select
+                  value={pickupForm.userId}
+                  onValueChange={(v) => {
+                    // Autorizado vindo da lista oficial
+                    if (v.startsWith('auth:')) {
+                      const id = v.slice(5);
+                      const a: any = sortedAuthorizations.find((x: any) => x.id === id);
+                      setPickupForm({
+                        ...pickupForm,
+                        userId: v,
+                        nome_externo: (a?.member_name || '').toUpperCase(),
+                        comissao: a?.committee_name_snapshot || '',
+                      });
+                      return;
+                    }
+                    const commission = getMemberCommission(v);
+                    setPickupForm({ ...pickupForm, userId: v, comissao: commission || '', nome_externo: '' });
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[60dvh]">
+                    {sortedAuthorizations.length > 0 && (
+                      <>
+                        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Autorizados (Carro Elétrico)
+                        </div>
+                        {sortedAuthorizations.map((a: any) => (
+                          <SelectItem key={`auth-${a.id}`} value={`auth:${a.id}`}>
+                            <span className="font-medium">{a.member_name}</span>
+                            <span className="text-muted-foreground"> — {a.committee_name_snapshot}</span>
+                            {a.access_status !== 'liberado' && (
+                              <span className="ml-2 text-[10px] text-amber-600">({a.access_status})</span>
+                            )}
+                          </SelectItem>
+                        ))}
+                        {members.length > 0 && (
+                          <div className="px-2 py-1 mt-1 text-[10px] uppercase tracking-wider text-muted-foreground border-t">
+                            Membros internos
+                          </div>
+                        )}
+                      </>
+                    )}
                     {members.map((m: any) => (
                       <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {pickupForm.comissao && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Label className="text-xs text-muted-foreground">Comissão:</Label>
                     <Badge variant="secondary">{pickupForm.comissao}</Badge>
+                  </div>
+                )}
+                {pickupForm.comissao && (activeByCommission.get(pickupForm.comissao.trim())?.length ?? 0) > 0 && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div className="text-xs leading-snug">
+                      <p className="font-semibold">Esta comissão já está com carrinho retirado.</p>
+                      <p className="opacity-90">
+                        {(activeByCommission.get(pickupForm.comissao.trim()) || [])
+                          .map((a) => `${a.nome}${a.retiradoPor ? ` (${a.retiradoPor})` : ''}`)
+                          .join(', ')}
+                      </p>
+                      <p className="opacity-80 mt-0.5">Recomendado: 1 carrinho por comissão. Você pode prosseguir.</p>
+                    </div>
                   </div>
                 )}
               </TabsContent>
