@@ -604,6 +604,7 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
             setStartTripWhatsappGuests(startResult.whatsappGuests || []);
             setStartTripDriverName(startResult.driverName || '');
             setStartTripStartedAt(startResult.startedAt || '');
+            setStartTripTitulo(capturedForm.titulo || '');
             setStartTripDialogOpen(true);
           }
         } catch {
