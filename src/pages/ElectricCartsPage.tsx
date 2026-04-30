@@ -35,6 +35,62 @@ export default function ElectricCartsPage() {
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
   const { reservations } = useCartReservations();
+  const { authorizations } = useMobilityAuthorizations('carro_eletrico');
+
+  // Sorted authorized list (only liberados appear first; pendentes ainda visíveis ao final)
+  const sortedAuthorizations = useMemo(() => {
+    const norm = (s: string) => (s || '').toLocaleLowerCase('pt-BR');
+    return [...authorizations].sort((a: any, b: any) => {
+      const sa = a.access_status === 'liberado' ? 0 : 1;
+      const sb = b.access_status === 'liberado' ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return norm(a.member_name).localeCompare(norm(b.member_name));
+    });
+  }, [authorizations]);
+
+  // Map: nome (lower) -> committee_name_snapshot (para resolver comissão de retiradores externos atuais)
+  const authNameToCommission = useMemo(() => {
+    const map = new Map<string, string>();
+    authorizations.forEach((a: any) => {
+      const key = (a.member_name || '').trim().toLocaleLowerCase('pt-BR');
+      if (key && !map.has(key)) map.set(key, a.committee_name_snapshot || '');
+    });
+    return map;
+  }, [authorizations]);
+
+  // Para cada comissão, lista carrinhos atualmente em uso
+  const activeByCommission = useMemo(() => {
+    const map = new Map<string, Array<{ codigo: string; nome: string; retiradoPor: string }>>();
+    const pushItem = (comissao: string, item: { codigo: string; nome: string; retiradoPor: string }) => {
+      const key = (comissao || '').trim();
+      if (!key) return;
+      const arr = map.get(key) || [];
+      arr.push(item);
+      map.set(key, arr);
+    };
+    carts.filter((c: any) => c.status === 'em_uso').forEach((c: any) => {
+      let comissao: string | null = c.comissao || null;
+      let retiradoPor = c.nome_externo || '';
+      if (!comissao && c.responsavel_user_id) {
+        const m = members.find((mm: any) => mm.user_id === c.responsavel_user_id);
+        if (m) {
+          retiradoPor = m.nome_exibicao || retiradoPor;
+          if (m.commission_id) {
+            const com = commissions.find((cc: any) => cc.id === m.commission_id);
+            comissao = com?.nome || null;
+          }
+        }
+      }
+      if (!comissao && c.nome_externo) {
+        const key = c.nome_externo.trim().toLocaleLowerCase('pt-BR');
+        comissao = authNameToCommission.get(key) || null;
+      }
+      if (comissao) {
+        pushItem(comissao, { codigo: c.codigo, nome: c.nome || c.codigo, retiradoPor });
+      }
+    });
+    return map;
+  }, [carts, members, commissions, authNameToCommission]);
 
   // Map next active/upcoming reservation per cart with resolved label
   const nextReservationByCart = useMemo(() => {
