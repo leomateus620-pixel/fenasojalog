@@ -40,7 +40,18 @@ export default function ReservationDialog({ open, onOpenChange, reservation }: P
   const { carts } = useElectricCarts();
   const { members } = useOrgMembers();
   const { commissions } = useCommissions();
-  const { create, update } = useCartReservations();
+  const { authorizations } = useMobilityAuthorizations('carro_eletrico');
+  const { create, update, reservations } = useCartReservations();
+
+  const sortedAuthorizations = useMemo(() => {
+    const norm = (s: string) => (s || '').toLocaleLowerCase('pt-BR');
+    return [...authorizations].sort((a: any, b: any) => {
+      const sa = a.access_status === 'liberado' ? 0 : 1;
+      const sb = b.access_status === 'liberado' ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return norm(a.member_name).localeCompare(norm(b.member_name));
+    });
+  }, [authorizations]);
 
   const [cartId, setCartId] = useState('');
   const [tipo, setTipo] = useState<ReservationTipo>('interno');
