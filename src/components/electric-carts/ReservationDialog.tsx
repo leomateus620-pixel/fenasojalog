@@ -229,24 +229,74 @@ export default function ReservationDialog({ open, onOpenChange, reservation }: P
 
           <Tabs value={tipo} onValueChange={(v) => { setTipo(v as ReservationTipo); }}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="interno">Membro</TabsTrigger>
+              <TabsTrigger value="interno">Autorizado</TabsTrigger>
               <TabsTrigger value="empresa">Empresa</TabsTrigger>
               <TabsTrigger value="outros">Outros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="interno" className="space-y-3 mt-3">
-              <Select value={userId} onValueChange={(v) => { setUserId(v); setComissao(memberCommissionMap.get(v) || ''); }}>
+              <Select
+                value={userId}
+                onValueChange={(v) => {
+                  if (v.startsWith('auth:')) {
+                    const id = v.slice(5);
+                    const a: any = sortedAuthorizations.find((x: any) => x.id === id);
+                    setUserId(v);
+                    setNomeExterno((a?.member_name || '').toUpperCase());
+                    setComissao(a?.committee_name_snapshot || '');
+                    return;
+                  }
+                  setUserId(v);
+                  setNomeExterno('');
+                  setComissao(memberCommissionMap.get(v) || '');
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[60dvh]">
+                  {sortedAuthorizations.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Autorizados (Carro Elétrico)
+                      </div>
+                      {sortedAuthorizations.map((a: any) => (
+                        <SelectItem key={`auth-${a.id}`} value={`auth:${a.id}`}>
+                          <span className="font-medium">{a.member_name}</span>
+                          <span className="text-muted-foreground"> — {a.committee_name_snapshot}</span>
+                          {a.access_status !== 'liberado' && (
+                            <span className="ml-2 text-[10px] text-amber-600">({a.access_status})</span>
+                          )}
+                        </SelectItem>
+                      ))}
+                      {members.length > 0 && (
+                        <div className="px-2 py-1 mt-1 text-[10px] uppercase tracking-wider text-muted-foreground border-t">
+                          Membros internos
+                        </div>
+                      )}
+                    </>
+                  )}
                   {members.map((m: any) => (
                     <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {comissao && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Label className="text-xs text-muted-foreground">Comissão:</Label>
                   <Badge variant="secondary">{comissao}</Badge>
+                </div>
+              )}
+              {overlappingByCommission.length > 0 && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="text-xs leading-snug">
+                    <p className="font-semibold">Esta comissão já tem reserva no período.</p>
+                    <p className="opacity-90">
+                      {overlappingByCommission
+                        .map((o) => `${o.cartCodigo}${o.quem ? ` (${o.quem})` : ''}`)
+                        .join(', ')}
+                    </p>
+                    <p className="opacity-80 mt-0.5">Recomendado: 1 carrinho por comissão. Você pode prosseguir.</p>
+                  </div>
                 </div>
               )}
             </TabsContent>
