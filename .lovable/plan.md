@@ -1,87 +1,84 @@
-## Auditoria de Veículos Botolli — KM e Custo Estimado
+## Objetivo
 
-### 1. Como o sistema calcula hoje
+Transformar o módulo **Patinetes** numa réplica funcional/visual do módulo **Carrinhos Elétricos**, mantendo as regras de mobilidade da Fenasoja:
 
-- **Custo estimado** = `KM Rodados × R$ 0,65` (constante `FUEL_COST_PER_KM` em `VehiclesPage.tsx`).
-- **KM Rodados** vem **exclusivamente** de `vehicle_usage.km_rodados` (coluna `GENERATED ALWAYS AS km_chegada - km_saida`), via `useVehicleUsage`.
-- Cada transporte concluído gera 2 registros automáticos em `vehicle_usage` ("Ida automática" + "Volta automática"), cuja soma deveria igualar `transports.km_devolucao - km_retirada`.
-- O odômetro `vehicles.km_atual` é editado manualmente (form de edição) e não é recalculado automaticamente.
+- Cards Liquid Glass 3D premium com mesmo nível de detalhe (status, halo, shimmer, avatar/parceiro, tempo decorrido, próxima reserva).
+- Retirada **somente** para pessoas com cadastro de autorização para `patinete` (vindas de `mobility_authorizations` `authorization_type='patinete'`), com fallback para "Empresa parceira" e "Outros (nome + telefone)".
+- Histórico completo por patinete, com nome e telefone de quem usou salvos no banco.
+- Aba **Reservas** (período inicio→fim) idêntica à dos carrinhos.
 
-A fórmula em si está **correta** (R$ 0,65/km × Σ km_rodados). O problema é de **dados/integridade**, não de cálculo.
+## Arquitetura de banco (migrations)
 
-### 2. Achados da auditoria (dados reais hoje)
+1. `scooters` — adicionar colunas para paridade com `electric_carts`:
+   - `tipo_responsavel text not null default 'interno'` (`interno|empresa|outros`)
+   - `empresa_slug text null`
+   - `nome_externo text null`
+   - `telefone_externo text null`
+   - `comissao text null`
+   - `devolucao_prevista_em timestamptz null` (já existe)
+2. `scooter_history` — adicionar `notes text null` (já guarda `before_data/after_data` jsonb com nome/telefone/comissão da retirada).
+3. Nova tabela `scooter_reservations` espelhando `cart_reservations`:
+   - colunas: `id, org_id, scooter_id, tipo_responsavel, responsavel_user_id, comissao, empresa_slug, nome_externo, telefone_externo, inicio_em, fim_em, status ('agendada'|'em_andamento'|'concluida'|'cancelada'), observacoes, created_by_user_id, created_at, updated_at`
+   - RLS PERMISSIVE igual `cart_reservations` (select=member; insert/update=admin/gestor/operador; delete=admin/gestor)
+   - Trigger `validate_scooter_reservation` análogo a `validate_cart_reservation` (fim>inicio, validação por `tipo_responsavel`, conflito de período por `scooter_id`).
+   - Trigger `set_updated_at`.
 
-```text
-placa    | km_atual | Σ usage | min_saida | max_chegada | diagnóstico
----------+----------+---------+-----------+-------------+----------------------------------
-IXU8B21  |  124065  |    178  |  123799   |   124065    | OK (max_chegada == km_atual)
-IZH9J56  |  125616  |    212  |  125386   |   125616    | OK
-IZT7H43  |   87769  |    638  |       0   |    87769    | INCONSISTENTE — usage com km_saida=0/280/560 (backfill ruim)
-JDF6D47  |   25952  |    143  |   25668   |    25811    | km_atual avançou 141 km sem usage fechado correspondente
-TQW2A80  |       0  |      0  |     —     |      —      | odômetro nunca informado
-TQX7C18  |    5347  |   1206  |    4403   |    5325     | OK estrutural (Σ ≈ 5325-4403 = 922; mas há sobreposições, ver abaixo)
-(sem placa) DEFENDER 4X4 | 0 | 0 | — | — | veículo sem placa
-```
+## Frontend
 
-**Inconsistências confirmadas:**
+### Novos arquivos (em `src/components/scooters/`)
+- `ScooterCard.tsx` — clone de `ElectricCartCard.tsx` adaptado: ícone `Bike`, leitura de autorização (badge "Autorizado") quando `tipo_responsavel='outros'` vindo de `mobility_authorizations`.
+- `ScootersFilters.tsx` — clone de `ElectricCartsFilters.tsx`.
+- `ScooterPickupDialog.tsx` — equivalente ao fluxo de retirada do carrinho mas **sem** período (só retirada imediata): tabs `Autorizado | Empresa | Outros`. A aba **Autorizado** lista somente `mobility_authorizations` com `authorization_type='patinete'` ordenados por `liberado` primeiro. Em `Outros` exige nome + telefone.
+- `ScooterReservationDialog.tsx` — clone de `ReservationDialog.tsx` filtrando autorizações por `patinete`.
+- `ScooterReservationCard.tsx` + `ScooterReservationsTab.tsx` — clones dos equivalentes de carrinho.
+- `ScooterHistorySheet.tsx` — extrai e melhora o `ScooterHistoryContent` atual: linhas com nome/telefone/comissão/origem (autorizado/parceiro/outros), duração, observações, ícones e badges Liquid Glass.
 
-a) **IZT7H43 (T-CROSS)** — transporte `9da9dd3c…` (Aeroporto) tem `km_retirada=0` e `km_devolucao=560`, gerando 2 usages `0→280` e `280→560`. Como o veículo já estava em ~86.700 km, esses 560 km estão **isolados do resto do odômetro** e somam 560 km falsos no custo estimado.
+### Hooks
+- `useScooterReservations.ts` (novo) — espelha `useCartReservations.ts` (CRUD + setStatus + invalidações).
+- `useScooters.ts` — atualizar:
+  - `pickup` aceita `{ id, tipo_responsavel, responsavel_user_id?, empresa_slug?, nome_externo?, telefone_externo?, comissao?, retirada_em? }` e grava todos os campos.
+  - `returnScooter` continua igual mas registra em `scooter_history` o snapshot completo (já faz).
+  - `nextReservation` helper: calcula próxima reserva ativa por `scooter_id`.
 
-b) **IZT7H43** — transporte `c70dc388…` tem `km_devolucao=87743` mas o usage "Volta automática" gravou `km_chegada=87737` (divergência de 6 km entre `transports` e `vehicle_usage`).
+### Página `src/pages/ScootersPage.tsx`
+Reescrever para espelhar `ElectricCartsPage.tsx`:
+- Header com botões `Reservar`, `Retirada`, `Adicionar`.
+- Tabs: `Frota` | `Reservas` | `Autorizados`.
+- Grid de `ScooterCard` 3D Liquid Glass com filtros (status + busca).
+- `ScooterPickupDialog`, `ScooterReservationDialog`, `ScooterHistorySheet` controlados aqui.
 
-c) **IZT7H43** — usages manuais com sobreposições:  
-   • `87691→87708 (17km)` E `87691→87694 + 87694→87697 (auto, 6km)` no mesmo período → mesmas KMs contadas 2x.  
-   • `87760→87769 (9km)` sobrepõe `87760→87763→87766` (auto) → contagem dupla.
+## Regra de autorização (bloqueio)
 
-d) **TQX7C18 (T-CROSS)** — usage manual `5039→5323 (284 km)` sobrepõe o transporte automático `5039→5182 (143 km)` no mesmo intervalo → contagem dupla de ~143 km.
+No `ScooterPickupDialog` aba **Autorizado**:
+- Fonte de dados: `useMobilityAuthorizations('patinete')`.
+- Se `authorizations.length === 0` → exibir alerta Liquid Glass "Nenhuma pessoa autorizada para patinete. Cadastre em Mobilidade por Comissão." e desabilitar a aba.
+- Selecionar autorizado preenche `nome_externo` (do `member_name`), `telefone_externo` (vazio, exigido como obrigatório no momento da retirada) e `comissao` (`committee_name_snapshot`). Persiste como `tipo_responsavel='outros'` referenciando o `member_id` em `observacoes` (compatível com `cart_reservations`).
+- Apenas `tipo_responsavel='empresa'` e `outros` podem ser usados sem autorização — mas mantém aviso.
 
-e) **JDF6D47 (AMAROK)** — `km_atual=25952` mas último usage fechado é `25811` e há um usage aberto começando em `25952` ("Imigrantes centro civico"). Há um transporte `em_andamento` que retirou em `25952` com estimativa 630 km. Diferença `25952-25811=141 km` foi rodada **sem registro de uso fechado**.
+## Visual Liquid Glass 3D
 
-f) **Custo estimado global** está atualmente inflado por: 560 km falsos do IZT7H43 + ~143 km duplicados do TQX7C18 + ~26 km duplicados do IZT7H43 ≈ **~730 km × R$ 0,65 ≈ R$ 475 a mais** no card "Custo Estimado".
+- Reaproveitar exatamente as classes/halos/shimmer de `ElectricCartCard` (gradient `from-card/85 via-card/65 to-card/45`, `backdrop-blur-2xl`, halo radial top-right, `motion-safe:animate-halo-breath`, ring `accent` em uso).
+- Trocar ícone `Zap` por `Bike` mantendo paleta (verde Fenasoja para disponível, accent/gold para em uso, destructive para manutenção).
+- Badge de próxima reserva com mesmas variantes (`now`/`soon`/`future`).
 
-g) **Veículos zerados**: `TQW2A80 (SAVEIRO)` e `DEFENDER 4X4 (sem placa)` têm `km_atual=0` — não entram no custo, mas distorcem qualquer média futura.
+## Detalhes técnicos
 
-### 3. Plano de correção
+- Mobile-first 393px: grid `grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4`.
+- z-index dos halos = 0; dialogs em z-50, `max-h-[90dvh]`.
+- Inputs sempre uppercase via `className="uppercase"` para nome.
+- Telefone formatado `(00) 00000-0000` (sem máscara automática agora — texto livre como nos carrinhos).
+- Audit: cada `pickup`/`return`/`reservation` invoca `logAudit` + `scooter_history`.
+- Realtime opcional (não obrigatório nesta iteração).
 
-#### 3.1 Correções de dados (migrations / inserts)
+## Entregáveis
 
-1. **Excluir os 2 usages órfãos do transporte `9da9dd3c…` (IZT7H43)** — `km_saida=0/280` claramente errados (backfill antigo). Manter o registro do transporte mas zerar `km_retirada/km_devolucao` ou substituir pelos valores reais se conhecidos. Como não temos o odômetro real, o mais seguro é **deletar os 2 usages** e marcar a observação do transporte como "KM não consolidado".
-2. **Reconciliar usages manuais sobrepostos do IZT7H43 e TQX7C18**: deletar os manuais que duplicam intervalos já cobertos por usages automáticos (`87691→87708`, `87760→87769`, `5039→5323`).
-3. **Corrigir o usage automático `c70dc388…`** para `km_chegada=87743` (alinhar com `transports.km_devolucao`).
-4. **JDF6D47**: criar um usage fechado `25811→25952` para preencher o gap (ou pedir ao usuário a justificativa).
+1. Migration SQL (colunas em `scooters`, nova tabela `scooter_reservations` + trigger + RLS).
+2. Hook `useScooterReservations.ts`; atualização de `useScooters.ts`.
+3. 7 componentes em `src/components/scooters/`.
+4. `ScootersPage.tsx` reescrita com Tabs.
+5. Memória `mem://features/scooters-liquid-glass` documentando paridade com carrinhos.
 
-> Todas essas operações de UPDATE/DELETE serão feitas via migration (apenas SELECT/INSERT são permitidos com a conexão atual).
+## Fora de escopo
 
-#### 3.2 Correções no app (`VehiclesPage.tsx`, hooks)
-
-1. **Validação anti-sobreposição** em `vehicle_usage`: ao criar/editar um usage manual, verificar se o intervalo `[km_saida, km_chegada]` se sobrepõe a outro usage do mesmo veículo, e bloquear/avisar.
-2. **Sincronizar `vehicles.km_atual` automaticamente**: trigger ou hook que atualiza `km_atual = max(km_chegada)` sempre que um usage é fechado. Hoje pode ficar defasado ou à frente.
-3. **KPI "Coerência odômetro"**: novo card/badge no detalhe do veículo mostrando `Σ km_rodados` vs `(km_atual − odômetro_inicial)` para flagrar divergências.
-4. **Tratar `km_retirada=0`** no edge function `transport-lifecycle`: nunca gerar usages se `km_retirada` for 0 ou nulo — em vez disso marcar o transporte como "pendente de KM".
-5. **Excluir do Custo Estimado os veículos sem `km_atual` definido** ou destacar separadamente "frota sem odômetro".
-
-#### 3.3 Relatório de auditoria por veículo
-
-Adicionar no Dialog de detalhe (ou no PDF) uma seção **"Conferência de Odômetro"** com:
-- Odômetro inicial (primeiro `km_saida` registrado)
-- Odômetro atual (`vehicles.km_atual`)
-- Σ km_rodados (vehicle_usage)
-- Diferença esperada vs real, em verde/vermelho
-
-### 4. Detalhes técnicos
-
-Arquivos impactados:
-- `src/pages/VehiclesPage.tsx` — adicionar bloco de coerência, ajustar KPI, exibir aviso se há divergência.
-- `src/hooks/useVehicleUsage.ts` — adicionar validação de sobreposição na mutation `createUsage/updateUsage`.
-- `src/hooks/useVehicles.ts` — após fechar usage, atualizar `km_atual` se necessário.
-- `supabase/functions/transport-lifecycle/index.ts` — não criar usages quando `km_retirada` ausente/zero.
-- Nova migration SQL para limpar os usages problemáticos listados em 3.1.
-
-### 5. Confirmações antes de executar
-
-Antes de aplicar, preciso confirmar com você:
-
-1. **IZT7H43 — transporte Aeroporto `9da9dd3c…` (560 km falsos)**: posso deletar os 2 usages automáticos e zerar os campos km_retirada/km_devolucao do transporte? (Sem o odômetro real, é a única forma de não inflar o custo.)
-2. **Usages manuais sobrepostos** (IZT7H43 `87691→87708`, `87760→87769`; TQX7C18 `5039→5323`): posso deletar para evitar contagem dupla?
-3. **JDF6D47 gap de 141 km**: criar um usage genérico `25811→25952` "Ajuste odômetro", ou deixar o gap?
-4. **Veículos sem placa/odômetro** (DEFENDER, SAVEIRO): mantém ocultos do Custo Estimado, ou exclui da listagem?
+- Notificações WhatsApp na retirada/devolução (não existe nos carrinhos hoje).
+- Conflito por comissão (apenas aviso, igual carrinhos).

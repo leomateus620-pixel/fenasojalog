@@ -1684,6 +1684,63 @@ export type Database = {
           },
         ]
       }
+      scooter_reservations: {
+        Row: {
+          comissao: string | null
+          created_at: string
+          created_by_user_id: string
+          empresa_slug: string | null
+          fim_em: string
+          id: string
+          inicio_em: string
+          nome_externo: string | null
+          observacoes: string | null
+          org_id: string
+          responsavel_user_id: string | null
+          scooter_id: string
+          status: string
+          telefone_externo: string | null
+          tipo_responsavel: string
+          updated_at: string
+        }
+        Insert: {
+          comissao?: string | null
+          created_at?: string
+          created_by_user_id: string
+          empresa_slug?: string | null
+          fim_em: string
+          id?: string
+          inicio_em: string
+          nome_externo?: string | null
+          observacoes?: string | null
+          org_id: string
+          responsavel_user_id?: string | null
+          scooter_id: string
+          status?: string
+          telefone_externo?: string | null
+          tipo_responsavel: string
+          updated_at?: string
+        }
+        Update: {
+          comissao?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          empresa_slug?: string | null
+          fim_em?: string
+          id?: string
+          inicio_em?: string
+          nome_externo?: string | null
+          observacoes?: string | null
+          org_id?: string
+          responsavel_user_id?: string | null
+          scooter_id?: string
+          status?: string
+          telefone_externo?: string | null
+          tipo_responsavel?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scooters: {
         Row: {
           codigo: string
@@ -1691,13 +1748,17 @@ export type Database = {
           created_at: string
           devolucao_em: string | null
           devolucao_prevista_em: string | null
+          empresa_slug: string | null
           id: string
           nome: string | null
+          nome_externo: string | null
           observacoes: string | null
           org_id: string
           responsavel_user_id: string | null
           retirada_em: string | null
           status: Database["public"]["Enums"]["cart_status"]
+          telefone_externo: string | null
+          tipo_responsavel: string
           updated_at: string
         }
         Insert: {
@@ -1706,13 +1767,17 @@ export type Database = {
           created_at?: string
           devolucao_em?: string | null
           devolucao_prevista_em?: string | null
+          empresa_slug?: string | null
           id?: string
           nome?: string | null
+          nome_externo?: string | null
           observacoes?: string | null
           org_id: string
           responsavel_user_id?: string | null
           retirada_em?: string | null
           status?: Database["public"]["Enums"]["cart_status"]
+          telefone_externo?: string | null
+          tipo_responsavel?: string
           updated_at?: string
         }
         Update: {
@@ -1721,13 +1786,17 @@ export type Database = {
           created_at?: string
           devolucao_em?: string | null
           devolucao_prevista_em?: string | null
+          empresa_slug?: string | null
           id?: string
           nome?: string | null
+          nome_externo?: string | null
           observacoes?: string | null
           org_id?: string
           responsavel_user_id?: string | null
           retirada_em?: string | null
           status?: Database["public"]["Enums"]["cart_status"]
+          telefone_externo?: string | null
+          tipo_responsavel?: string
           updated_at?: string
         }
         Relationships: [
