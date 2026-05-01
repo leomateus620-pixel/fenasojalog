@@ -617,11 +617,14 @@ async function handleCompleteReturn(admin: any, userId: string, payload: any) {
   const now = new Date().toISOString();
 
   // Auto-fill km_devolucao from estimated distance if not provided manually (B.3)
+  // Only when km_retirada > 0 to avoid creating phantom KMs disconnected from the
+  // real odometer.
   let autoKmDevolucao: number | null = null;
   if (
     (vehicleUsage?.km_chegada == null) &&
     before.vehicle_id &&
     before.km_retirada != null &&
+    Number(before.km_retirada) > 0 &&
     before.distancia_estimada_km
   ) {
     autoKmDevolucao = Number(before.km_retirada) + Number(before.distancia_estimada_km);
