@@ -1181,6 +1181,125 @@ function VehicleDetailContent({ vehicle, members, userId, kmTotal, fuelCostTotal
           )}
         </div>
       )}
+
+      {/* Expenses tab */}
+      {activeTab === 'despesas' && (
+        <div>
+          {vehicleExpenses.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+              <p className="text-xs text-muted-foreground">Nenhuma despesa vinculada a este veículo</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/expenses')}
+                className="mt-3 h-9 text-xs liquid-glass-card"
+              >
+                Lançar despesa
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {vehicleExpenses.map((e: any) => {
+                const linkedTransport = e.transports;
+                const statusBadge: Record<string, string> = {
+                  rascunho: 'bg-muted text-muted-foreground border-border',
+                  pendente_comprovante: 'bg-warning/15 text-warning border-warning/25',
+                  pendente_validacao: 'bg-info/15 text-info border-info/25',
+                  validada: 'bg-success/15 text-success border-success/25',
+                  reembolsada: 'bg-success/15 text-success border-success/25',
+                  recusada: 'bg-destructive/15 text-destructive border-destructive/25',
+                };
+                const statusCls = statusBadge[e.status] || statusBadge.rascunho;
+                const dateLabel = e.expense_date
+                  ? new Date(e.expense_date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })
+                  : '—';
+                return (
+                  <div key={e.id} className="rounded-xl liquid-glass-card p-3 text-xs space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-foreground truncate">{e.title || 'Despesa'}</p>
+                        {e.expense_categories?.name && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{e.expense_categories.name}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-sm font-bold text-foreground tabular-nums">
+                          {formatCurrency(Number(e.amount) || 0)}
+                        </span>
+                        {canDeleteExpense && (
+                          <button
+                            onClick={() => setExpenseToDelete(e)}
+                            aria-label="Excluir despesa"
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={cn('text-[9px] font-medium', statusCls)}>
+                        {(e.status || 'rascunho').replace(/_/g, ' ')}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {dateLabel}
+                      </span>
+                      {linkedTransport && (
+                        <button
+                          type="button"
+                          onClick={() => navigate('/transports')}
+                          className="text-[10px] text-info flex items-center gap-1 hover:underline"
+                        >
+                          <MapPin className="w-3 h-3" />
+                          {linkedTransport.titulo || linkedTransport.destino}
+                        </button>
+                      )}
+                    </div>
+                    {e.description && (
+                      <p className="text-muted-foreground italic line-clamp-2">{e.description}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <AlertDialog open={!!expenseToDelete} onOpenChange={(o) => { if (!o) setExpenseToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {expenseToDelete?.title ? `"${expenseToDelete.title}"` : 'Esta despesa'} será removida permanentemente, junto com seus comprovantes e histórico de aprovações. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingExpense}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deletingExpense}
+              onClick={async (ev) => {
+                ev.preventDefault();
+                if (!expenseToDelete) return;
+                setDeletingExpense(true);
+                try {
+                  await removeExpense.mutateAsync(expenseToDelete.id);
+                  toast.success('Despesa excluída');
+                  setExpenseToDelete(null);
+                } catch (err: any) {
+                  toast.error(err?.message || 'Erro ao excluir despesa');
+                } finally {
+                  setDeletingExpense(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingExpense ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
