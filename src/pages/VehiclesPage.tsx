@@ -780,8 +780,45 @@ function VehicleDetailContent({ vehicle, members, userId, kmTotal, fuelCostTotal
     generateVehiclePDF(vehicle, usages, fuelRecords, kmTotal, members);
   };
 
+  const activeTransport = useMemo(
+    () =>
+      (transports as any[]).find(
+        (t: any) =>
+          t?.vehicle_id === vehicle.id &&
+          ['em_andamento', 'em_retorno', 'chegou_destino'].includes(t.status),
+      ),
+    [transports, vehicle.id],
+  );
+  const activeTransportDriver = activeTransport
+    ? members.find((m: any) => m.user_id === activeTransport.motorista_user_id)
+    : null;
+
   return (
     <div className="space-y-4">
+      {activeTransport && (
+        <button
+          type="button"
+          onClick={() => navigate('/transports')}
+          className="w-full flex items-center gap-3 rounded-xl bg-info/10 border border-info/30 p-3 text-left hover:bg-info/15 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-xl bg-info/20 flex items-center justify-center shrink-0">
+            <MapPin className="w-4 h-4 text-info" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold text-info uppercase tracking-wider">Transporte ativo</p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {activeTransport.origem} → {activeTransport.destino}
+            </p>
+            {activeTransportDriver && (
+              <p className="text-[11px] text-muted-foreground truncate">
+                Motorista: {activeTransportDriver.nome_exibicao}
+              </p>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-info shrink-0" />
+        </button>
+      )}
+
       {/* Vehicle metrics summary */}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-xl bg-primary/5 border border-primary/10 p-3 text-center">
