@@ -981,6 +981,12 @@ function VehicleDetailContent({ vehicle, members, userId, kmTotal, fuelCostTotal
         >
           Combustível <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{fuelRecords.length}</Badge>
         </button>
+        <button
+          className={cn('flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5', activeTab === 'despesas' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground')}
+          onClick={() => setActiveTab('despesas')}
+        >
+          Despesas <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{vehicleExpenses.length}</Badge>
+        </button>
       </div>
 
       {/* Usage history tab */}
