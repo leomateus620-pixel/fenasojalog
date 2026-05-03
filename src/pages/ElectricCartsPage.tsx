@@ -360,30 +360,70 @@ export default function ElectricCartsPage() {
                 >
                   <SelectTrigger><SelectValue placeholder="Quem retira" /></SelectTrigger>
                   <SelectContent className="max-h-[60dvh]">
-                    {sortedAuthorizations.length > 0 && (
-                      <>
-                        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Autorizados (Carro Elétrico)
-                        </div>
-                        {sortedAuthorizations.map((a: any) => (
-                          <SelectItem key={`auth-${a.id}`} value={`auth:${a.id}`}>
-                            <span className="font-medium">{a.member_name}</span>
-                            <span className="text-muted-foreground"> — {a.committee_name_snapshot}</span>
-                            {a.access_status !== 'liberado' && (
-                              <span className="ml-2 text-[10px] text-amber-600">({a.access_status})</span>
-                            )}
-                          </SelectItem>
-                        ))}
-                        {members.length > 0 && (
-                          <div className="px-2 py-1 mt-1 text-[10px] uppercase tracking-wider text-muted-foreground border-t">
-                            Membros internos
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {members.map((m: any) => (
-                      <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
-                    ))}
+                    <div className="sticky top-0 z-10 bg-popover border-b p-2">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <Input
+                          autoFocus
+                          value={authSearch}
+                          onChange={(e) => setAuthSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          placeholder="Buscar por nome ou comissão..."
+                          className="h-9 pl-8 text-sm rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    {(() => {
+                      const norm = (s: string) => (s || '')
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .toLowerCase();
+                      const q = norm(authSearch.trim());
+                      const matchAuth = (a: any) =>
+                        !q || norm(a.member_name).includes(q) || norm(a.committee_name_snapshot).includes(q);
+                      const matchMember = (m: any) =>
+                        !q || norm(m.nome_exibicao).includes(q) || norm(m.cargo).includes(q);
+                      const filteredAuth = sortedAuthorizations.filter(matchAuth);
+                      const filteredMembers = members.filter(matchMember);
+                      const empty = filteredAuth.length === 0 && filteredMembers.length === 0;
+                      return (
+                        <>
+                          {filteredAuth.length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Autorizados (Carro Elétrico)
+                              </div>
+                              {filteredAuth.map((a: any) => (
+                                <SelectItem key={`auth-${a.id}`} value={`auth:${a.id}`}>
+                                  <span className="font-medium">{a.member_name}</span>
+                                  <span className="text-muted-foreground"> — {a.committee_name_snapshot}</span>
+                                  {a.access_status !== 'liberado' && (
+                                    <span className="ml-2 text-[10px] text-amber-600">({a.access_status})</span>
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {filteredMembers.length > 0 && (
+                            <>
+                              <div className={cn(
+                                'px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground',
+                                filteredAuth.length > 0 && 'mt-1 border-t'
+                              )}>
+                                Membros internos
+                              </div>
+                              {filteredMembers.map((m: any) => (
+                                <SelectItem key={m.user_id} value={m.user_id}>{m.nome_exibicao} - {m.cargo}</SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {empty && (
+                            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                              Nenhum resultado para “{authSearch}”
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </SelectContent>
                 </Select>
                 {pickupForm.comissao && (
