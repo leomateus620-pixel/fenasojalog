@@ -165,6 +165,7 @@ export default {
         "halo-breath": "halo-breath 4s ease-in-out infinite",
         "recipient-rise": "recipient-rise 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
         "gold-shimmer": "gold-shimmer 2.6s ease-in-out infinite",
+        "floating-bar-in": "floating-bar-in 220ms cubic-bezier(0.22,1,0.36,1) both",
       },
     },
   },
