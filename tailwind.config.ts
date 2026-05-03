@@ -145,6 +145,10 @@ export default {
           "30%": { opacity: "0.9" },
           "100%": { transform: "translateX(220%) skewX(-20deg)", opacity: "0" },
         },
+        "floating-bar-in": {
+          "0%": { opacity: "0", transform: "translateY(-12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -161,6 +165,7 @@ export default {
         "halo-breath": "halo-breath 4s ease-in-out infinite",
         "recipient-rise": "recipient-rise 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
         "gold-shimmer": "gold-shimmer 2.6s ease-in-out infinite",
+        "floating-bar-in": "floating-bar-in 220ms cubic-bezier(0.22,1,0.36,1) both",
       },
     },
   },
