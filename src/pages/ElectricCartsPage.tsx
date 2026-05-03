@@ -5,7 +5,7 @@ import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
 import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal, ensureSPOffset } from '@/lib/utils';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
