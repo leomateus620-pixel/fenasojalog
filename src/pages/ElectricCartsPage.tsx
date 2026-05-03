@@ -253,28 +253,46 @@ export default function ElectricCartsPage() {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  const { direction, scrollY } = useScrollDirection({ delta: 10, activateAfter: 160 });
-  const showFloating = direction === 'up' && scrollY > 160;
+  const originalPickupRef = useRef<HTMLDivElement | null>(null);
+  const [isOriginalPickupVisible, setIsOriginalPickupVisible] = useState(true);
+
+  useEffect(() => {
+    const el = originalPickupRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      ([entry]) => setIsOriginalPickupVisible(entry.isIntersecting && entry.intersectionRatio > 0.15),
+      { threshold: [0, 0.15, 0.3, 0.6, 1] }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const { direction, scrollY } = useScrollDirection({ delta: 8, activateAfter: 160 });
+  const showFloatingWithdrawalCard =
+    direction === 'up' && scrollY > 180 && !isOriginalPickupVisible;
 
   return (
     <div className="space-y-6">
-      <FloatingPickupBar
-        visible={showFloating}
-        onClick={openPickup}
-        available={counts.disponivel}
-        inUse={counts.em_uso}
-      />
+      {showFloatingWithdrawalCard && (
+        <FloatingPickupBar
+          onClick={openPickup}
+          available={counts.disponivel}
+          inUse={counts.em_uso}
+        />
+      )}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Carrinhos Elétricos</h1>
         <p className="text-sm text-muted-foreground mt-1">Gerencie os carrinhos elétricos do evento</p>
       </div>
 
       {/* Hero CTA — Retirada em destaque */}
-      <PickupHeroCard
-        onClick={openPickup}
-        available={counts.disponivel}
-        inUse={counts.em_uso}
-      />
+      <div ref={originalPickupRef}>
+        <PickupHeroCard
+          onClick={openPickup}
+          available={counts.disponivel}
+          inUse={counts.em_uso}
+        />
+      </div>
 
       <div className="flex justify-end">
         <Link to="/electric-carts/report">
