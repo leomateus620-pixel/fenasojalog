@@ -315,7 +315,7 @@ export default function ElectricCartsPage() {
       </Dialog>
 
       {/* Pickup dialog */}
-      <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+      <Dialog open={pickupOpen} onOpenChange={(v) => { setPickupOpen(v); if (!v) setAuthSearch(''); }}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Registrar Retirada</DialogTitle></DialogHeader>
           <div className="space-y-3">
