@@ -2,7 +2,7 @@ import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
-import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle } from 'lucide-react';
+import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal, ensureSPOffset } from '@/lib/utils';
 import { useMemo, useState } from 'react';
@@ -20,6 +20,7 @@ import { PARTNERS, getPartner, type PartnerSlug } from '@/lib/partners';
 import ElectricCartCard from '@/components/electric-carts/ElectricCartCard';
 import ElectricCartsFilters, { type CartStatusFilter } from '@/components/electric-carts/ElectricCartsFilters';
 import ReservationsTab from '@/components/electric-carts/ReservationsTab';
+import PickupHeroCard from '@/components/electric-carts/PickupHeroCard';
 import { useCartReservations, type CartReservation } from '@/hooks/useCartReservations';
 import { User } from 'lucide-react';
 
