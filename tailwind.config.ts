@@ -145,6 +145,10 @@ export default {
           "30%": { opacity: "0.9" },
           "100%": { transform: "translateX(220%) skewX(-20deg)", opacity: "0" },
         },
+        "floating-bar-in": {
+          "0%": { opacity: "0", transform: "translateY(-12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
