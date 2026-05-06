@@ -293,6 +293,24 @@ export default function ScooterPickupDialog({ open, onOpenChange }: Props) {
           </Button>
         </div>
       </DialogContent>
+      <PersonPickerSheet
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        authorizations={sortedAuthorizations}
+        members={members}
+        tabs={tipo === 'interno' ? ['internos'] : ['autorizados']}
+        defaultTab={pickerMode}
+        onSelectAuth={(a: any) => {
+          setUserId(`auth:${a.id}`);
+          setNomeExterno((a?.member_name || '').toUpperCase());
+          setComissao(a?.committee_name_snapshot || '');
+          setTelefoneExterno(a?.operational_responsible_phone || '');
+        }}
+        onSelectMember={(m: any) => {
+          setUserId(m.user_id);
+          setComissao(memberCommissionMap.get(m.user_id) || '');
+        }}
+      />
     </Dialog>
   );
 }
