@@ -14,7 +14,8 @@ import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
 import { toast } from 'sonner';
-import { AlertTriangle, Bike } from 'lucide-react';
+import { AlertTriangle, Bike, Search, X, ArrowRight } from 'lucide-react';
+import PersonPickerSheet from '@/components/electric-carts/PersonPickerSheet';
 
 interface Props {
   open: boolean;
