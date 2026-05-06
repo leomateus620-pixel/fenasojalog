@@ -2,7 +2,7 @@ import { useElectricCarts } from '@/hooks/useElectricCarts';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useCommissions } from '@/hooks/useCommissions';
 import { useMobilityAuthorizations } from '@/hooks/useMobilityAuthorizations';
-import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle, Search } from 'lucide-react';
+import { Zap, Plus, Clock, ArrowRight, FileText, AlertTriangle, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, nowSP, nowSPLocal, ensureSPOffset } from '@/lib/utils';
 import { useEffect, useMemo, useRef, useState } from 'react';
