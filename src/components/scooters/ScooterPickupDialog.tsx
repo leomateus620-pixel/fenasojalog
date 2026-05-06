@@ -38,6 +38,8 @@ export default function ScooterPickupDialog({ open, onOpenChange }: Props) {
   const [nomeExterno, setNomeExterno] = useState('');
   const [telefoneExterno, setTelefoneExterno] = useState('');
   const [retiradaEm, setRetiradaEm] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'autorizados' | 'internos'>('autorizados');
   const submittingRef = useRef(false);
 
   useEffect(() => {
