@@ -22,6 +22,7 @@ import ElectricCartsFilters, { type CartStatusFilter } from '@/components/electr
 import ReservationsTab from '@/components/electric-carts/ReservationsTab';
 import PickupHeroCard from '@/components/electric-carts/PickupHeroCard';
 import FloatingPickupBar from '@/components/electric-carts/FloatingPickupBar';
+import PersonPickerSheet from '@/components/electric-carts/PersonPickerSheet';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useCartReservations, type CartReservation } from '@/hooks/useCartReservations';
 import { User } from 'lucide-react';
