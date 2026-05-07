@@ -914,6 +914,54 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
     setEditOpen(true);
   };
 
+  const openOdometerSheet = (t: any, isReturnFlow: boolean) => {
+    setOdometerCtx({ transportId: t.id, isReturnFlow });
+    setOdometerOpen(true);
+  };
+
+  const handleOdometerConfirm = async (payload: OdometerConfirmPayload) => {
+    if (!odometerCtx) return;
+    const t = transports.find((x: any) => x.id === odometerCtx.transportId);
+    if (!t) return;
+    try {
+      const kmSaida = payload.km_retirada;
+      const kmChegada = payload.km_devolucao;
+      const hasBoth = kmSaida != null && kmChegada != null && t.vehicle_id;
+      const vehicleUsage = hasBoth ? {
+        vehicle_id: t.vehicle_id,
+        responsavel_user_id: t.motorista_user_id || null,
+        km_saida: kmSaida,
+        km_chegada: kmChegada,
+        km_rodados: (kmChegada as number) - (kmSaida as number),
+        devolucao_em: payload.fim_em,
+        fim_em: payload.fim_em,
+      } : null;
+
+      if (odometerCtx.isReturnFlow) {
+        await completeReturn.mutateAsync({ id: t.id, vehicleUsage });
+      } else {
+        await update.mutateAsync({
+          id: t.id,
+          updates: {
+            status: 'concluido',
+            km_retirada: kmSaida,
+            km_devolucao: kmChegada,
+            fim_em: payload.fim_em,
+            fim_real_em: nowSP(),
+          },
+          expectedUpdatedAt: t.updated_at,
+          vehicleUsage,
+        });
+        toast.success('Viagem finalizada');
+      }
+      setOdometerOpen(false);
+      setOdometerCtx(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao finalizar');
+    }
+  };
+
+
   const sorted = [...transports].sort((a: any, b: any) => (a.inicio_em || '').localeCompare(b.inicio_em || ''));
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T');
 
