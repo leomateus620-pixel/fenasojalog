@@ -1299,6 +1299,27 @@ setReturnForm({ inicio_em: '', voo_numero: '', voo_checkin: '', horario_saida: '
         startedAt={startTripStartedAt}
         isAirport={startTripTitulo === 'Aeroporto'}
       />
+
+      {/* ─── Odometer Finalize Sheet ─── */}
+      {(() => {
+        const t = odometerCtx ? transports.find((x: any) => x.id === odometerCtx.transportId) : null;
+        const v = t?.vehicle_id ? vehicles.find((vv: any) => vv.id === t.vehicle_id) : null;
+        const drv = t?.motorista_user_id ? members.find((m: any) => m.user_id === t.motorista_user_id) : null;
+        const estKm = t ? getEffectiveEstimatedKm(t.distancia_estimada_km, t.titulo, t.voo_cidade, t.destino) : null;
+        return (
+          <OdometerFinalizeSheet
+            open={odometerOpen}
+            onOpenChange={(v) => { setOdometerOpen(v); if (!v) setOdometerCtx(null); }}
+            transport={t}
+            vehicle={v}
+            driverName={drv?.nome_exibicao}
+            estimatedKm={estKm}
+            isReturnFlow={!!odometerCtx?.isReturnFlow}
+            isPending={update.isPending || completeReturn.isPending}
+            onConfirm={handleOdometerConfirm}
+          />
+        );
+      })()}
     </div>
   );
 }
