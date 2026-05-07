@@ -438,6 +438,10 @@ export default function TransportsPage() {
   const [startTripStartedAt, setStartTripStartedAt] = useState('');
   const [startTripTitulo, setStartTripTitulo] = useState('');
 
+  // Odometer finalize sheet
+  const [odometerOpen, setOdometerOpen] = useState(false);
+  const [odometerCtx, setOdometerCtx] = useState<{ transportId: string; isReturnFlow: boolean } | null>(null);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState('');
   const [editGuests, setEditGuests] = useState<string[]>([]);
