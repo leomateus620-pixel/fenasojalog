@@ -158,6 +158,8 @@ export default function Dashboard() {
   const { members, isLoading: loadMembers } = useOrgMembers();
   const { shifts, assignments, isLoading: loadSchedules } = useSchedules();
   const { stats: expenseStats } = useExpenses();
+  const metrics = useDashboardMetrics();
+  const [expanded, setExpanded] = useState<null | 'vehicles' | 'carts' | 'transports' | 'tasks'>(null);
 
   const todayStr = todaySP();
   const tomorrowStr = useMemo(() => {
@@ -293,57 +295,78 @@ export default function Dashboard() {
   const isLoadingAll = loadVehicles || loadCarts || loadTransports || loadTasks;
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-5 pb-8 animate-fade-in">
       {/* ─── Header ─── */}
       <div className="px-1">
         <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">{getGreeting()} 👋</h1>
         <p className="text-xs text-muted-foreground mt-0.5 capitalize font-medium">{formatDateBR()}</p>
       </div>
 
-      {/* ─── Stat Cards 2x2 ─── */}
+      {/* ─── Dynamic Island operacional ─── */}
+      <div style={{ animationDelay: '40ms' }} className="animate-fade-in">
+        <OperationalDynamicIsland metrics={metrics} />
+      </div>
+
+      {/* ─── Métricas 3D 2x2 ─── */}
       {isLoadingAll ? (
         <div className="grid grid-cols-2 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-[88px] rounded-2xl" />)}
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-[180px] rounded-2xl" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Veículos"
-            value={availableVehicles}
+        <div className="grid grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '80ms' }}>
+          <Metric3DCard
+            title="Veículos"
             icon={<Car className="w-5 h-5" strokeWidth={2.25} />}
             variant="primary"
-            trend={`${vehicles.length} total`}
-            to="/vehicles"
-            progress={vehicles.length ? availableVehicles / vehicles.length : 0}
+            spark={metrics.vehicles.kmSeries.map(s => s.km)}
+            screens={[
+              { label: 'disponíveis', value: availableVehicles, smartTag: `${vehicles.length} total` },
+              { label: 'em uso', value: metrics.vehicles.emUso, hint: `${metrics.vehicles.manutencao} em manutenção` },
+              { label: 'KM no período', value: metrics.vehicles.kmTotal.toLocaleString('pt-BR'), hint: metrics.vehicles.topVeh ? `Top: ${(metrics.vehicles.topVeh as any).placa || (metrics.vehicles.topVeh as any).modelo || '—'}` : undefined },
+            ]}
+            cta={{ label: 'Frota', onClick: () => navigate('/vehicles') }}
+            onExpand={() => setExpanded('vehicles')}
           />
-          <StatCard
-            label="Carrinhos"
-            value={cartsInUse}
+          <Metric3DCard
+            title="Carrinhos"
             icon={<Zap className="w-5 h-5" strokeWidth={2.25} />}
             variant="accent"
-            trend={`${carts.length} elétricos`}
-            to="/electric-carts"
             liveActive={cartsInUse > 0}
-            smartLabel={cartsInUse > 0 ? 'em operação' : undefined}
+            spark={metrics.carts.series.map(s => s.retiradas)}
+            screens={[
+              { label: 'em operação', value: cartsInUse, smartTag: cartsInUse > 0 ? 'ao vivo' : undefined },
+              { label: 'retiradas no período', value: metrics.carts.retiradas, hint: `${metrics.carts.horasUso}h de uso` },
+              { label: 'disponíveis', value: metrics.carts.disponiveis, hint: `${metrics.carts.total} elétricos` },
+            ]}
+            cta={{ label: 'Carrinhos', onClick: () => navigate('/electric-carts') }}
+            onExpand={() => setExpanded('carts')}
           />
-          <StatCard
-            label="Transportes"
-            value={activeTransports}
+          <Metric3DCard
+            title="Transportes"
             icon={<MapPin className="w-5 h-5" strokeWidth={2.25} />}
             variant="success"
-            trend={`${pendingTransportsCount} pendentes`}
-            to="/transports"
             liveActive={activeTransports > 0}
-            smartLabel={nextTransportLabel}
+            spark={metrics.transports.series.map(s => s.realizados + s.pendentes + s.agendados)}
+            screens={[
+              { label: 'em andamento', value: activeTransports, smartTag: nextTransportLabel },
+              { label: 'pendentes', value: pendingTransportsCount, hint: `${metrics.transports.agendadosHoje} hoje` },
+              { label: 'realizados', value: metrics.transports.realizados, hint: `${metrics.transports.kmTotal.toLocaleString('pt-BR')} km no período` },
+            ]}
+            cta={{ label: 'Transportes', onClick: () => navigate('/transports') }}
+            onExpand={() => setExpanded('transports')}
           />
-          <StatCard
-            label="Tarefas"
-            value={pendingTasks}
+          <Metric3DCard
+            title="Tarefas"
             icon={<CheckSquare className="w-5 h-5" strokeWidth={2.25} />}
             variant="warning"
-            trend="pendentes"
-            to="/checklist"
-            urgentCount={urgentTasksCount}
+            spark={[metrics.tasks.percent, metrics.tasks.pendentes, metrics.tasks.concluidas]}
+            screens={[
+              { label: 'pendentes', value: pendingTasks, smartTag: urgentTasksCount > 0 ? `${urgentTasksCount} urg` : undefined },
+              { label: 'críticas', value: metrics.tasks.criticas, hint: 'urgente + alta' },
+              { label: 'conclusão', value: `${metrics.tasks.percent}%`, hint: `${metrics.tasks.concluidas} concluídas` },
+            ]}
+            cta={{ label: 'Checklist', onClick: () => navigate('/checklist') }}
+            onExpand={() => setExpanded('tasks')}
           />
         </div>
       )}
@@ -446,6 +469,38 @@ export default function Dashboard() {
             <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-success transition-colors shrink-0 mt-1" />
           </div>
         </button>
+      </div>
+
+      {/* ─── Alertas da Operação ─── */}
+      <div className="animate-fade-in" style={{ animationDelay: '120ms' }}>
+        <OperationAlertsPanel alerts={metrics.alerts} />
+      </div>
+
+      {/* ─── Gráficos do período ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-in" style={{ animationDelay: '160ms' }}>
+        <Suspense fallback={<ChartFallback />}>
+          <TransportsByDayChart data={metrics.transports.series} />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <KmRodadosChart
+            data={metrics.vehicles.kmSeries}
+            topVehicleLabel={metrics.vehicles.topVeh ? ((metrics.vehicles.topVeh as any).placa || (metrics.vehicles.topVeh as any).modelo) : undefined}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <CartUsageChart data={metrics.carts.series} horasUso={metrics.carts.horasUso} />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <TasksProgressChart
+            pendentes={metrics.tasks.pendentes}
+            concluidas={metrics.tasks.concluidas}
+            criticas={metrics.tasks.criticas}
+            percent={metrics.tasks.percent}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <OperationDistributionChart data={metrics.distribution} />
+        </Suspense>
       </div>
 
       {/* ─── Próximos Transportes ─── */}
@@ -710,6 +765,101 @@ export default function Dashboard() {
           })}
         </div>
       </Section>
+
+      {/* ─── Resumo executivo do período ─── */}
+      <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+        <PeriodReportCard metrics={metrics} />
+      </div>
+
+      {/* ─── Sheets expandidas dos cards 3D ─── */}
+      <ExpandedMetricSheet
+        open={expanded === 'vehicles'}
+        onOpenChange={(v) => !v && setExpanded(null)}
+        title="Veículos · Detalhamento"
+        description={`${metrics.vehicles.total} no total · ${metrics.vehicles.kmTotal.toLocaleString('pt-BR')} km no período`}
+        primaryCta={{ label: 'Abrir frota', onClick: () => navigate('/vehicles') }}
+      >
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Disponíveis</p><p className="text-xl font-extrabold tabular-nums">{metrics.vehicles.disponiveis}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Em uso</p><p className="text-xl font-extrabold tabular-nums">{metrics.vehicles.emUso}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Manutenção</p><p className="text-xl font-extrabold tabular-nums">{metrics.vehicles.manutencao}</p></div>
+          </div>
+          {metrics.vehicles.topVeh && (
+            <div className="rounded-xl bg-primary/10 p-3 border border-primary/20">
+              <p className="text-[10px] text-primary uppercase font-bold">Top veículo do período</p>
+              <p className="text-sm font-bold mt-0.5">{(metrics.vehicles.topVeh as any).placa || (metrics.vehicles.topVeh as any).modelo}</p>
+              <p className="text-xs text-muted-foreground">{(metrics.vehicles.topVeh as any).km} km rodados</p>
+            </div>
+          )}
+          <Suspense fallback={<ChartFallback />}>
+            <KmRodadosChart data={metrics.vehicles.kmSeries} />
+          </Suspense>
+        </div>
+      </ExpandedMetricSheet>
+
+      <ExpandedMetricSheet
+        open={expanded === 'carts'}
+        onOpenChange={(v) => !v && setExpanded(null)}
+        title="Carrinhos · Detalhamento"
+        description={`${metrics.carts.retiradas} retiradas · ${metrics.carts.horasUso}h de uso`}
+        primaryCta={{ label: 'Abrir carrinhos', onClick: () => navigate('/electric-carts') }}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Em operação</p><p className="text-xl font-extrabold tabular-nums">{metrics.carts.emOperacao}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Disponíveis</p><p className="text-xl font-extrabold tabular-nums">{metrics.carts.disponiveis}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Frota</p><p className="text-xl font-extrabold tabular-nums">{metrics.carts.total}</p></div>
+          </div>
+          <Suspense fallback={<ChartFallback />}>
+            <CartUsageChart data={metrics.carts.series} horasUso={metrics.carts.horasUso} />
+          </Suspense>
+        </div>
+      </ExpandedMetricSheet>
+
+      <ExpandedMetricSheet
+        open={expanded === 'transports'}
+        onOpenChange={(v) => !v && setExpanded(null)}
+        title="Transportes · Detalhamento"
+        description={`${metrics.transports.total} no período · ${metrics.transports.aeroportos.length} aeroportos`}
+        primaryCta={{ label: 'Abrir transportes', onClick: () => navigate('/transports') }}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Realizados</p><p className="text-xl font-extrabold tabular-nums">{metrics.transports.realizados}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Pendentes</p><p className="text-xl font-extrabold tabular-nums">{metrics.transports.pendentes}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Em curso</p><p className="text-xl font-extrabold tabular-nums">{metrics.transports.emAndamento}</p></div>
+          </div>
+          {metrics.transports.topDestino && (
+            <div className="rounded-xl bg-success/10 p-3 border border-success/20">
+              <p className="text-[10px] text-success uppercase font-bold">Destino mais frequente</p>
+              <p className="text-sm font-bold mt-0.5 truncate">{metrics.transports.topDestino}</p>
+            </div>
+          )}
+          <Suspense fallback={<ChartFallback />}>
+            <TransportsByDayChart data={metrics.transports.series} />
+          </Suspense>
+        </div>
+      </ExpandedMetricSheet>
+
+      <ExpandedMetricSheet
+        open={expanded === 'tasks'}
+        onOpenChange={(v) => !v && setExpanded(null)}
+        title="Tarefas · Detalhamento"
+        description={`${metrics.tasks.percent}% concluído · ${metrics.tasks.criticas} críticas`}
+        primaryCta={{ label: 'Abrir checklist', onClick: () => navigate('/checklist') }}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Pendentes</p><p className="text-xl font-extrabold tabular-nums">{metrics.tasks.pendentes}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Concluídas</p><p className="text-xl font-extrabold tabular-nums">{metrics.tasks.concluidas}</p></div>
+            <div className="rounded-xl bg-muted/40 p-3"><p className="text-[10px] text-muted-foreground uppercase">Críticas</p><p className="text-xl font-extrabold tabular-nums">{metrics.tasks.criticas}</p></div>
+          </div>
+          <Suspense fallback={<ChartFallback />}>
+            <TasksProgressChart pendentes={metrics.tasks.pendentes} concluidas={metrics.tasks.concluidas} criticas={metrics.tasks.criticas} percent={metrics.tasks.percent} />
+          </Suspense>
+        </div>
+      </ExpandedMetricSheet>
 
     </div>
   );
