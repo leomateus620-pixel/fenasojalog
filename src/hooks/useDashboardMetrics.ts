@@ -9,6 +9,8 @@ import { useOrgMembers } from './useOrgMembers';
 import { useSchedules } from './useSchedules';
 import { useVehicleUsage } from './useVehicleUsage';
 import { useMobilityAuthorizations } from './useMobilityAuthorizations';
+import { useVehicleOdometerEvent } from './useVehicleOdometerEvent';
+import { useFuelMetrics } from './useFuelMetrics';
 import { todaySP } from '@/lib/utils';
 import { isReturnTimePlausible } from '@/lib/utils';
 
@@ -59,6 +61,8 @@ export function useDashboardMetrics() {
   const { shifts, assignments, isLoading: ls } = useSchedules();
   const { usages, isLoading: lu } = useVehicleUsage();
   const { authorizations, isLoading: lma } = useMobilityAuthorizations();
+  const { totalKmEvento, totalValorCombustivel } = useVehicleOdometerEvent();
+  const { totalValor: fuelTotalBRL } = useFuelMetrics();
 
   const today = todaySP();
 
@@ -104,7 +108,7 @@ export function useDashboardMetrics() {
         if (ev.action === 'retirada') lastPickup = ev.created_at;
         else if (ev.action === 'devolucao' && lastPickup) {
           const h = (new Date(ev.created_at).getTime() - new Date(lastPickup).getTime()) / 3600000;
-          if (h > 0 && h < 48) {
+          if (h > 0 && h < 336) {
             totalHoras += h;
             hoursByCart[c.id] = (hoursByCart[c.id] || 0) + h;
           }
@@ -132,7 +136,7 @@ export function useDashboardMetrics() {
     const trEmAndamento = transports.filter((t: any) => ['em_andamento', 'em_retorno', 'chegou_destino'].includes(t.status)).length;
     const trAgendadosHoje = transports.filter((t: any) => dayKey(t.inicio_em) === today && t.status === 'pendente').length;
 
-    const trKmTotal = trPeriod.reduce((s: number, t: any) => s + ((Number(t.km_devolucao) || 0) - (Number(t.km_retirada) || 0)) || 0, 0);
+    const trKmTotal = Math.max(0, Math.round(totalKmEvento || 0));
 
     const aeroportos = new Set<string>();
     const cidades = new Set<string>();
@@ -261,7 +265,7 @@ export function useDashboardMetrics() {
         }).length;
         const totalProg = considered.length;
         const percent = totalProg > 0 ? Math.round((realizados / totalProg) * 100) : 0;
-        return { total: trTotal, realizados: trRealizados, pendentes: trPendentes, emAndamento: trEmAndamento, agendadosHoje: trAgendadosHoje, kmTotal: Math.round(trKmTotal), aeroportos: Array.from(aeroportos), cidades: Array.from(cidades), topDestino, series: trSeries, progress: { realizados, pendentes: pendentesAll, criticas, percent, total: totalProg } };
+        return { total: trTotal, realizados: trRealizados, pendentes: trPendentes, emAndamento: trEmAndamento, agendadosHoje: trAgendadosHoje, kmTotal: Math.round(trKmTotal), combustivelTotalBRL: Math.max(fuelTotalBRL || 0, totalValorCombustivel || 0), aeroportos: Array.from(aeroportos), cidades: Array.from(cidades), topDestino, series: trSeries, progress: { realizados, pendentes: pendentesAll, criticas, percent, total: totalProg } };
       })(),
       tasks: { pendentes: tkPendentes, concluidas: tkConcluidas, criticas: tkCriticas, percent: tkPercent, porCategoria: tkByCat },
       team: { totalLogistica: totalLog, voluntarios, escaladosHoje, totalGeral: members.length },
@@ -270,7 +274,7 @@ export function useDashboardMetrics() {
       distribution,
       alerts,
     };
-  }, [vehicles, carts, cartHistory, transports, tasks, events, fenasojaEvents, members, shifts, assignments, usages, authorizations, today]);
+  }, [vehicles, carts, cartHistory, transports, tasks, events, fenasojaEvents, members, shifts, assignments, usages, authorizations, today, totalKmEvento, totalValorCombustivel, fuelTotalBRL]);
 
   const loading = lv || lc || lt || ltk || le || lf || lm || ls || lu || lma;
 
