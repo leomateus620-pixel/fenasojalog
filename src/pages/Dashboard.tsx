@@ -295,57 +295,78 @@ export default function Dashboard() {
   const isLoadingAll = loadVehicles || loadCarts || loadTransports || loadTasks;
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-5 pb-8 animate-fade-in">
       {/* ─── Header ─── */}
       <div className="px-1">
         <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">{getGreeting()} 👋</h1>
         <p className="text-xs text-muted-foreground mt-0.5 capitalize font-medium">{formatDateBR()}</p>
       </div>
 
-      {/* ─── Stat Cards 2x2 ─── */}
+      {/* ─── Dynamic Island operacional ─── */}
+      <div style={{ animationDelay: '40ms' }} className="animate-fade-in">
+        <OperationalDynamicIsland metrics={metrics} />
+      </div>
+
+      {/* ─── Métricas 3D 2x2 ─── */}
       {isLoadingAll ? (
         <div className="grid grid-cols-2 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-[88px] rounded-2xl" />)}
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-[180px] rounded-2xl" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Veículos"
-            value={availableVehicles}
+        <div className="grid grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '80ms' }}>
+          <Metric3DCard
+            title="Veículos"
             icon={<Car className="w-5 h-5" strokeWidth={2.25} />}
             variant="primary"
-            trend={`${vehicles.length} total`}
-            to="/vehicles"
-            progress={vehicles.length ? availableVehicles / vehicles.length : 0}
+            spark={metrics.vehicles.kmSeries.map(s => s.km)}
+            screens={[
+              { label: 'disponíveis', value: availableVehicles, smartTag: `${vehicles.length} total` },
+              { label: 'em uso', value: metrics.vehicles.emUso, hint: `${metrics.vehicles.manutencao} em manutenção` },
+              { label: 'KM no período', value: metrics.vehicles.kmTotal.toLocaleString('pt-BR'), hint: metrics.vehicles.topVeh ? `Top: ${(metrics.vehicles.topVeh as any).placa || (metrics.vehicles.topVeh as any).modelo || '—'}` : undefined },
+            ]}
+            cta={{ label: 'Frota', onClick: () => navigate('/vehicles') }}
+            onExpand={() => setExpanded('vehicles')}
           />
-          <StatCard
-            label="Carrinhos"
-            value={cartsInUse}
+          <Metric3DCard
+            title="Carrinhos"
             icon={<Zap className="w-5 h-5" strokeWidth={2.25} />}
             variant="accent"
-            trend={`${carts.length} elétricos`}
-            to="/electric-carts"
             liveActive={cartsInUse > 0}
-            smartLabel={cartsInUse > 0 ? 'em operação' : undefined}
+            spark={metrics.carts.series.map(s => s.retiradas)}
+            screens={[
+              { label: 'em operação', value: cartsInUse, smartTag: cartsInUse > 0 ? 'ao vivo' : undefined },
+              { label: 'retiradas no período', value: metrics.carts.retiradas, hint: `${metrics.carts.horasUso}h de uso` },
+              { label: 'disponíveis', value: metrics.carts.disponiveis, hint: `${metrics.carts.total} elétricos` },
+            ]}
+            cta={{ label: 'Carrinhos', onClick: () => navigate('/electric-carts') }}
+            onExpand={() => setExpanded('carts')}
           />
-          <StatCard
-            label="Transportes"
-            value={activeTransports}
+          <Metric3DCard
+            title="Transportes"
             icon={<MapPin className="w-5 h-5" strokeWidth={2.25} />}
             variant="success"
-            trend={`${pendingTransportsCount} pendentes`}
-            to="/transports"
             liveActive={activeTransports > 0}
-            smartLabel={nextTransportLabel}
+            spark={metrics.transports.series.map(s => s.realizados + s.pendentes + s.agendados)}
+            screens={[
+              { label: 'em andamento', value: activeTransports, smartTag: nextTransportLabel },
+              { label: 'pendentes', value: pendingTransportsCount, hint: `${metrics.transports.agendadosHoje} hoje` },
+              { label: 'realizados', value: metrics.transports.realizados, hint: `${metrics.transports.kmTotal.toLocaleString('pt-BR')} km no período` },
+            ]}
+            cta={{ label: 'Transportes', onClick: () => navigate('/transports') }}
+            onExpand={() => setExpanded('transports')}
           />
-          <StatCard
-            label="Tarefas"
-            value={pendingTasks}
+          <Metric3DCard
+            title="Tarefas"
             icon={<CheckSquare className="w-5 h-5" strokeWidth={2.25} />}
             variant="warning"
-            trend="pendentes"
-            to="/checklist"
-            urgentCount={urgentTasksCount}
+            spark={[metrics.tasks.percent, metrics.tasks.pendentes, metrics.tasks.concluidas]}
+            screens={[
+              { label: 'pendentes', value: pendingTasks, smartTag: urgentTasksCount > 0 ? `${urgentTasksCount} urg` : undefined },
+              { label: 'críticas', value: metrics.tasks.criticas, hint: 'urgente + alta' },
+              { label: 'conclusão', value: `${metrics.tasks.percent}%`, hint: `${metrics.tasks.concluidas} concluídas` },
+            ]}
+            cta={{ label: 'Checklist', onClick: () => navigate('/checklist') }}
+            onExpand={() => setExpanded('tasks')}
           />
         </div>
       )}
