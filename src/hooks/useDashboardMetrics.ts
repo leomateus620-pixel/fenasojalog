@@ -136,7 +136,7 @@ export function useDashboardMetrics() {
     const trEmAndamento = transports.filter((t: any) => ['em_andamento', 'em_retorno', 'chegou_destino'].includes(t.status)).length;
     const trAgendadosHoje = transports.filter((t: any) => dayKey(t.inicio_em) === today && t.status === 'pendente').length;
 
-    const trKmTotal = trPeriod.reduce((s: number, t: any) => s + ((Number(t.km_devolucao) || 0) - (Number(t.km_retirada) || 0)) || 0, 0);
+    const trKmTotal = Math.max(0, Math.round(totalKmEvento || 0));
 
     const aeroportos = new Set<string>();
     const cidades = new Set<string>();
