@@ -471,6 +471,38 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* ─── Alertas da Operação ─── */}
+      <div className="animate-fade-in" style={{ animationDelay: '120ms' }}>
+        <OperationAlertsPanel alerts={metrics.alerts} />
+      </div>
+
+      {/* ─── Gráficos do período ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-in" style={{ animationDelay: '160ms' }}>
+        <Suspense fallback={<ChartFallback />}>
+          <TransportsByDayChart data={metrics.transports.series} />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <KmRodadosChart
+            data={metrics.vehicles.kmSeries}
+            topVehicleLabel={metrics.vehicles.topVeh ? ((metrics.vehicles.topVeh as any).placa || (metrics.vehicles.topVeh as any).modelo) : undefined}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <CartUsageChart data={metrics.carts.series} horasUso={metrics.carts.horasUso} />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <TasksProgressChart
+            pendentes={metrics.tasks.pendentes}
+            concluidas={metrics.tasks.concluidas}
+            criticas={metrics.tasks.criticas}
+            percent={metrics.tasks.percent}
+          />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <OperationDistributionChart data={metrics.distribution} />
+        </Suspense>
+      </div>
+
       {/* ─── Próximos Transportes ─── */}
       <Section
         title="Próximos Transportes"
