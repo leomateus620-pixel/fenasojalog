@@ -274,7 +274,7 @@ export function useDashboardMetrics() {
       distribution,
       alerts,
     };
-  }, [vehicles, carts, cartHistory, transports, tasks, events, fenasojaEvents, members, shifts, assignments, usages, authorizations, today]);
+  }, [vehicles, carts, cartHistory, transports, tasks, events, fenasojaEvents, members, shifts, assignments, usages, authorizations, today, totalKmEvento, totalValorCombustivel, fuelTotalBRL]);
 
   const loading = lv || lc || lt || ltk || le || lf || lm || ls || lu || lma;
 
