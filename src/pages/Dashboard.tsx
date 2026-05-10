@@ -31,6 +31,7 @@ const CartUsageChart = lazy(() => import('@/components/dashboard/charts/CartUsag
 const TasksProgressChart = lazy(() => import('@/components/dashboard/charts/TasksProgressChart'));
 const TransportsProgressChart = lazy(() => import('@/components/dashboard/charts/TransportsProgressChart'));
 const FuelExpensesChart = lazy(() => import('@/components/dashboard/charts/FuelExpensesChart'));
+const OdometerEventChart = lazy(() => import('@/components/dashboard/charts/OdometerEventChart'));
 const OperationDistributionChart = lazy(() => import('@/components/dashboard/charts/OperationDistributionChart'));
 
 const ChartFallback = () => <Skeleton className="h-[260px] rounded-2xl" />;
@@ -159,6 +160,18 @@ function FuelExpensesChartConnected() {
       totalLitros={fuel.totalLitros}
       totalAbastecimentos={fuel.totalAbastecimentos}
       topVeh={fuel.topVeh as any}
+    />
+  );
+}
+
+function OdometerEventChartConnected() {
+  const odo = require('@/hooks/useVehicleOdometerEvent').useVehicleOdometerEvent();
+  return (
+    <OdometerEventChart
+      items={odo.items}
+      totalKmEvento={odo.totalKmEvento}
+      totalValorCombustivel={odo.totalValorCombustivel}
+      totalCustoEstimadoKm={odo.totalCustoEstimadoKm}
     />
   );
 }
