@@ -6,8 +6,9 @@ const RECOVERY_KEY = 'fenasoja-recovery-attempted';
 const RELOAD_KEY = 'fenasoja-sw-reloaded';
 
 async function nukeCachesAndReload() {
-  if (sessionStorage.getItem(RECOVERY_KEY)) return;
-  sessionStorage.setItem(RECOVERY_KEY, '1');
+  const ss = safeSession();
+  try { if (ss?.getItem(RECOVERY_KEY)) return; } catch {}
+  try { ss?.setItem(RECOVERY_KEY, '1'); } catch {}
   try {
     if ('caches' in window) {
       const keys = await caches.keys();
@@ -21,27 +22,43 @@ async function nukeCachesAndReload() {
   window.location.reload();
 }
 
-function isChunkError(msg?: string) {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return (
+function safeSession() {
+  try { return window.sessionStorage; } catch { return null as any; }
+}
+
+function isChunkError(msg?: string, filename?: string) {
+  if (!msg && !filename) return false;
+  const m = (msg || '').toLowerCase();
+  const f = (filename || '').toLowerCase();
+  if (
     m.includes('chunkloaderror') ||
     m.includes('failed to fetch dynamically imported module') ||
     m.includes('importing a module script failed') ||
-    m.includes("loading chunk") ||
-    m.includes("loading css chunk")
-  );
+    m.includes('loading chunk') ||
+    m.includes('loading css chunk')
+  ) return true;
+  // TDZ / init errors coming from a hashed asset bundle
+  if (
+    (m.includes('before initialization') || m.includes("can't access lexical declaration")) &&
+    /\/assets\/.*-[a-f0-9]{6,}\.(js|mjs)/.test(f)
+  ) return true;
+  return false;
 }
 
 window.addEventListener('error', (e) => {
-  if (isChunkError(e?.message) || isChunkError(String((e as any)?.error))) {
+  const fname = (e as any)?.filename || '';
+  if (
+    isChunkError(e?.message, fname) ||
+    isChunkError(String((e as any)?.error?.message || (e as any)?.error), fname)
+  ) {
     nukeCachesAndReload();
   }
 });
 window.addEventListener('unhandledrejection', (e) => {
   const reason: any = e?.reason;
   const msg = typeof reason === 'string' ? reason : reason?.message;
-  if (isChunkError(msg)) nukeCachesAndReload();
+  const stack: string = reason?.stack || '';
+  if (isChunkError(msg, stack)) nukeCachesAndReload();
 });
 
 if ('serviceWorker' in navigator) {
@@ -60,8 +77,9 @@ if ('serviceWorker' in navigator) {
     }).catch(() => {});
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (sessionStorage.getItem(RELOAD_KEY)) return;
-      sessionStorage.setItem(RELOAD_KEY, '1');
+      const ss = safeSession();
+      try { if (ss?.getItem(RELOAD_KEY)) return; } catch {}
+      try { ss?.setItem(RELOAD_KEY, '1'); } catch {}
       window.location.reload();
     });
   });
