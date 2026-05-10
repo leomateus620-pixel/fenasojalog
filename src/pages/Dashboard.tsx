@@ -28,6 +28,8 @@ const TransportsByDayChart = lazy(() => import('@/components/dashboard/charts/Tr
 const KmRodadosChart = lazy(() => import('@/components/dashboard/charts/KmRodadosChart'));
 const CartUsageChart = lazy(() => import('@/components/dashboard/charts/CartUsageChart'));
 const TasksProgressChart = lazy(() => import('@/components/dashboard/charts/TasksProgressChart'));
+const TransportsProgressChart = lazy(() => import('@/components/dashboard/charts/TransportsProgressChart'));
+const FuelExpensesChart = lazy(() => import('@/components/dashboard/charts/FuelExpensesChart'));
 const OperationDistributionChart = lazy(() => import('@/components/dashboard/charts/OperationDistributionChart'));
 
 const ChartFallback = () => <Skeleton className="h-[260px] rounded-2xl" />;
@@ -491,12 +493,15 @@ export default function Dashboard() {
           <CartUsageChart data={metrics.carts.series} horasUso={metrics.carts.horasUso} />
         </Suspense>
         <Suspense fallback={<ChartFallback />}>
-          <TasksProgressChart
-            pendentes={metrics.tasks.pendentes}
-            concluidas={metrics.tasks.concluidas}
-            criticas={metrics.tasks.criticas}
-            percent={metrics.tasks.percent}
+          <TransportsProgressChart
+            realizados={metrics.transports.progress.realizados}
+            pendentes={metrics.transports.progress.pendentes}
+            criticas={metrics.transports.progress.criticas}
+            percent={metrics.transports.progress.percent}
           />
+        </Suspense>
+        <Suspense fallback={<ChartFallback />}>
+          <FuelExpensesChartConnected />
         </Suspense>
         <Suspense fallback={<ChartFallback />}>
           <OperationDistributionChart data={metrics.distribution} />
