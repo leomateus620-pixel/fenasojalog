@@ -1,66 +1,70 @@
-## Contexto
+## Diagnóstico (end-to-end)
 
-O `Dashboard.tsx` ainda usa o `StatCard` antigo (já nem está importado — quebrado) e nenhum dos novos componentes premium criados na rodada anterior está orquestrado em tela. A tarefa é finalizar a integração e dar polimento de fluidez, sem mexer em lógica de negócio fora da Dashboard.
+A tela branca em `fenasojalog.com` no Safari/Chrome mobile não é um erro do Dashboard novo em si — é uma falha clássica de **Service Worker servindo o `index.html` em cache que aponta para chunks JS que não existem mais** após o último deploy.
 
-## O que falta fazer
+### Por que acontece agora
 
-### 1. Reescrever `src/pages/Dashboard.tsx` (única alteração de página)
+1. O deploy recente (Dashboard premium + LoginPage WebP) gerou novos hashes em `assets/*.js`.
+2. O `public/sw.js` atual tem dois problemas que combinados produzem tela branca:
+   - **Pré-cacheia `/index.html`** no `install` (linha 5 do array `STATIC_ASSETS`).
+   - O fallback de navegação cai em `caches.match('/index.html')` — o cache antigo retém um HTML que referencia chunks deletados (`-HASHANTIGO.js`). Em conexões mobile lentas ou intermitentes, basta o `fetch` da navegação demorar/falhar para o SW servir o HTML velho → o `<script type="module">` falha em carregar → `#root` fica vazio → tela branca.
+3. Não há mecanismo de auto-recuperação no `main.tsx`: nenhum listener de `controllerchange`, nenhum tratamento de `ChunkLoadError` e nenhum prompt de update.
+4. A versão do cache (`CACHE_VERSION = '2'`) não foi incrementada após mudanças significativas, então o SW antigo continua governando a página em usuários que já visitaram o site antes.
 
-Manter todas as seções já existentes (Acessos Rápidos, Próximos Transportes, Agenda 7 dias, Equipe Logística, Tarefas Pendentes) intactas. Trocar apenas o bloco superior e injetar três novas seções:
+A captura de tela do usuário (`#root` vazio, sem spinner, sem login) é exatamente esse padrão: o HTML carrega, mas o bundle JS nunca executa.
 
-```text
-[ Header — saudação + data ]
-[ OperationalDynamicIsland ]                ← novo, abaixo do header
-[ Grid 2x2 de Metric3DCard ]                ← substitui StatCard
-[ Acessos Rápidos ]                         ← inalterado
-[ OperationAlertsPanel ]                    ← novo
-[ Charts grid (lazy) ]                      ← novo
-[ Próximos Transportes ]                    ← inalterado
-[ Agenda 7 dias ]                           ← inalterado
-[ Equipe + Tarefas ]                        ← inalterado
-[ PeriodReportCard ]                        ← novo, no rodapé
-```
+### Causas secundárias verificadas e descartadas
 
-- Adicionar `useDashboardMetrics()` para alimentar Dynamic Island, charts, alertas e period card.
-- Os 4 `Metric3DCard` (Veículos, Carrinhos, Transportes, Tarefas) usam `screens` rotativas (3 telas cada) baseadas em `metrics.*`, com `spark` derivado das séries diárias e `cta` levando à página relevante.
-- Cada card abre um `ExpandedMetricSheet` (estado local `expanded: 'vehicles' | 'carts' | 'transports' | 'tasks' | null`) com detalhamento (top veículo, KM por dia, distribuição etc.).
-- Charts agrupados em grid `sm:grid-cols-2 lg:grid-cols-3`, todos `<Suspense fallback={<Skeleton h-[260px]>}` para carregamento progressivo.
-- Remover o bloco antigo `<StatCard …>` (4 ocorrências) e a lógica vinculada que ficou órfã (manter apenas o que ainda é usado: `nextTransportLabel`, `urgentTasksCount`, `pendingTransportsCount`).
+- `Dashboard.tsx`, `Metric3DCard`, `MetricCardRotator`, `OperationalDynamicIsland`, `useDashboardMetrics` — todos com guardas adequados; não derrubam o app.
+- `LoginPage` usa `position: fixed inset-0` + `min-h-[100dvh]` — comportamento já validado e na memória do projeto.
+- Não há erros em runtime/console no momento atual (cache nuked do snapshot).
 
-### 2. Polimento de fluidez (sem nova arquitetura)
+## Mudanças
 
-- Adicionar `animate-fade-in` escalonado nas seções principais via classe utilitária já existente.
-- `Metric3DCard`: respeitar `motion-reduce` (já implementado) e garantir `will-change: transform` apenas no hover (otimizar re-renders).
-- Charts: lazy + Suspense + `loading="lazy"` em qualquer imagem; nenhum chart bloqueia o first paint.
-- Substituir spinners pesados por `Skeleton` consistente com o resto.
-- Alterar o container raiz para `space-y-5 pb-8 animate-fade-in` mantendo o staggering por seção via `style={{ animationDelay: 'Xms' }}` em wrappers internos.
-- Garantir `min-h` consistente nos cards 3D para evitar layout shift quando o rotator troca de tela.
+### 1. `public/sw.js` — reescrita segura
 
-### 3. Sem mudanças fora do Dashboard
+- Remover `/index.html` e `/` do `STATIC_ASSETS` (não pré-cachear shell volátil).
+- Bump `CACHE_VERSION` para `'3'` (força purge do cache antigo no `activate`).
+- Navegação: **network-first com timeout de 3s**; só usa cache como fallback se realmente offline (sem cache de HTML em erros 4xx/5xx).
+- Hashed assets (`/assets/*-[hash].ext`): cache-first como hoje.
+- Adicionar handler de mensagem `SKIP_WAITING` para permitir auto-update.
+- Em `fetch` de chunks `.js`/`.css` que retornem 404 (chunk antigo morto), responder com `Response` vazio + status 205 para o cliente disparar reload.
 
-Nenhum arquivo de hooks, lib, edge function ou outras páginas será tocado. Os componentes em `src/components/dashboard/*` já existem e ficam como estão (apenas serão consumidos).
+### 2. `src/main.tsx` — registro robusto + auto-recuperação
 
-## Detalhes técnicos
+- Manter o registro do SW, mas:
+  - Escutar `registration.onupdatefound` → quando novo SW estiver `installed` e `navigator.serviceWorker.controller` existir, postar `SKIP_WAITING` e recarregar uma única vez.
+  - Escutar `navigator.serviceWorker.controller` `controllerchange` → `window.location.reload()` (com guard `sessionStorage` para evitar loop).
+- Adicionar global `window.addEventListener('error', ...)` que detecta `ChunkLoadError` / `Failed to fetch dynamically imported module` e faz, no máximo 1x por sessão:
+  1. `caches.keys().then(ks => ks.forEach(caches.delete))`,
+  2. `registrations.forEach(r => r.unregister())`,
+  3. `location.reload()`.
+- Fazer o mesmo para `unhandledrejection`.
 
-- **Estados locais novos no Dashboard:**
-  - `const [expanded, setExpanded] = useState<null | 'vehicles' | 'carts' | 'transports' | 'tasks'>(null)`
-  - `const metrics = useDashboardMetrics()`
-- **Spark data:**
-  - Veículos: `metrics.vehicles.kmSeries.map(s => s.km)`
-  - Carrinhos: `metrics.carts.series.map(s => s.retiradas)`
-  - Transportes: `metrics.transports.series.map(s => s.realizados + s.pendentes)`
-  - Tarefas: usar `[metrics.tasks.percent]` repetido ou um array sintético do progresso (sem série temporal real).
-- **Loading:** se `metrics.isLoading` (já exposto pelo hook) → manter `DashboardSkeleton` para os blocos 3D + charts.
-- **Empty states:** charts já tratam internamente; alertas usam `OperationAlertsPanel` que já tem estado vazio.
+### 3. `index.html` — robustez de carregamento
 
-## Critérios de aceite
+- Adicionar `<meta name="theme-color" content="#1a2e1a">` (evita flash branco no Safari iOS — barra de URL combina com o app).
+- Adicionar fallback visual mínimo dentro de `#root` (spinner CSS puro) que some quando o React monta. Garante que, se o JS demorar, o usuário vê algo (não tela branca).
+- Adicionar `<noscript>` com mensagem amigável.
 
-- Dashboard renderiza sem erros (StatCard removido).
-- 4 Metric3DCard funcionando com tilt, sparkline, rotator e expand sheet.
-- Dynamic Island visível abaixo do header, com 9 categorias navegáveis.
-- 5 charts carregam via Suspense sem bloquear o first paint.
-- Painel de alertas mostra alertas reais (motorista ausente, retorno implausível, carrinho > 24h, etc.).
-- PeriodReportCard renderiza no rodapé com link para `/reports`.
-- Animações suaves (fade-in escalonado), respeitando `prefers-reduced-motion`.
-- Mobile (393px) e desktop ambos refinados; nenhum overflow horizontal.
-- Nenhum módulo existente quebrado (Acessos Rápidos, Agenda, Equipe, Tarefas idênticos).
+### 4. Validação
+
+- Após as mudanças, abrir o preview no mobile viewport e verificar:
+  - Recarrega normalmente.
+  - DevTools mobile → Application → Service Workers mostra `fenasoja-v3` ativo.
+  - Limpando manualmente o cache e recarregando, app continua funcional.
+- Sem alterações de UI do Dashboard, nem de lógica de negócio.
+
+## Arquivos a editar
+
+- `public/sw.js` (reescrita).
+- `src/main.tsx` (registro + auto-recovery).
+- `index.html` (theme-color + fallback inline + noscript).
+
+Nenhum outro arquivo é tocado. Nenhuma mudança de schema, de auth, de RLS ou de Dashboard.
+
+## Critérios de sucesso
+
+- Usuários que visitaram o site antes do fix conseguem entrar sem precisar limpar cache manualmente (auto-recovery dispara no máximo 1 reload).
+- Próximos deploys não causarão mais tela branca: SW não pré-cacheia HTML, e qualquer `ChunkLoadError` aciona limpeza automática.
+- Tempo de carregamento e visual do app permanecem idênticos para o usuário.

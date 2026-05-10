@@ -1,85 +1,95 @@
-const CACHE_VERSION = '2';
+// Service Worker — Fenasoja Logística
+// Strategy: never precache the HTML shell. Hashed assets are immutable (cache-first).
+// Navigations are network-first with a short timeout; cache is only used if truly offline.
+const CACHE_VERSION = '3';
 const CACHE_NAME = `fenasoja-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/favicon.ico',
   '/placeholder.svg',
 ];
 
-// Install: cache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS).catch(() => {}))
   );
   self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch: Network First for navigation, Cache First for hashed assets
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+function networkWithTimeout(request, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    fetch(request)
+      .then((res) => { clearTimeout(timer); resolve(res); })
+      .catch((err) => { clearTimeout(timer); reject(err); });
+  });
+}
+
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  if (req.method !== 'GET') return;
 
-  // Never cache Supabase API calls or edge functions
+  let url;
+  try { url = new URL(req.url); } catch { return; }
+
+  // Never intercept Supabase / cross-origin APIs
   if (url.hostname.includes('supabase')) return;
+  if (url.origin !== self.location.origin) return;
 
-  // For navigation requests (HTML), always try network first
-  if (event.request.mode === 'navigate') {
+  // Navigation: network-first with 3s timeout, no HTML cache fallback
+  if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
+      networkWithTimeout(req, 3000)
+        .catch(() => caches.match('/index.html').then((c) => c || new Response(
+          '<!doctype html><meta charset="utf-8"><title>Offline</title><body style="font-family:system-ui;padding:2rem;text-align:center"><h1>Sem conexão</h1><p>Reconecte para acessar o sistema.</p></body>',
+          { headers: { 'content-type': 'text/html; charset=utf-8' }, status: 503 }
+        )))
     );
     return;
   }
 
-  // For Vite hashed assets (contain hash in filename), cache first — they're immutable
-  if (
-    url.pathname.match(/\/assets\/.*-[a-f0-9]{8,}\.(js|css|png|jpg|jpeg|webp|svg|woff2?)$/)
-  ) {
+  // Hashed Vite assets — immutable, cache-first
+  if (/\/assets\/.*-[a-f0-9]{8,}\.(js|css|png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname)) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
+      caches.match(req).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return fetch(req).then((res) => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(req, clone));
           }
-          return response;
+          return res;
         });
       })
     );
     return;
   }
 
-  // For other static assets, network first with cache fallback
-  if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/)
-  ) {
+  // Other static assets — network-first with cache fallback
+  if (/\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2?)$/.test(url.pathname)) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(req, clone));
           }
-          return response;
+          return res;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match(req))
     );
-    return;
   }
 });
