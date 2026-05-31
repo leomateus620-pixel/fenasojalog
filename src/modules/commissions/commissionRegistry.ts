@@ -83,11 +83,7 @@ export const SELECTED_COMMISSION_STORAGE_KEY = 'fenasoja-selected-commission-mod
 export const statusLabels: Record<CommissionStatus, string> = {
   active: 'Ativo',
   structuring: 'Em estruturação',
- codex/modular-commission-portal
-  restricted: 'Restrito',
-=======
   restricted: 'Acesso restrito',
- main
 };
 
 export const statusClasses: Record<CommissionStatus, string> = {
@@ -205,63 +201,6 @@ const baseCommissionModules: CommissionModule[] = [
     publicPortal: true,
     legacyRoutes: ['/', '/transports', '/vehicles', '/electric-carts', '/guests', '/agenda', '/checklist', '/team', '/expenses', '/system-report'],
     menus: [
-      codex/modular-commission-portal
-      dashboardMenu,
-      {
-        label: 'Transportes',
-        path: 'transportes',
-        description: 'Solicitações, corridas e deslocamentos.',
-        icon: MapPin,
-      },
-      {
-        label: 'Veículos',
-        path: 'veiculos',
-        description: 'Frota, disponibilidade e manutenções.',
-        icon: Truck,
-      },
-      {
-        label: 'Carrinhos Elétricos',
-        path: 'carrinhos-eletricos',
-        description: 'Operação e reservas dos carrinhos elétricos.',
-        icon: Zap,
-      },
-      {
-        label: 'Hóspedes',
-        path: 'hospedes',
-        description: 'Rede hoteleira e apoio aos convidados.',
-        icon: Hotel,
-      },
-      {
-        label: 'Agenda',
-        path: 'agenda',
-        description: 'Eventos, compromissos e programação.',
-        icon: CalendarDays,
-      },
-      {
-        label: 'Checklist',
-        path: 'checklist',
-        description: 'Tarefas operacionais e pendências.',
-        icon: CheckSquare,
-      },
-      {
-        label: 'Equipe',
-        path: 'equipe',
-        description: 'Pessoas, escala e disponibilidade.',
-        icon: Users,
-      },
-      {
-        label: 'Despesas',
-        path: 'despesas',
-        description: 'Registros e comprovantes operacionais.',
-        icon: Receipt,
-      },
-      {
-        label: 'Relatório',
-        path: 'relatorio',
-        description: 'Relatórios e consolidação do módulo.',
-        icon: FileText,
-      },
-=======
       { ...dashboardMenu, label: 'Painel Operacional', description: 'Centro de comando da mobilidade e indicadores da operação.' },
       { label: 'Transportes', path: 'transportes', description: 'Solicitações, corridas e deslocamentos.', icon: MapPin },
       { label: 'Veículos', path: 'veiculos', description: 'Frota, disponibilidade e manutenções.', icon: Truck },
@@ -272,7 +211,6 @@ const baseCommissionModules: CommissionModule[] = [
       { label: 'Checklist', path: 'checklist', description: 'Tarefas operacionais e pendências.', icon: CheckSquare },
       { label: 'Despesas', path: 'despesas', description: 'Registros e comprovantes operacionais.', icon: Receipt },
       { label: 'Relatório do Sistema', path: 'relatorio', description: 'Relatórios e consolidação do módulo.', icon: FileText },
-  main
     ],
   },
   {
@@ -294,11 +232,7 @@ const baseCommissionModules: CommissionModule[] = [
       dashboardMenu,
       { label: 'Fichas', path: 'fichas', description: 'Fichas operacionais e controles previstos.', icon: ClipboardList },
       { label: 'Refeições', path: 'refeicoes', description: 'Planejamento e acompanhamento de refeições.', icon: UtensilsCrossed },
- codex/modular-commission-portal
-      { label: 'Consumo', path: 'consumo', description: 'Consumo por comissão e período.', icon: ChartColumn },
-=======
       { label: 'Consumo por Comissão', path: 'consumo', description: 'Consumo por comissão e período.', icon: ChartColumn },
- main
       { label: 'Estoque', path: 'estoque', description: 'Itens, entradas e saldos previstos.', icon: Package },
       { label: 'Devoluções', path: 'devolucoes', description: 'Fluxo de retorno e conferência.', icon: RefreshCcw },
       { label: 'Relatórios', path: 'relatorios', description: 'Relatórios futuros do módulo.', icon: FileText },
@@ -335,11 +269,7 @@ const baseCommissionModules: CommissionModule[] = [
     slug: 'servicos',
     name: 'Serviços',
     shortName: 'Serviços',
- codex/modular-commission-portal
-    description: 'Chamados, demandas, equipes, status e ocorrências operacionais.',
-=======
     description: 'Chamados, demandas, equipes, status de execução e ocorrências operacionais.',
- main
     icon: Wrench,
     accentClass: visualThemes.cyan.accentGradient,
     visual: visualThemes.cyan,
@@ -355,11 +285,7 @@ const baseCommissionModules: CommissionModule[] = [
       { label: 'Chamados', path: 'chamados', description: 'Abertura e acompanhamento de chamados.', icon: ClipboardList },
       { label: 'Demandas', path: 'demandas', description: 'Demandas por prioridade e responsável.', icon: CheckSquare },
       { label: 'Equipes', path: 'equipes', description: 'Equipes e escalas de atendimento.', icon: UsersRound },
- codex/modular-commission-portal
-      { label: 'Status', path: 'status', description: 'Quadro de situação dos serviços.', icon: ChartColumn },
-=======
       { label: 'Status de Execução', path: 'status', description: 'Quadro de situação dos serviços.', icon: ChartColumn },
- main
       { label: 'Ocorrências', path: 'ocorrencias', description: 'Registro de ocorrências operacionais.', icon: FileText },
       { label: 'Relatórios', path: 'relatorios', description: 'Relatórios futuros do módulo.', icon: FileText },
     ],
@@ -385,11 +311,7 @@ const baseCommissionModules: CommissionModule[] = [
       { label: 'Artistas', path: 'artistas', description: 'Cadastro e acompanhamento de artistas.', icon: UsersRound },
       { label: 'Palcos', path: 'palcos', description: 'Palcos, locais e estruturas.', icon: Brush },
       { label: 'Agenda', path: 'agenda', description: 'Agenda artística e técnica.', icon: CalendarDays },
- codex/modular-commission-portal
-      { label: 'Demandas Técnicas', path: 'demandas-tecnicas', description: 'Som, luz, montagem e necessidades técnicas.', icon: Wrench },
-=======
       { label: 'Demandas Técnicas', path: 'demandas-tecnicas', description: 'Som, luz, palco e necessidades de produção.', icon: Wrench },
- main
       { label: 'Contratos', path: 'contratos', description: 'Contratos e documentos previstos.', icon: FileText },
       { label: 'Relatórios', path: 'relatorios', description: 'Relatórios futuros do módulo.', icon: FileText },
     ],
@@ -399,14 +321,9 @@ const baseCommissionModules: CommissionModule[] = [
     name: 'Novas Gerações',
     shortName: 'Novas Gerações',
     description: 'Escolas, participantes, atividades, lanches, agenda e relatórios.',
- codex/modular-commission-portal
-    icon: UsersRound,
-    accentClass: 'from-sky-500/20 via-emerald-500/10 to-transparent',
-=======
     icon: GraduationCap,
     accentClass: visualThemes.sky.accentGradient,
     visual: visualThemes.sky,
- main
     status: 'structuring',
     capability: 'novas_geracoes_access',
     sensitive: false,
@@ -416,11 +333,7 @@ const baseCommissionModules: CommissionModule[] = [
     publicPortal: true,
     menus: [
       dashboardMenu,
- codex/modular-commission-portal
-      { label: 'Escolas', path: 'escolas', description: 'Escolas e instituições participantes.', icon: Hotel },
-=======
       { label: 'Escolas', path: 'escolas', description: 'Escolas e instituições participantes.', icon: GraduationCap },
- main
       { label: 'Participantes', path: 'participantes', description: 'Participantes e grupos acompanhados.', icon: UsersRound },
       { label: 'Atividades', path: 'atividades', description: 'Atividades previstas para o módulo.', icon: Sparkles },
       { label: 'Lanches', path: 'lanches', description: 'Controle futuro de lanches e apoio.', icon: UtensilsCrossed },
@@ -481,11 +394,7 @@ const baseCommissionModules: CommissionModule[] = [
     slug: 'financeiro-gerencial',
     name: 'Financeiro Gerencial',
     shortName: 'Financeiro',
- codex/modular-commission-portal
-    description: 'Estrutura sensível para orçamento, receitas, despesas, patrocínio e simulações.',
-=======
     description: 'Estrutura sensível para orçamento, receitas, despesas, patrocínios e simulações.',
- main
     icon: BadgeDollarSign,
     accentClass: visualThemes.gold.accentGradient,
     visual: visualThemes.gold,
@@ -502,11 +411,7 @@ const baseCommissionModules: CommissionModule[] = [
       { label: 'Receitas Confirmadas', path: 'receitas-confirmadas', description: 'Estrutura futura para receitas confirmadas.', icon: Receipt },
       { label: 'Despesas Previstas', path: 'despesas-previstas', description: 'Estrutura futura para despesas previstas.', icon: ClipboardList },
       { label: 'Despesas Realizadas', path: 'despesas-realizadas', description: 'Estrutura futura para despesas realizadas.', icon: Receipt },
- codex/modular-commission-portal
-      { label: 'Orçamento Comissões', path: 'orcamento-comissoes', description: 'Estrutura futura para orçamentos por comissão.', icon: BadgeDollarSign },
-=======
       { label: 'Orçamento por Comissão', path: 'orcamento-comissoes', description: 'Estrutura futura para orçamentos por comissão.', icon: BadgeDollarSign },
-main
       { label: 'Patrocínios', path: 'patrocinios', description: 'Estrutura futura para patrocínios.', icon: Sparkles },
       { label: 'Simulações', path: 'simulacoes', description: 'Estrutura futura para simulações gerenciais.', icon: ChartColumn },
       { label: 'Relatórios', path: 'relatorios', description: 'Relatórios futuros do módulo.', icon: FileText },
