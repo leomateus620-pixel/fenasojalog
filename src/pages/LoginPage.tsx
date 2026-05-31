@@ -93,11 +93,7 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
     setLoading(true);
     const { error } = await signIn(email.trim(), password);
     if (error) {
- codex/modular-commission-portal
-      setError('E-mail ou senha incorretos');
-=======
       setError('E-mail ou senha incorretos. Confira suas credenciais e tente novamente.');
- main
     } else {
       navigate(resolveTarget(), { replace: true });
     }
