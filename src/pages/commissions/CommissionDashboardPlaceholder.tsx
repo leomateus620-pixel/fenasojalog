@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, ClipboardList, FileText, Layers3, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BarChart3, ClipboardList, Database, FileText, Info, Layers3, ListChecks, ShieldCheck, Sparkles, UsersRound, Workflow, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
