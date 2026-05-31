@@ -44,16 +44,6 @@ export default function CommissionPortalPage() {
           <div className="animate-soft-rise flex max-w-4xl flex-col gap-6">
             <img src={logo} alt="Fenasoja 2026" className="h-auto w-36 object-contain drop-shadow-2xl sm:w-48" />
             <div>
- codex/modular-commission-portal
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
-                Sistema Integrado de Gestão Operacional
-              </p>
-              <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-                Fenasoja
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-white/72 sm:text-base">
-                Selecione a comissão para acessar o ambiente operacional correspondente.
-=======
               <div className="inline-flex items-center gap-2 rounded-full border border-gold/25 bg-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-gold backdrop-blur-xl">
                 <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                 Sistema Integrado de Gestão Operacional
@@ -63,7 +53,6 @@ export default function CommissionPortalPage() {
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/75 sm:text-lg">
                 Selecione a comissão para acessar um ambiente modular, seguro e alinhado à operação da feira.
- main
               </p>
             </div>
           </div>

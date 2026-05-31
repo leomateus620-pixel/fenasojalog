@@ -31,10 +31,6 @@ export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNot
             {description}
           </p>
           {module?.sensitive && (
-codex/modular-commission-portal
-            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-left text-sm text-red-700 dark:text-red-200">
-              Módulo sensível: requer validação e permissões específicas antes de exibir dados operacionais.
-=======
             <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-left text-sm text-red-700 dark:text-red-200">
               Módulo sensível - requer validação e permissões específicas antes de exibir dados operacionais. main
             </div>
@@ -50,7 +46,6 @@ codex/modular-commission-portal
             <Button asChild className="rounded-xl">
 =======
             <Button asChild className="rounded-2xl">
-              main
               <Link to="/portal">Ver comissões</Link>
             </Button>
           </div>

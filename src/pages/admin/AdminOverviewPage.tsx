@@ -71,11 +71,7 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="space-y-4">
- codex/modular-commission-portal
-          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
-=======
           <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
- main
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Pendências por comissão</p>
             <div className="mt-4 space-y-3">
               {commissionModules.slice(1).map((module) => (
@@ -94,11 +90,7 @@ export default function AdminOverviewPage() {
             </div>
           </div>
 
- codex/modular-commission-portal
-          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
-=======
           <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
- main
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Últimos registros</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               Ainda não há registros reais consolidados para os novos módulos. O painel está pronto para receber eventos de auditoria,
