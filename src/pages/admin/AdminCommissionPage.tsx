@@ -21,13 +21,17 @@ export default function AdminCommissionPage() {
   return (
     <AdminFrame
       title={`Comissão de ${module.name}`}
+ codex/modular-commission-portal
       description="Acompanhamento administrativo do módulo selecionado, com indicadores derivados do registry."
+=======
+      description="Acompanhamento administrativo do módulo selecionado, com indicadores placeholder derivados do registry."
+ main
     >
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="premium-surface gold-accent rounded-xl p-5">
+        <div className="premium-surface gold-accent rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <ModuleIcon className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
@@ -41,14 +45,14 @@ export default function AdminCommissionPage() {
           </div>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">{module.description}</p>
           {module.sensitive && (
-            <div className="mt-4 flex gap-3 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm leading-6 text-red-800 dark:text-red-200">
+            <div className="mt-4 flex gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm leading-6 text-red-800 dark:text-red-200">
               <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               Módulo sensível. Nenhum dado financeiro real foi implementado nesta etapa.
             </div>
           )}
           <Link
             to={getModuleRoute(module)}
-            className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-ring sm:w-auto"
+            className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-ring sm:w-auto"
           >
             Abrir módulo
             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
@@ -56,15 +60,23 @@ export default function AdminCommissionPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
+ codex/modular-commission-portal
           <div className="liquid-glass-card rounded-xl p-4">
+=======
+          <div className="liquid-glass-card interactive-lift rounded-2xl p-4">
+ main
             <p className="text-sm font-medium text-muted-foreground">Áreas previstas</p>
             <p className="mt-3 text-3xl font-black text-foreground">{module.menus.length}</p>
           </div>
-          <div className="liquid-glass-card rounded-xl p-4">
+          <div className="liquid-glass-card interactive-lift rounded-2xl p-4">
             <p className="text-sm font-medium text-muted-foreground">Capability</p>
             <p className="mt-3 break-all text-sm font-bold text-foreground">{module.capability}</p>
           </div>
+ codex/modular-commission-portal
           <div className="liquid-glass-card rounded-xl p-4">
+=======
+          <div className="liquid-glass-card interactive-lift rounded-2xl p-4">
+ main
             <p className="text-sm font-medium text-muted-foreground">Exibição pública</p>
             <p className="mt-3 text-3xl font-black text-foreground">{module.publicPortal ? 'Sim' : 'Não'}</p>
           </div>
@@ -72,7 +84,7 @@ export default function AdminCommissionPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+        <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
           <div className="mb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Navegação interna</p>
             <h2 className="text-xl font-bold text-foreground">Rotas do módulo</h2>
@@ -84,10 +96,10 @@ export default function AdminCommissionPage() {
                 <Link
                   key={item.path}
                   to={getModuleRoute(module, item.path)}
-                  className="rounded-xl border border-border/50 bg-card/45 p-3 transition hover:border-gold/30 hover:bg-card/80 focus-ring"
+                  className="rounded-2xl border border-border/50 bg-card/40 p-3 transition hover:border-gold/30 hover:bg-card/80 focus-ring"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
@@ -102,7 +114,7 @@ export default function AdminCommissionPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+          <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Indicadores placeholder</p>
             <div className="mt-4 space-y-3">
               {[
@@ -110,7 +122,7 @@ export default function AdminCommissionPage() {
                 { label: 'Relatórios emitidos', value: 'A definir', icon: FileText },
                 { label: 'Últimos registros', value: 'A definir', icon: ArrowRight },
               ].map(({ label, value, icon: Icon }) => (
-                <div key={label} className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/45 p-3">
+                <div key={label} className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/40 p-3">
                   <div className="flex items-center gap-3">
                     <Icon className="h-4 w-4 text-gold" aria-hidden="true" />
                     <span className="text-sm font-medium text-foreground">{label}</span>
@@ -121,7 +133,11 @@ export default function AdminCommissionPage() {
             </div>
           </div>
 
+ codex/modular-commission-portal
           <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+=======
+          <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
+ main
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Observação</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               A visão administrativa ainda não mistura dados entre comissões. Cada módulo deve receber fonte própria ou consultas

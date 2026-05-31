@@ -16,9 +16,9 @@ export default function AdminPortalPage() {
       description="Escolha uma comissão para acompanhar a estrutura, navegar para o módulo ou abrir a visão consolidada."
     >
       <section className="grid gap-4 md:grid-cols-3">
-        <Link to="/admin/geral" className="liquid-glass-card rounded-xl p-5 transition focus-ring hover:border-gold/35">
+        <Link to="/admin/geral" className="liquid-glass-card rounded-2xl p-5 transition focus-ring hover:border-gold/30">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ChartColumn className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
@@ -31,9 +31,9 @@ export default function AdminPortalPage() {
           </p>
         </Link>
 
-        <div className="liquid-glass-card rounded-xl p-5">
+        <div className="liquid-glass-card rounded-2xl p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/15 text-gold">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gold/15 text-gold">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
@@ -46,9 +46,9 @@ export default function AdminPortalPage() {
           </p>
         </div>
 
-        <div className="liquid-glass-card rounded-xl p-5">
+        <div className="liquid-glass-card rounded-2xl p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:text-red-300">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/10 text-red-600 dark:text-red-300">
               <LockKeyhole className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
@@ -66,10 +66,10 @@ export default function AdminPortalPage() {
         {commissionModules.map((module) => {
           const Icon = module.icon;
           return (
-            <article key={module.slug} className="liquid-glass-card gold-accent rounded-xl p-4">
+            <article key={module.slug} className="liquid-glass-card gold-accent rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
@@ -85,13 +85,13 @@ export default function AdminPortalPage() {
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Link
                   to={`/admin/comissoes/${module.slug}`}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card/60 px-3 text-sm font-semibold transition hover:bg-muted focus-ring"
+                  className="inline-flex h-10 items-center justify-center rounded-2xl border border-border bg-card/60 px-3 text-sm font-semibold transition hover:bg-muted focus-ring"
                 >
                   Acompanhar
                 </Link>
                 <Link
                   to={getModuleRoute(module)}
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-ring"
+                  className="inline-flex h-10 items-center justify-center rounded-2xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-ring"
                 >
                   Abrir
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
