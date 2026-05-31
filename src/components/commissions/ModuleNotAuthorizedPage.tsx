@@ -32,7 +32,7 @@ export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNot
           </p>
           {module?.sensitive && (
             <div className="mt-5 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-left text-sm text-red-700 dark:text-red-200">
-              Módulo sensível - requer validação e permissões específicas antes de exibir dados operacionais. main
+              Módulo sensível - requer validação e permissões específicas antes de exibir dados operacionais.
             </div>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -42,9 +42,6 @@ export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNot
                 Voltar
               </Link>
             </Button>
-            codex/modular-commission-portal
-            <Button asChild className="rounded-xl">
-=======
             <Button asChild className="rounded-2xl">
               <Link to="/portal">Ver comissões</Link>
             </Button>
