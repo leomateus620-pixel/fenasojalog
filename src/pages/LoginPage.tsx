@@ -93,7 +93,11 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
     setLoading(true);
     const { error } = await signIn(email.trim(), password);
     if (error) {
+ codex/modular-commission-portal
+      setError('E-mail ou senha incorretos');
+=======
       setError('E-mail ou senha incorretos. Confira suas credenciais e tente novamente.');
+ main
     } else {
       navigate(resolveTarget(), { replace: true });
     }
@@ -131,6 +135,59 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
             </p>
           </section>
 
+ codex/modular-commission-portal
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-12 w-full rounded-xl px-4 text-sm text-white placeholder:text-white/50 outline-none transition-all focus:ring-2 focus:ring-white/30"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+              }}
+            />
+            <input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-12 w-full rounded-xl px-4 text-sm text-white placeholder:text-white/50 outline-none transition-all focus:ring-2 focus:ring-white/30"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+              }}
+            />
+            {error && (
+              <p className="text-center text-sm font-medium text-red-300 drop-shadow-sm">
+                {error}
+              </p>
+            )}
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-xl text-sm font-semibold transition-transform active:scale-[0.97]"
+              disabled={loading}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
+
+          <div className="space-y-3 text-center">
+            <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+              Acesso restrito. Solicite suas credenciais ao administrador.
+            </p>
+            <Link
+              to="/portal"
+              className="block rounded-lg text-xs font-semibold text-gold/85 transition hover:text-gold focus-ring"
+            >
+              Trocar comissão
+            </Link>
+          </div>
+=======
           <section className="glass-panel animate-soft-rise w-full rounded-[2rem] p-5 text-white shadow-2xl sm:p-8" aria-labelledby="login-title">
             <div className="flex flex-col items-center gap-5 text-center">
               <img src={logoHorizontal} alt="Fenasoja 2026" className="h-auto w-44 object-contain drop-shadow-lg sm:w-52" />
@@ -194,6 +251,7 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
               </Link>
             </div>
           </section>
+ main
         </div>
       </div>
     </div>

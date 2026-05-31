@@ -21,7 +21,11 @@ export default function AdminCommissionPage() {
   return (
     <AdminFrame
       title={`Comissão de ${module.name}`}
+ codex/modular-commission-portal
+      description="Acompanhamento administrativo do módulo selecionado, com indicadores derivados do registry."
+=======
       description="Acompanhamento administrativo do módulo selecionado, com indicadores placeholder derivados do registry."
+ main
     >
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="premium-surface gold-accent rounded-2xl p-5">
@@ -56,7 +60,11 @@ export default function AdminCommissionPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
+ codex/modular-commission-portal
+          <div className="liquid-glass-card rounded-xl p-4">
+=======
           <div className="liquid-glass-card interactive-lift rounded-2xl p-4">
+ main
             <p className="text-sm font-medium text-muted-foreground">Áreas previstas</p>
             <p className="mt-3 text-3xl font-black text-foreground">{module.menus.length}</p>
           </div>
@@ -64,7 +72,11 @@ export default function AdminCommissionPage() {
             <p className="text-sm font-medium text-muted-foreground">Capability</p>
             <p className="mt-3 break-all text-sm font-bold text-foreground">{module.capability}</p>
           </div>
+ codex/modular-commission-portal
+          <div className="liquid-glass-card rounded-xl p-4">
+=======
           <div className="liquid-glass-card interactive-lift rounded-2xl p-4">
+ main
             <p className="text-sm font-medium text-muted-foreground">Exibição pública</p>
             <p className="mt-3 text-3xl font-black text-foreground">{module.publicPortal ? 'Sim' : 'Não'}</p>
           </div>
@@ -121,7 +133,11 @@ export default function AdminCommissionPage() {
             </div>
           </div>
 
+ codex/modular-commission-portal
+          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+=======
           <div className="liquid-glass-card interactive-lift rounded-2xl p-4 md:p-5">
+ main
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Observação</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               A visão administrativa ainda não mistura dados entre comissões. Cada módulo deve receber fonte própria ou consultas

@@ -1,16 +1,43 @@
 import { Link, useLocation } from 'react-router-dom';
+codex/modular-commission-portal
+import type { LucideIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  ClipboardList,
+  Database,
+  FileText,
+  Info,
+  ListChecks,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  UsersRound,
+  Workflow,
+} from 'lucide-react';
+=======
 import { AlertTriangle, ArrowRight, ClipboardList, FileText, Layers3, ShieldCheck, Sparkles } from 'lucide-react';
+main
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   getModuleRoute,
   statusClasses,
   statusLabels,
+  type CommissionMenuItem,
   type CommissionModule,
 } from '@/modules/commissions/commissionRegistry';
 
 interface CommissionDashboardPlaceholderProps {
   module: CommissionModule;
+}
+
+interface ScopeListCardProps {
+  title: string;
+  items?: string[];
+  icon: LucideIcon;
+  tone?: 'default' | 'gold' | 'red';
 }
 
 function getActiveMenu(module: CommissionModule, pathname: string) {
@@ -19,16 +46,68 @@ function getActiveMenu(module: CommissionModule, pathname: string) {
   return module.menus.find((item) => item.path === currentPath) ?? module.menus[0];
 }
 
+function ScopeListCard({ title, items, icon: Icon, tone = 'default' }: ScopeListCardProps) {
+  if (!items?.length) return null;
+
+  return (
+    <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <div
+          className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+            tone === 'red' ? 'bg-red-500/10 text-red-600 dark:text-red-300' : 'bg-gold/15 text-gold'
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </div>
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+      </div>
+      <ul className="space-y-2 text-sm leading-6 text-muted-foreground">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" aria-hidden="true" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function getScopeSections(activeMenu: CommissionMenuItem) {
+  return [
+    { title: 'Atividades principais', items: activeMenu.activities, icon: ListChecks },
+    { title: 'Tarefas previstas', items: activeMenu.tasks, icon: ClipboardList },
+    { title: 'Dados que serão registrados', items: activeMenu.dataInputs, icon: Database },
+    { title: 'Saídas esperadas', items: activeMenu.outputs, icon: Workflow },
+    { title: 'Indicadores futuros', items: activeMenu.indicators, icon: BarChart3 },
+    { title: 'Relatórios esperados', items: activeMenu.reports, icon: FileText },
+    { title: 'Responsáveis prováveis', items: activeMenu.responsibleProfiles, icon: UsersRound },
+    { title: 'Fluxo de status', items: activeMenu.statusFlow, icon: Workflow },
+    { title: 'Regras de prioridade', items: activeMenu.priorityRules, icon: AlertTriangle },
+    { title: 'Observações', items: activeMenu.notes, icon: Info },
+    { title: 'Melhorias futuras', items: activeMenu.futureEnhancements, icon: Sparkles },
+  ];
+}
+
 export default function CommissionDashboardPlaceholder({ module }: CommissionDashboardPlaceholderProps) {
   const location = useLocation();
   const activeMenu = getActiveMenu(module, location.pathname);
   const ModuleIcon = module.icon;
   const ActiveIcon = activeMenu.icon;
+  const scopeSections = getScopeSections(activeMenu);
+  const filledSections = scopeSections.filter((section) => section.items?.length);
 
   const expectedMetrics = [
+codex/modular-commission-portal
+    { label: 'Áreas do módulo', value: module.menus.length, icon: Sparkles },
+    { label: 'Seções de escopo', value: filledSections.length + (activeMenu.objective ? 1 : 0), icon: ClipboardList },
+    { label: 'Relatórios esperados', value: activeMenu.reports?.length ?? 0, icon: FileText },
+=======
     { label: 'Áreas previstas', value: module.menus.length, icon: Sparkles },
     { label: 'Fluxos estruturados', value: module.menus.filter((menu) => menu.path !== 'dashboard').length, icon: ClipboardList },
     { label: 'Relatórios planejados', value: module.menus.some((menu) => menu.path.includes('relatorio')) ? 1 : 0, icon: FileText },
+ main
   ];
 
   return (
@@ -53,6 +132,16 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
                 <ModuleIcon className="h-8 w-8" aria-hidden="true" />
               </div>
               <div>
+ codex/modular-commission-portal
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Módulo</p>
+                <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
+                  {module.name}
+                </h1>
+              </div>
+            </div>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {module.description}
+=======
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold">Módulo</p>
                 <h1 className="text-3xl font-black tracking-tight text-foreground md:text-4xl">{module.name}</h1>
               </div>
@@ -60,6 +149,7 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
             <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
               Este módulo está preparado para receber os fluxos específicos da comissão. A estrutura de navegação,
               permissões e rotas já está pronta para evoluir sem misturar dados entre comissões.
+ main
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
               <span className="rounded-full border border-border/50 bg-card/50 px-3 py-1.5">Tema: {module.visual.motionHint}</span>
@@ -73,8 +163,13 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
                 <ActiveIcon className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
+ codex/modular-commission-portal
+                <p className="text-xs text-muted-foreground">Área atual</p>
+                <h2 className="font-bold text-foreground">{activeMenu.label}</h2>
+=======
                 <p className="text-xs font-semibold text-muted-foreground">Área atual</p>
                 <h2 className="font-black text-foreground">{activeMenu.label}</h2>
+ main
               </div>
             </div>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">{activeMenu.description}</p>
@@ -84,7 +179,13 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
         {module.sensitive && (
           <div className="relative mt-5 flex gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm leading-6 text-red-800 dark:text-red-200">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+codex/modular-commission-portal
+            <p>
+              Módulo sensível: requer validação e permissões específicas. Nenhum dado financeiro real foi implementado nesta etapa.
+            </p>
+=======
             <p>Módulo sensível: requer validação e permissões específicas. Nenhum dado financeiro real foi implementado nesta etapa.</p>
+main
           </div>
         )}
       </section>
@@ -101,6 +202,35 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
         ))}
       </section>
 
+ codex/modular-commission-portal
+      <section className="grid gap-4 lg:grid-cols-[1.12fr_0.88fr]">
+        <div className="space-y-4">
+          {activeMenu.objective && (
+            <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Target className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Objetivo</p>
+                  <h2 className="text-lg font-bold text-foreground">Objetivo do menu</h2>
+                </div>
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">{activeMenu.objective}</p>
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {scopeSections.map((section) => (
+              <ScopeListCard
+                key={section.title}
+                title={section.title}
+                items={section.items}
+                icon={section.icon}
+                tone={section.title === 'Regras de prioridade' ? 'red' : 'default'}
+              />
+            ))}
+=======
       <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="liquid-glass-card rounded-3xl p-4 md:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
@@ -135,10 +265,72 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
                 </Link>
               );
             })}
+ main
           </div>
         </div>
 
         <div className="space-y-4">
+codex/modular-commission-portal
+          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Estrutura</p>
+              <h2 className="text-xl font-bold text-foreground">Menus do módulo</h2>
+            </div>
+            <div className="grid gap-3">
+              {module.menus.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeMenu.path === item.path;
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={getModuleRoute(module, item.path)}
+                    className={cn(
+                      'group rounded-xl border p-3 transition focus-ring',
+                      isActive
+                        ? 'border-gold/35 bg-gold/10'
+                        : 'border-border/50 bg-card/45 hover:border-gold/30 hover:bg-card/80'
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{item.label}</p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Próximos passos</p>
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+              <li className="flex gap-2">
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+                Validar responsáveis, regras de acesso e fonte oficial dos dados antes de criar registros reais.
+              </li>
+              <li className="flex gap-2">
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+                Transformar cada fluxo em CRUD somente depois que o escopo operacional estiver aprovado.
+              </li>
+              <li className="flex gap-2">
+                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+                Conectar indicadores reais ao painel administrativo quando houver dados confiáveis.
+              </li>
+            </ul>
+          </div>
+
+          <div className="liquid-glass-card rounded-xl p-4 md:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Governança</p>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              O conteúdo desta tela vem do registry do módulo. Ele delimita o que será implementado no futuro sem criar tabelas,
+              formulários funcionais ou dados operacionais fictícios.
+=======
           <div className="liquid-glass-card rounded-3xl p-5 md:p-6">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Próximos passos</p>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
@@ -163,6 +355,7 @@ export default function CommissionDashboardPlaceholder({ module }: CommissionDas
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               Espaço reservado para demandas, anexos e relatórios do módulo. Os dados desta etapa são derivados do registry,
               sem inventar registros operacionais.
+ main
             </p>
             <Button asChild className="mt-4 w-full rounded-2xl">
               <Link to="/admin/geral">Acompanhar no admin</Link>
