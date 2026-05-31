@@ -20,8 +20,8 @@ export default function AdminCommissionPage() {
 
   return (
     <AdminFrame
-      title={`Comissao de ${module.name}`}
-      description="Acompanhamento administrativo do modulo selecionado, com indicadores placeholder derivados do registry."
+      title={`Comissão de ${module.name}`}
+      description="Acompanhamento administrativo do módulo selecionado, com indicadores derivados do registry."
     >
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="premium-surface gold-accent rounded-xl p-5">
@@ -31,7 +31,7 @@ export default function AdminCommissionPage() {
                 <ModuleIcon className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Modulo</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Módulo</p>
                 <h2 className="text-2xl font-black text-foreground">{module.name}</h2>
               </div>
             </div>
@@ -43,21 +43,21 @@ export default function AdminCommissionPage() {
           {module.sensitive && (
             <div className="mt-4 flex gap-3 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm leading-6 text-red-800 dark:text-red-200">
               <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Modulo sensivel. Nenhum dado financeiro real foi implementado nesta etapa.
+              Módulo sensível. Nenhum dado financeiro real foi implementado nesta etapa.
             </div>
           )}
           <Link
             to={getModuleRoute(module)}
             className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-ring sm:w-auto"
           >
-            Abrir modulo
+            Abrir módulo
             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="liquid-glass-card rounded-xl p-4">
-            <p className="text-sm font-medium text-muted-foreground">Areas previstas</p>
+            <p className="text-sm font-medium text-muted-foreground">Áreas previstas</p>
             <p className="mt-3 text-3xl font-black text-foreground">{module.menus.length}</p>
           </div>
           <div className="liquid-glass-card rounded-xl p-4">
@@ -65,8 +65,8 @@ export default function AdminCommissionPage() {
             <p className="mt-3 break-all text-sm font-bold text-foreground">{module.capability}</p>
           </div>
           <div className="liquid-glass-card rounded-xl p-4">
-            <p className="text-sm font-medium text-muted-foreground">Exibicao publica</p>
-            <p className="mt-3 text-3xl font-black text-foreground">{module.publicPortal ? 'Sim' : 'Nao'}</p>
+            <p className="text-sm font-medium text-muted-foreground">Exibição pública</p>
+            <p className="mt-3 text-3xl font-black text-foreground">{module.publicPortal ? 'Sim' : 'Não'}</p>
           </div>
         </div>
       </section>
@@ -74,8 +74,8 @@ export default function AdminCommissionPage() {
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="liquid-glass-card rounded-xl p-4 md:p-5">
           <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Navegacao interna</p>
-            <h2 className="text-xl font-bold text-foreground">Rotas do modulo</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Navegação interna</p>
+            <h2 className="text-xl font-bold text-foreground">Rotas do módulo</h2>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {module.menus.map((item) => {
@@ -107,8 +107,8 @@ export default function AdminCommissionPage() {
             <div className="mt-4 space-y-3">
               {[
                 { label: 'Demandas pendentes', value: 'A definir', icon: ClipboardList },
-                { label: 'Relatorios emitidos', value: 'A definir', icon: FileText },
-                { label: 'Ultimos registros', value: 'A definir', icon: ArrowRight },
+                { label: 'Relatórios emitidos', value: 'A definir', icon: FileText },
+                { label: 'Últimos registros', value: 'A definir', icon: ArrowRight },
               ].map(({ label, value, icon: Icon }) => (
                 <div key={label} className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/45 p-3">
                   <div className="flex items-center gap-3">
@@ -122,9 +122,9 @@ export default function AdminCommissionPage() {
           </div>
 
           <div className="liquid-glass-card rounded-xl p-4 md:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Observacao</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Observação</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              A visao administrativa ainda nao mistura dados entre comissoes. Cada modulo deve receber fonte propria ou consultas
+              A visão administrativa ainda não mistura dados entre comissões. Cada módulo deve receber fonte própria ou consultas
               filtradas por org_id e slug antes de exibir registros reais.
             </p>
           </div>

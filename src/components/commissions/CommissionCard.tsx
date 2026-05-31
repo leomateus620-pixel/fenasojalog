@@ -38,7 +38,7 @@ export default function CommissionCard({ module, actionLabel = 'Acessar', onAcce
         {module.sensitive && (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-200">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            Modulo sensivel
+            Módulo sensível
           </div>
         )}
         <Button

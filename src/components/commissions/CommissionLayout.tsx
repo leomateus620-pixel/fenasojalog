@@ -15,7 +15,7 @@ export default function CommissionLayout({ module, children }: CommissionLayoutP
   return (
     <div className="min-h-screen bg-background grain-texture">
       <a href="#main-content" className="skip-to-content">
-        Pular para conteudo
+        Pular para conteúdo
       </a>
       <OfflineBanner />
       <CommissionSidebar

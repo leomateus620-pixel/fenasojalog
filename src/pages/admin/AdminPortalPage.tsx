@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 export default function AdminPortalPage() {
   return (
     <AdminFrame
-      title="Acompanhamento por comissao"
-      description="Escolha uma comissao para acompanhar a estrutura, navegar para o modulo ou abrir a visao consolidada."
+      title="Acompanhamento por comissão"
+      description="Escolha uma comissão para acompanhar a estrutura, navegar para o módulo ou abrir a visão consolidada."
     >
       <section className="grid gap-4 md:grid-cols-3">
         <Link to="/admin/geral" className="liquid-glass-card rounded-xl p-5 transition focus-ring hover:border-gold/35">
@@ -22,12 +22,12 @@ export default function AdminPortalPage() {
               <ChartColumn className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Visao consolidada</p>
-              <p className="text-xs text-muted-foreground">Todos os modulos</p>
+              <p className="text-sm font-semibold text-foreground">Visão consolidada</p>
+              <p className="text-xs text-muted-foreground">Todos os módulos</p>
             </div>
           </div>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            Indicadores derivados do registry ate que dados reais sejam conectados.
+            Indicadores derivados do registry até que dados reais sejam conectados.
           </p>
         </Link>
 
@@ -37,12 +37,12 @@ export default function AdminPortalPage() {
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">{commissionModules.length} comissoes</p>
+              <p className="text-sm font-semibold text-foreground">{commissionModules.length} comissões</p>
               <p className="text-xs text-muted-foreground">Mapeadas no registry</p>
             </div>
           </div>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            A navegacao administrativa usa a mesma fonte central das rotas publicas.
+            A navegação administrativa usa a mesma fonte central das rotas públicas.
           </p>
         </div>
 
@@ -52,7 +52,7 @@ export default function AdminPortalPage() {
               <LockKeyhole className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Modulo sensivel</p>
+              <p className="text-sm font-semibold text-foreground">Módulo sensível</p>
               <p className="text-xs text-muted-foreground">Financeiro Gerencial</p>
             </div>
           </div>
@@ -74,7 +74,7 @@ export default function AdminPortalPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-foreground">{module.name}</h3>
-                    <p className="text-xs text-muted-foreground">{module.menus.length} areas previstas</p>
+                    <p className="text-xs text-muted-foreground">{module.menus.length} áreas previstas</p>
                   </div>
                 </div>
                 <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-semibold', statusClasses[module.status])}>

@@ -52,13 +52,13 @@ export default function CommissionPortalPage() {
             <img src={logo} alt="Fenasoja 2026" className="h-auto w-36 object-contain drop-shadow-xl sm:w-44" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
-                Sistema Integrado de Gestao Operacional
+                Sistema Integrado de Gestão Operacional
               </p>
               <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
                 Fenasoja
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/72 sm:text-base">
-                Selecione a comissao para acessar o ambiente operacional correspondente.
+                Selecione a comissão para acessar o ambiente operacional correspondente.
               </p>
             </div>
           </div>

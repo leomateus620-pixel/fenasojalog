@@ -46,8 +46,8 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
   const contextName = isAdminLogin
     ? 'Administrador'
     : selectedModule
-      ? `Comissao de ${selectedModule.name}`
-      : 'Comissao de Logistica';
+      ? `Comissão de ${selectedModule.name}`
+      : 'Comissão de Logística';
 
   const resolveTarget = () => {
     if (returnTo && returnTo !== '/' && !returnTo.startsWith('/login')) return returnTo;
@@ -93,7 +93,7 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
     setLoading(true);
     const { error } = await signIn(email.trim(), password);
     if (error) {
-      setError('Email ou senha incorretos');
+      setError('E-mail ou senha incorretos');
     } else {
       navigate(resolveTarget(), { replace: true });
     }
@@ -162,7 +162,7 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="email"
-              placeholder="Email"
+              placeholder="E-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -207,7 +207,7 @@ export default function LoginPage({ returnTo }: LoginPageProps) {
               to="/portal"
               className="block rounded-lg text-xs font-semibold text-gold/85 transition hover:text-gold focus-ring"
             >
-              Trocar comissao
+              Trocar comissão
             </Link>
           </div>
         </div>

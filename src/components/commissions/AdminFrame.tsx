@@ -23,7 +23,7 @@ export default function AdminFrame({ title, description, children }: AdminFrameP
   return (
     <div className="min-h-screen bg-background grain-texture">
       <a href="#main-content" className="skip-to-content">
-        Pular para conteudo
+        Pular para conteúdo
       </a>
       <header className="sticky top-0 z-30 border-b border-border/60 bg-card/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">

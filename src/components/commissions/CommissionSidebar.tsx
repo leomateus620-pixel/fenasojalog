@@ -26,7 +26,7 @@ export default function CommissionSidebar({ module, mobileOpen, onMobileOpen, on
         <img src={logo} alt="Fenasoja" className="h-10 w-10 rounded-xl bg-white/10 object-contain p-1" />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/70">
-            Comissao
+            Comissão
           </p>
           <h2 className="truncate text-base font-bold text-gold">{module.shortName}</h2>
         </div>

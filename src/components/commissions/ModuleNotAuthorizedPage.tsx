@@ -11,8 +11,8 @@ interface ModuleNotAuthorizedPageProps {
 export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNotAuthorizedPageProps) {
   const title = adminArea ? 'Acesso administrativo restrito' : 'Acesso restrito';
   const description = adminArea
-    ? 'Esta area exige perfil administrativo, gestor ou capability admin_access.'
-    : `Seu usuario nao possui permissao para acessar ${module?.name ?? 'este modulo'}.`;
+    ? 'Esta área exige perfil administrativo, gestor ou capability admin_access.'
+    : `Seu usuário não possui permissão para acessar ${module?.name ?? 'este módulo'}.`;
 
   return (
     <div className="min-h-screen bg-background grain-texture px-4 py-8 text-foreground">
@@ -32,7 +32,7 @@ export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNot
           </p>
           {module?.sensitive && (
             <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-left text-sm text-red-700 dark:text-red-200">
-              Modulo sensivel - requer validacao e permissoes especificas antes de exibir dados operacionais.
+              Módulo sensível: requer validação e permissões específicas antes de exibir dados operacionais.
             </div>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -43,7 +43,7 @@ export default function ModuleNotAuthorizedPage({ module, adminArea }: ModuleNot
               </Link>
             </Button>
             <Button asChild className="rounded-xl">
-              <Link to="/portal">Ver comissoes</Link>
+              <Link to="/portal">Ver comissões</Link>
             </Button>
           </div>
         </div>
