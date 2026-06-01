@@ -433,3 +433,329 @@ input::placeholder, textarea::placeholder {
     transform: none;
   }
 }
+
+/* Portal das Comissões — premium 3D cards + integração visual */
+.commission-grid {
+  perspective: 1600px;
+  transform-style: preserve-3d;
+}
+
+.commission-card-3d {
+  isolation: isolate;
+  background:
+    linear-gradient(145deg, hsl(0 0% 100% / 0.78), hsl(132 18% 92% / 0.58) 46%, hsl(142 24% 84% / 0.42)),
+    hsl(var(--card) / 0.68);
+  border: 1px solid hsl(0 0% 100% / 0.52);
+  outline: 1px solid hsl(var(--gold) / 0.08);
+  transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+  transform-style: preserve-3d;
+  box-shadow:
+    0 30px 70px rgb(2 19 10 / 0.24),
+    0 14px 28px rgb(2 19 10 / 0.16),
+    0 1px 0 rgb(255 255 255 / 0.72) inset,
+    0 -18px 32px rgb(8 66 32 / 0.08) inset;
+  transition:
+    transform 520ms cubic-bezier(0.18, 0.89, 0.32, 1.18),
+    box-shadow 520ms cubic-bezier(0.18, 0.89, 0.32, 1.18),
+    border-color 320ms ease,
+    filter 320ms ease;
+}
+
+.commission-card-3d:hover {
+  border-color: hsl(var(--gold) / 0.42);
+  filter: saturate(1.08) contrast(1.04);
+  transform: translate3d(0, -10px, 34px) rotateX(5deg) rotateY(-4deg);
+  box-shadow:
+    0 44px 94px rgb(1 12 7 / 0.34),
+    0 18px 36px rgb(3 40 19 / 0.22),
+    0 0 42px hsl(var(--gold) / 0.12),
+    0 1px 0 rgb(255 255 255 / 0.78) inset,
+    0 -22px 34px rgb(8 66 32 / 0.10) inset;
+}
+
+.commission-card-3d:active {
+  transform: translate3d(0, -3px, 10px) rotateX(2deg) rotateY(-1deg) scale(0.992);
+}
+
+.commission-card-3d::before {
+  z-index: 1;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.10) 36%, transparent 68%),
+    radial-gradient(circle at 18% 12%, hsl(var(--gold) / 0.14), transparent 30%),
+    radial-gradient(circle at 86% 24%, hsl(var(--primary) / 0.12), transparent 34%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.5) inset,
+    0 0 0 1px rgb(255 255 255 / 0.08) inset;
+}
+
+.commission-card-3d > *:not(.commission-integration-link):not(.commission-integration-port) {
+  transform: translateZ(22px);
+}
+
+.commission-icon-3d {
+  background-image: linear-gradient(145deg, rgb(255 255 255 / 0.54), rgb(255 255 255 / 0.08));
+  box-shadow:
+    0 16px 26px rgb(0 0 0 / 0.12),
+    0 2px 5px rgb(0 0 0 / 0.10),
+    0 1px 0 rgb(255 255 255 / 0.65) inset;
+  transform: translateZ(34px);
+}
+
+.commission-status-pill {
+  box-shadow:
+    0 10px 20px rgb(0 0 0 / 0.08),
+    0 1px 0 rgb(255 255 255 / 0.5) inset;
+}
+
+.commission-action-button {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 14px 24px hsl(var(--primary) / 0.20),
+    0 1px 0 rgb(255 255 255 / 0.18) inset;
+}
+
+.commission-action-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.22), transparent);
+  opacity: 0;
+  transform: translateX(-70%);
+  transition: transform 520ms ease, opacity 320ms ease;
+}
+
+.commission-card-3d:hover .commission-action-button::after {
+  opacity: 1;
+  transform: translateX(70%);
+}
+
+.commission-card-orbit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, hsl(var(--gold) / 0.28), transparent) top / 72% 1px no-repeat,
+    linear-gradient(180deg, transparent, rgb(255 255 255 / 0.24), transparent) right / 1px 70% no-repeat;
+  opacity: 0.58;
+  transform: translateZ(30px);
+}
+
+.commission-integration-port {
+  position: absolute;
+  left: 50%;
+  top: -0.55rem;
+  z-index: 4;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--gold) / 0.62);
+  background:
+    radial-gradient(circle, hsl(var(--gold) / 0.94) 0 18%, hsl(var(--gold) / 0.32) 19% 42%, hsl(140 32% 10% / 0.78) 43% 100%);
+  box-shadow:
+    0 0 0 3px hsl(var(--gold) / 0.08),
+    0 0 16px hsl(var(--gold) / 0.46),
+    0 0 28px hsl(var(--primary) / 0.16);
+  opacity: 0.86;
+  pointer-events: none;
+  transform: translate3d(-50%, 0, 38px);
+}
+
+.commission-integration-port::before {
+  content: '';
+  position: absolute;
+  inset: -0.42rem;
+  border-radius: inherit;
+  border: 1px solid hsl(var(--gold) / 0.16);
+  background: radial-gradient(circle, hsl(var(--gold) / 0.14), transparent 62%);
+  animation: integration-port-breathe 2400ms ease-in-out infinite;
+}
+
+.commission-integration-link {
+  position: absolute;
+  left: 50%;
+  bottom: -2rem;
+  z-index: 3;
+  display: block;
+  width: 2px;
+  height: 2rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, transparent, hsl(var(--gold) / 0.30) 10%, hsl(var(--gold) / 0.92) 48%, hsl(var(--gold) / 0.28) 88%, transparent),
+    linear-gradient(180deg, transparent, hsl(var(--primary) / 0.28), transparent);
+  box-shadow:
+    0 0 10px hsl(var(--gold) / 0.46),
+    0 0 22px hsl(var(--gold) / 0.22),
+    0 0 34px hsl(var(--primary) / 0.12);
+  pointer-events: none;
+  transform: translate3d(-50%, 0, 34px);
+}
+
+.commission-integration-link::before,
+.commission-integration-link::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.commission-integration-link::before {
+  left: 50%;
+  top: -0.34rem;
+  width: 0.78rem;
+  height: 0.78rem;
+  border: 1px solid hsl(var(--gold) / 0.58);
+  background:
+    radial-gradient(circle, hsl(var(--gold) / 0.96) 0 17%, hsl(var(--gold) / 0.28) 18% 46%, hsl(135 32% 13% / 0.76) 47% 100%);
+  box-shadow:
+    0 0 0 4px hsl(var(--gold) / 0.08),
+    0 0 18px hsl(var(--gold) / 0.52);
+  transform: translateX(-50%);
+}
+
+.commission-integration-link::after {
+  left: 50%;
+  top: 0.15rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  background: hsl(var(--gold));
+  box-shadow:
+    0 0 12px hsl(var(--gold) / 0.92),
+    0 0 24px hsl(var(--gold) / 0.42);
+  transform: translateX(-50%);
+  animation: integration-flow-y 1900ms cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.commission-grid > article:first-child .commission-integration-port,
+.commission-grid > article:last-child .commission-integration-link {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .commission-integration-port {
+    left: -0.55rem;
+    top: 50%;
+    transform: translate3d(0, -50%, 38px);
+  }
+
+  .commission-integration-link {
+    left: auto;
+    right: -1.75rem;
+    bottom: auto;
+    top: 50%;
+    width: 1.75rem;
+    height: 2px;
+    background:
+      linear-gradient(90deg, transparent, hsl(var(--gold) / 0.34) 9%, hsl(var(--gold) / 0.95) 48%, hsl(var(--gold) / 0.30) 90%, transparent),
+      linear-gradient(90deg, transparent, hsl(var(--primary) / 0.30), transparent);
+    transform: translate3d(0, -50%, 34px);
+  }
+
+  .commission-integration-link::before {
+    left: -0.02rem;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .commission-integration-link::after {
+    left: 0.12rem;
+    top: 50%;
+    transform: translateY(-50%);
+    animation-name: integration-flow-x;
+  }
+
+  .commission-grid > article:nth-child(2n + 1) .commission-integration-port {
+    display: none;
+  }
+
+  .commission-grid > article:nth-child(2n) .commission-integration-link {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .commission-grid > article:nth-child(2n + 1) .commission-integration-port {
+    display: block;
+  }
+
+  .commission-grid > article:nth-child(2n) .commission-integration-link {
+    display: block;
+  }
+
+  .commission-grid > article:nth-child(3n + 1) .commission-integration-port,
+  .commission-grid > article:nth-child(3n) .commission-integration-link {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .commission-grid > article:nth-child(3n + 1) .commission-integration-port,
+  .commission-grid > article:nth-child(3n) .commission-integration-link {
+    display: block;
+  }
+
+  .commission-grid > article:nth-child(4n + 1) .commission-integration-port,
+  .commission-grid > article:nth-child(4n) .commission-integration-link {
+    display: none;
+  }
+}
+
+
+.dark .commission-card-3d {
+  background:
+    linear-gradient(145deg, hsl(142 22% 13% / 0.88), hsl(137 30% 9% / 0.82) 48%, hsl(128 28% 7% / 0.78)),
+    hsl(var(--card) / 0.72);
+  border-color: hsl(0 0% 100% / 0.13);
+  box-shadow:
+    0 34px 78px rgb(0 0 0 / 0.46),
+    0 12px 26px rgb(0 0 0 / 0.30),
+    0 1px 0 rgb(255 255 255 / 0.10) inset,
+    0 -18px 34px rgb(0 0 0 / 0.22) inset;
+}
+
+.dark .commission-card-3d:hover {
+  border-color: hsl(var(--gold) / 0.40);
+  box-shadow:
+    0 48px 100px rgb(0 0 0 / 0.58),
+    0 20px 42px rgb(0 0 0 / 0.38),
+    0 0 42px hsl(var(--gold) / 0.12),
+    0 1px 0 rgb(255 255 255 / 0.14) inset;
+}
+
+@keyframes integration-flow-x {
+  0% { opacity: 0; transform: translate(0, -50%) scale(0.7); }
+  18% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: translate(1.32rem, -50%) scale(1.18); }
+}
+
+@keyframes integration-flow-y {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+  18% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, 1.52rem) scale(1.18); }
+}
+
+@keyframes integration-port-breathe {
+  0%, 100% { opacity: 0.45; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commission-card-3d,
+  .commission-action-button::after {
+    transition: none;
+  }
+
+  .commission-card-3d:hover,
+  .commission-card-3d:active {
+    transform: none;
+  }
+
+  .commission-integration-link::after,
+  .commission-integration-port::before {
+    animation: none;
+  }
+}
