@@ -59,13 +59,39 @@ export default function CommissionCard({ module, actionLabel = 'Acessar', index 
 
   const lift = tilt.hover ? 4 : 0;
   const pressZ = tilt.pressed ? -2 : 0;
-...
+
+  return (
+    <div
+      className="commission-card-perspective portal-card-enter"
+      style={{ animationDelay: `${Math.min(index * 45, 360)}ms` }}
+    >
+      <article
+        ref={ref}
+        onMouseMove={handleMove}
+        onMouseLeave={handleLeave}
+        onMouseDown={handleDown}
+        onMouseUp={handleUp}
+        className="commission-card-3d liquid-glass-card gold-accent group relative flex min-h-[258px] flex-col overflow-visible rounded-[1.65rem] p-5 text-left text-foreground md:p-6"
         style={{
           transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) translate3d(0, ${-lift}px, ${lift + pressZ}px)`,
           transition: tilt.hover
             ? 'transform 180ms cubic-bezier(0.22,1,0.36,1), box-shadow 240ms ease, border-color 240ms ease, filter 240ms ease'
             : 'transform 420ms cubic-bezier(0.22,1,0.36,1), box-shadow 420ms ease, border-color 420ms ease, filter 420ms ease',
-...
+          willChange: tilt.hover ? 'transform' : 'auto',
+        }}
+      >
+        <span className="commission-integration-link" aria-hidden="true" />
+
+        {/* Base de cor da comissão */}
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 h-36 overflow-hidden rounded-[1.65rem] bg-gradient-to-br opacity-95',
+            module.accentClass,
+          )}
+          aria-hidden="true"
+          style={{ transform: 'translateZ(2px)' }}
+        />
+
         {/* Halo radial que segue o cursor (sutil) */}
         <div
           aria-hidden="true"
@@ -123,12 +149,7 @@ export default function CommissionCard({ module, actionLabel = 'Acessar', index 
             <span className="h-1 w-1 rounded-full bg-primary/80" />
           </div>
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold/80">Comissão</p>
-          <h2
-            className="mt-2 text-xl font-black tracking-tight text-foreground"
-            style={{ transform: 'translateZ(12px)' }}
-          >
-            {module.name}
-          </h2>
+          <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">{module.name}</h2>
           <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{module.description}</p>
           {module.sensitive && (
             <div className="mt-4 flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-200">
@@ -141,7 +162,7 @@ export default function CommissionCard({ module, actionLabel = 'Acessar', index 
             onClick={onAccess}
             className="commission-action-button mt-auto h-12 w-full rounded-2xl font-bold shadow-lg shadow-primary/20 transition active:scale-[0.98]"
             variant={status === 'restricted' ? 'outline' : 'default'}
-            style={{ transform: 'translateZ(14px)' }}
+            style={{ transform: 'translateZ(2px)' }}
           >
             {actionLabel}
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
