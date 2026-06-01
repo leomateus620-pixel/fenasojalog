@@ -27,7 +27,6 @@ export default function CommissionCard({ module, actionLabel = 'Acessar', index 
       className="commission-card-3d portal-card-enter liquid-glass-card gold-accent group relative flex min-h-[258px] flex-col overflow-visible rounded-[1.65rem] p-5 text-left text-foreground md:p-6"
       style={{ animationDelay: `${Math.min(index * 45, 360)}ms` }}
     >
-      <span className="commission-integration-port" aria-hidden="true" />
       <span className="commission-integration-link" aria-hidden="true" />
       <span className="commission-card-orbit" aria-hidden="true" />
       <div className={cn('absolute inset-x-0 top-0 h-36 overflow-hidden rounded-[1.65rem] bg-gradient-to-br opacity-95', module.accentClass)} aria-hidden="true" />
