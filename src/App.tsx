@@ -243,6 +243,7 @@ function LegacyLogisticsRoutes() {
         <Route path="/agenda" element={<FullAccessRoute><AgendaPage /></FullAccessRoute>} />
         <Route path="/cronograma-eventos" element={<FullAccessRoute><CronogramaEventosPage /></FullAccessRoute>} />
         <Route path="/fenasoja-events" element={<FullAccessRoute><FenasojaEventsPage /></FullAccessRoute>} />
+        <Route path="/cronograma-eventos" element={<FullAccessRoute><CronogramaEventosPage /></FullAccessRoute>} />
         <Route path="/checklist" element={<FullAccessRoute><ChecklistPage /></FullAccessRoute>} />
         <Route path="/team" element={<FullAccessRoute><TeamPage /></FullAccessRoute>} />
         <Route path="/ver-escala" element={<FullAccessRoute><VerEscalaPage /></FullAccessRoute>} />

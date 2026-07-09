@@ -1,7 +1,7 @@
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Zap, MapPin, CalendarDays, CheckSquare, Users, Hotel, Bike,
-  PanelLeftClose, PanelLeftOpen, LogOut, Settings, ClipboardList, X, Gauge, FileText, Receipt, ShieldCheck, CalendarCheck2,
+  PanelLeftClose, PanelLeftOpen, LogOut, Settings, ClipboardList, X, Gauge, FileText, Receipt, ShieldCheck, CalendarCheck2, CalendarRange,
 } from 'lucide-react';
 import { useFenasojaEvents } from '@/hooks/useFenasojaEvents';
 import logo from '@/assets/logofeira26.webp';
