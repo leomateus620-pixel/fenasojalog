@@ -10,11 +10,9 @@ import {
   RefreshCw,
   Ruler,
   Send,
-  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useCommercialMap, useMapEntityFilter, useMapMutations, useMapPermissions } from './hooks/useCommercialMap';
@@ -118,11 +116,6 @@ export default function CommercialMapPage() {
             <p>{data.project.name}</p>
           </div>
         </div>
-        <div className="commercial-map-project-health">
-          <div><BadgeCheck /><span><strong>Versão {data.project.activeVersion}</strong><small>{data.project.isPublished ? 'Publicada' : 'Rascunho controlado'}</small></span></div>
-          <div className={data.calibration?.status === 'VALIDATED' ? 'is-valid' : 'is-warning'}><Ruler /><span><strong>{data.calibration?.status === 'VALIDATED' ? 'Calibrado' : 'Não calibrado'}</strong><small>{data.calibration?.status === 'VALIDATED' ? `${data.calibration.mapUnitsPerMeter?.toFixed(4)} un/m` : 'Área não validada'}</small></span></div>
-          <div><ShieldCheck /><span><strong>{projectStats?.verified ?? 0} verificadas</strong><small>{projectStats?.review ?? 0} em revisão</small></span></div>
-        </div>
         <div className="commercial-map-header-actions">
           {permissions.isMapAdmin && (
             <Button variant="outline" size="sm" onClick={() => setActivePanel('calibration')}><Ruler />Calibrar</Button>
@@ -175,18 +168,6 @@ export default function CommercialMapPage() {
           )}
         </div>
       </header>
-
-      {data.sourceMessage && (
-        <div className="commercial-map-source-banner" role="status">
-          <AlertTriangle />
-          <span><strong>{data.source === 'official-reference' ? 'Base oficial em preparação' : 'Projeto ainda não publicado'}</strong>{data.sourceMessage}</span>
-          <Badge variant="outline">
-            {data.source === 'official-reference'
-              ? `${data.lots.length} lotes · sem compradores importados`
-              : `${data.lots.length} lotes persistidos`}
-          </Badge>
-        </div>
-      )}
 
       <div className="commercial-map-viewport">
         {workspaceMode === 'create' ? (

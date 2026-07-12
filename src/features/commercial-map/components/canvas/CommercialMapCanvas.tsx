@@ -12,6 +12,12 @@ import {
   STATUS_CONFIG,
 } from '../../constants';
 import { geometryCentroid, withoutClosingPoint } from '../../utils/geometry';
+import {
+  isCameraNavigationMovement,
+  isMapSelectionClick,
+  isSelectableMapClassification,
+  selectionFocusProfile,
+} from '../../utils/interaction';
 import { normalizeMapEntityMetadata, type MapLabelVisibility } from '../../utils/mapMetadata';
 import { useCommercialMapStore } from '../../state/useCommercialMapStore';
 import type { CameraPreset, CommercialLot, MapCalibration, MapEntity } from '../../types';
@@ -134,14 +140,6 @@ function fitDistanceForDirection(
   return Math.max(distance * padding, extent.maxHeight * 3 + 4);
 }
 
-function selectionContextRatio(entity: MapEntity) {
-  if (entity.classification === 'SELLABLE_LOT' || entity.classification === 'INTERNAL_STAND') return 0.09;
-  if (['RESTAURANT', 'FOOD_AREA', 'SERVICE', 'GATE', 'RESTROOM', 'EMERGENCY', 'SECURITY'].includes(entity.classification)) return 0.125;
-  if (['PAVILION', 'BUILDING', 'ADMINISTRATION'].includes(entity.classification)) return 0.15;
-  if (['PARKING', 'EVENT_VENUE', 'LIVESTOCK_AREA', 'RURAL_EXHIBITION', 'ATTRACTION'].includes(entity.classification)) return 0.18;
-  return 0.11;
-}
-
 function ReferenceUnderlay({ calibration }: { calibration: MapCalibration | null }) {
   const referenceVisible = useCommercialMapStore((state) => state.referenceVisible);
   const referenceOpacity = useCommercialMapStore((state) => state.referenceOpacity);
@@ -169,7 +167,7 @@ function ReferenceUnderlay({ calibration }: { calibration: MapCalibration | null
   );
 }
 
-function createEntityGeometry(entity: MapEntity) {
+function createEntityShape(entity: MapEntity) {
   const outer = withoutClosingPoint(entity.geometry.coordinates[0] ?? []);
   const shape = new THREE.Shape();
   outer.forEach(([x, z], index) => {
@@ -184,6 +182,11 @@ function createEntityGeometry(entity: MapEntity) {
     });
     shape.holes.push(hole);
   });
+  return shape;
+}
+
+function createEntityGeometry(entity: MapEntity) {
+  const shape = createEntityShape(entity);
   const classification = String(entity.classification);
   const surface = ['ROAD', 'PEDESTRIAN_PATH', 'GREEN_AREA', 'PARKING', 'WATER', 'QUADRA'].includes(classification);
   const height = surface ? Math.max(0.018, Math.min(entity.geometry.extrusionHeight, 0.08)) : Math.max(0.025, entity.geometry.extrusionHeight);
@@ -199,6 +202,14 @@ function createEntityGeometry(entity: MapEntity) {
   extruded.rotateX(-Math.PI / 2);
   extruded.computeVertexNormals();
   return extruded;
+}
+
+function createHitSurfaceGeometry(entity: MapEntity) {
+  const geometry = new THREE.ShapeGeometry(createEntityShape(entity), 2);
+  geometry.rotateX(-Math.PI / 2);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 function createFootprintGeometry(entity: MapEntity) {
@@ -228,10 +239,11 @@ interface EntityMeshProps {
   filtersActive: boolean;
   isMatch: boolean;
   layerOpacity: number;
-  cameraInteracting: boolean;
+  cameraNavigating: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   onFocus: () => void;
+  onCursor: (cursor: 'grab' | 'grabbing' | 'pointer') => void;
 }
 
 const EntityMesh = memo(function EntityMesh({
@@ -241,17 +253,19 @@ const EntityMesh = memo(function EntityMesh({
   filtersActive,
   isMatch,
   layerOpacity,
-  cameraInteracting,
+  cameraNavigating,
   onSelect,
   onHover,
   onFocus,
+  onCursor,
 }: EntityMeshProps) {
   const classification = String(entity.classification);
   const isRoad = classification === 'ROAD';
   const isQuadra = classification === 'QUADRA';
   const isFlat = entity.geometry.extrusionHeight < 0.3 || isRoad || isQuadra;
-  const isInteractive = !cameraInteracting && !isRoad && !isQuadra;
+  const isInteractive = isSelectableMapClassification(entity.classification);
   const geometry = useMemo(() => isQuadra ? null : createEntityGeometry(entity), [entity, isQuadra]);
+  const hitSurface = useMemo(() => isQuadra ? createHitSurfaceGeometry(entity) : null, [entity, isQuadra]);
   const edges = useMemo(() => geometry && !isRoad ? new THREE.EdgesGeometry(geometry, 28) : null, [geometry, isRoad]);
   const footprint = useMemo(() => isRoad || isQuadra ? createFootprintGeometry(entity) : null, [entity, isQuadra, isRoad]);
   const color = CLASSIFICATION_COLORS[entity.classification] ?? '#78907d';
@@ -261,28 +275,31 @@ const EntityMesh = memo(function EntityMesh({
 
   useEffect(() => () => {
     geometry?.dispose();
+    hitSurface?.dispose();
     edges?.dispose();
     footprint?.dispose();
-  }, [edges, footprint, geometry]);
+  }, [edges, footprint, geometry, hitSurface]);
 
   const interactionProps = isInteractive ? {
     onClick: (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation();
-      if (event.delta > 5) return;
+      if (!isMapSelectionClick(event.delta)) return;
       onSelect(entity.id);
     },
     onDoubleClick: (event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation();
+      if (!isMapSelectionClick(event.delta)) return;
       onSelect(entity.id);
       onFocus();
     },
     onPointerOver: (event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation();
-      document.body.style.cursor = 'pointer';
+      if (cameraNavigating) return;
+      onCursor('pointer');
       onHover(entity.id);
     },
     onPointerOut: () => {
-      document.body.style.cursor = '';
+      onCursor(cameraNavigating ? 'grabbing' : 'grab');
       onHover(null);
     },
   } : { raycast: NO_RAYCAST };
@@ -298,24 +315,30 @@ const EntityMesh = memo(function EntityMesh({
         >
           <meshStandardMaterial
             color={color}
-            roughness={isFlat ? 0.92 : 0.61}
-            metalness={classification === 'EVENT_VENUE' ? 0.08 : 0.015}
+            roughness={isFlat ? 0.9 : 0.72}
+            metalness={0}
             transparent={visualOpacity < 0.995}
             opacity={visualOpacity}
             depthWrite={visualOpacity > 0.42}
             emissive={selected || hovered || matched ? color : '#000000'}
-            emissiveIntensity={selected ? 0.2 : hovered ? 0.1 : matched ? 0.045 : 0}
+            emissiveIntensity={selected ? 0.16 : hovered ? 0.07 : matched ? 0.035 : 0}
             polygonOffset
-            polygonOffsetFactor={isFlat ? -1 : 0}
-            polygonOffsetUnits={isFlat ? -1 : 0}
+            polygonOffsetFactor={isFlat ? -2 : 0}
+            polygonOffsetUnits={isFlat ? -2 : 0}
           />
+        </mesh>
+      )}
+
+      {isQuadra && hitSurface && (
+        <mesh geometry={hitSurface} position={[0, 0.003, 0]} {...interactionProps}>
+          <meshBasicMaterial visible={false} />
         </mesh>
       )}
 
       <lineSegments
         geometry={(isRoad || isQuadra ? footprint : edges)!}
         position={[0, isRoad || isQuadra ? 0.004 : 0.012, 0]}
-        raycast={isInteractive ? undefined : NO_RAYCAST}
+        raycast={NO_RAYCAST}
       >
         <lineBasicMaterial
           color={selected ? '#fff1a8' : isQuadra ? '#3f7b4d' : isRoad ? '#7c857f' : '#1f3327'}
@@ -338,8 +361,8 @@ function lotColor(entry: LotEntry, filtersActive: boolean, isMatch: boolean, sel
   const status = STATUS_CONFIG[entry.lot.status];
   const color = new THREE.Color(status.color);
   if (filtersActive && !isMatch && !selected) color.lerp(new THREE.Color('#c7d1c9'), 0.76);
-  if (hovered) color.lerp(new THREE.Color('#ffffff'), 0.18);
-  if (selected) color.lerp(new THREE.Color('#fff4b8'), 0.38);
+  if (hovered) color.lerp(new THREE.Color('#ffffff'), 0.1);
+  if (selected) color.lerp(new THREE.Color('#fff4b8'), 0.14);
   return color;
 }
 
@@ -374,7 +397,8 @@ function BatchedLots({
   onSelect,
   onHover,
   onFocus,
-  cameraInteracting,
+  cameraNavigating,
+  onCursor,
 }: {
   entries: LotEntry[];
   selectedEntityId: string | null;
@@ -385,18 +409,26 @@ function BatchedLots({
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   onFocus: () => void;
-  cameraInteracting: boolean;
+  cameraNavigating: boolean;
+  onCursor: (cursor: 'grab' | 'grabbing' | 'pointer') => void;
 }) {
   const invalidate = useThree((state) => state.invalidate);
   const hoveredRef = useRef<string | null>(null);
+  const visualStateRef = useRef({ selectedEntityId, hoveredEntityId });
+  const previousTransientRef = useRef({ selectedEntityId: null as string | null, hoveredEntityId: null as string | null });
+  visualStateRef.current = { selectedEntityId, hoveredEntityId };
+  const entryByEntity = useMemo(() => new Map(entries.map((entry) => [entry.entity.id, entry])), [entries]);
   const batch = useMemo(() => {
     if (entries.length === 0) return null;
     const sourceGeometries = entries.map(({ entity }) => {
       const geometry = createEntityGeometry(entity);
-      return geometry.index ? geometry.toNonIndexed() : geometry;
+      if (!geometry.index) return geometry;
+      const nonIndexed = geometry.toNonIndexed();
+      geometry.dispose();
+      return nonIndexed;
     });
     const vertexCount = sourceGeometries.reduce((sum, geometry) => sum + geometry.getAttribute('position').count, 0);
-    const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.92, metalness: 0.015 });
+    const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.86, metalness: 0 });
     const mesh = new THREE.BatchedMesh(entries.length, vertexCount, 0, material);
     const entityByBatchId = new Map<number, string>();
     const batchIdByEntity = new Map<string, number>();
@@ -434,7 +466,7 @@ function BatchedLots({
     edgeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(edgeColors, 3));
     mesh.computeBoundingBox();
     mesh.computeBoundingSphere();
-    mesh.perObjectFrustumCulled = false;
+    mesh.perObjectFrustumCulled = true;
     mesh.sortObjects = false;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -447,27 +479,60 @@ function BatchedLots({
     batch?.mesh.dispose();
   }, [batch]);
 
+  const applyVisualState = useCallback((entityId: string) => {
+    if (!batch) return;
+    const entry = entryByEntity.get(entityId);
+    if (!entry) return;
+    const batchId = batch.batchIdByEntity.get(entityId);
+    if (batchId === undefined) return;
+    const { selectedEntityId: currentSelection, hoveredEntityId: currentHover } = visualStateRef.current;
+    const selected = currentSelection === entityId;
+    const hovered = currentHover === entityId;
+    const matrix = new THREE.Matrix4();
+    batch.mesh.setColorAt(batchId, lotColor(entry, filtersActive, matchingEntityIds.has(entityId), selected, hovered));
+    matrix.makeTranslation(0, entry.entity.geometry.elevation + (selected ? 0.055 : hovered ? 0.035 : 0), 0);
+    batch.mesh.setMatrixAt(batchId, matrix);
+  }, [batch, entryByEntity, filtersActive, matchingEntityIds]);
+
   useEffect(() => {
     if (!batch) return;
-    const matrix = new THREE.Matrix4();
-    entries.forEach((entry) => {
-      const batchId = batch.batchIdByEntity.get(entry.entity.id);
-      if (batchId === undefined) return;
-      const selected = selectedEntityId === entry.entity.id;
-      const hovered = hoveredEntityId === entry.entity.id;
-      batch.mesh.setColorAt(batchId, lotColor(entry, filtersActive, matchingEntityIds.has(entry.entity.id), selected, hovered));
-      matrix.makeTranslation(0, entry.entity.geometry.elevation + (selected ? 0.055 : hovered ? 0.035 : 0), 0);
-      batch.mesh.setMatrixAt(batchId, matrix);
-    });
+    entries.forEach((entry) => applyVisualState(entry.entity.id));
+    previousTransientRef.current = { ...visualStateRef.current };
+    batch.mesh.computeBoundingBox();
+    batch.mesh.computeBoundingSphere();
+    invalidate();
+  }, [applyVisualState, batch, entries, filtersActive, invalidate, matchingEntityIds]);
+
+  useEffect(() => {
+    if (!batch) return;
+    const previous = previousTransientRef.current;
+    const changedIds = new Set([
+      previous.selectedEntityId,
+      previous.hoveredEntityId,
+      selectedEntityId,
+      hoveredEntityId,
+    ].filter((id): id is string => Boolean(id)));
+    changedIds.forEach(applyVisualState);
+    previousTransientRef.current = { selectedEntityId, hoveredEntityId };
+    if (changedIds.size > 0) invalidate();
+  }, [applyVisualState, batch, hoveredEntityId, invalidate, selectedEntityId]);
+
+  useEffect(() => {
+    if (!batch) return;
     const opacity = entries.length > 0 ? (layerOpacity[entries[0].entity.layerId] ?? 1) : 1;
     batch.material.opacity = opacity;
     batch.material.transparent = opacity < 0.995;
     batch.material.depthWrite = opacity > 0.42;
     batch.material.needsUpdate = true;
-    batch.mesh.computeBoundingBox();
-    batch.mesh.computeBoundingSphere();
     invalidate();
-  }, [batch, entries, filtersActive, hoveredEntityId, invalidate, layerOpacity, matchingEntityIds, selectedEntityId]);
+  }, [batch, entries, invalidate, layerOpacity]);
+
+  useEffect(() => {
+    if (!cameraNavigating) return;
+    hoveredRef.current = null;
+    onHover(null);
+    onCursor('grabbing');
+  }, [cameraNavigating, onCursor, onHover]);
 
   if (!batch) return null;
   const selectedEntity = entries.find((entry) => entry.entity.id === selectedEntityId)?.entity;
@@ -481,15 +546,16 @@ function BatchedLots({
     <>
       <primitive
         object={batch.mesh}
-        raycast={cameraInteracting ? NO_RAYCAST : batch.raycast}
+        raycast={batch.raycast}
         onClick={(event: ThreeEvent<MouseEvent>) => {
           event.stopPropagation();
-          if (event.delta > 5) return;
+          if (!isMapSelectionClick(event.delta)) return;
           const entityId = resolveEntityId(event);
           if (entityId) onSelect(entityId);
         }}
         onDoubleClick={(event: ThreeEvent<MouseEvent>) => {
           event.stopPropagation();
+          if (!isMapSelectionClick(event.delta)) return;
           const entityId = resolveEntityId(event);
           if (!entityId) return;
           onSelect(entityId);
@@ -497,15 +563,16 @@ function BatchedLots({
         }}
         onPointerMove={(event: ThreeEvent<PointerEvent>) => {
           event.stopPropagation();
+          if (cameraNavigating) return;
           const entityId = resolveEntityId(event);
           if (entityId === hoveredRef.current) return;
           hoveredRef.current = entityId;
-          document.body.style.cursor = entityId ? 'pointer' : '';
+          onCursor(entityId ? 'pointer' : 'grab');
           onHover(entityId);
         }}
         onPointerOut={() => {
           hoveredRef.current = null;
-          document.body.style.cursor = '';
+          onCursor(cameraNavigating ? 'grabbing' : 'grab');
           onHover(null);
         }}
       />
@@ -678,14 +745,20 @@ function useSemanticLabelVisibility({
 
 function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | null; extent: SceneExtent }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const { camera, size, invalidate } = useThree();
+  const { camera, size, invalidate, gl } = useThree();
   const preset = useCommercialMapStore((state) => state.cameraPreset);
   const cameraSequence = useCommercialMapStore((state) => state.cameraSequence);
   const activePanel = useCommercialMapStore((state) => state.activePanel);
-  const setCameraInteracting = useCommercialMapStore((state) => state.setCameraInteracting);
+  const setCameraNavigating = useCommercialMapStore((state) => state.setCameraNavigating);
   const targetPosition = useRef(new THREE.Vector3());
   const targetLookAt = useRef(new THREE.Vector3(extent.centerX, 0, extent.centerZ));
   const animating = useRef(true);
+  const navigation = useRef({
+    active: false,
+    navigating: false,
+    startPosition: new THREE.Vector3(),
+    startTarget: new THREE.Vector3(),
+  });
   const initialized = useRef(false);
   const previousPreset = useRef<CameraPreset>(preset);
   const previousSequence = useRef(cameraSequence);
@@ -727,6 +800,7 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
   const queueSelection = useCallback((entity: MapEntity) => {
     const perspective = camera as THREE.PerspectiveCamera;
     const entityExtent = getEntityExtent(entity);
+    const focusProfile = selectionFocusProfile(entity.classification);
     const hasDetailsPanel = activePanel === 'details';
     const panelWidth = hasDetailsPanel && size.width > 900 ? Math.min(380, size.width * 0.42) : 0;
     const panelHeight = hasDetailsPanel && size.width <= 900 ? Math.min(size.height * (size.width <= 640 ? 0.74 : 0.68), 610) : 0;
@@ -742,13 +816,13 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
     const direction = camera.position.clone().sub(currentTarget);
     if (direction.lengthSq() < 0.01) direction.set(0.7, 0.75, 0.8);
     direction.normalize();
-    direction.y = Math.max(direction.y, 0.46);
+    direction.y = Math.max(direction.y, focusProfile.minimumDirectionY);
     direction.normalize();
-    const fittedDistance = fitDistanceForDirection(entityExtent, perspective.fov || 38, aspect, direction, 1.38);
+    const fittedDistance = fitDistanceForDirection(entityExtent, perspective.fov || 38, aspect, direction, focusProfile.fitPadding);
     const distance = THREE.MathUtils.clamp(
-      Math.max(fittedDistance, extent.diagonal * selectionContextRatio(entity)),
-      Math.max(10, extent.diagonal * 0.075),
-      Math.max(36, extent.diagonal * 0.64),
+      Math.max(fittedDistance, extent.diagonal * focusProfile.contextRatio),
+      Math.max(10, extent.diagonal * focusProfile.minDistanceRatio),
+      Math.max(36, extent.diagonal * focusProfile.maxDistanceRatio),
     );
     const viewDirection = direction.clone().negate();
     const right = new THREE.Vector3().crossVectors(viewDirection, new THREE.Vector3(0, 1, 0));
@@ -758,7 +832,7 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
     const lookAt = entityCenter.clone();
     if (panelWidth > 0) {
       const horizontalShift = distance * Math.tan(horizontalFov / 2) * (panelWidth / Math.max(size.width, 1));
-      lookAt.addScaledVector(right, horizontalShift);
+      lookAt.addScaledVector(right, horizontalShift * 0.72);
     } else if (panelHeight > 0) {
       const viewUp = new THREE.Vector3().crossVectors(right, viewDirection);
       viewUp.y = 0;
@@ -816,9 +890,49 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
     controls.target.z = THREE.MathUtils.clamp(controls.target.z, extent.minZ - margin, extent.maxZ + margin);
   }, [extent]);
 
+  const handleControlsStart = useCallback(() => {
+    const controls = controlsRef.current;
+    animating.current = false;
+    navigation.current.active = true;
+    navigation.current.navigating = false;
+    navigation.current.startPosition.copy(camera.position);
+    navigation.current.startTarget.copy(controls?.target ?? targetLookAt.current);
+  }, [camera]);
+
+  const handleControlsChange = useCallback(() => {
+    const controls = controlsRef.current;
+    clampTarget();
+    if (controls && navigation.current.active && !navigation.current.navigating) {
+      const cameraDelta = camera.position.distanceTo(navigation.current.startPosition);
+      const targetDelta = controls.target.distanceTo(navigation.current.startTarget);
+      if (isCameraNavigationMovement(cameraDelta, targetDelta)) {
+        navigation.current.navigating = true;
+        setCameraNavigating(true);
+        gl.domElement.style.cursor = 'grabbing';
+      }
+    }
+    invalidate();
+  }, [camera, clampTarget, gl, invalidate, setCameraNavigating]);
+
+  const handleControlsEnd = useCallback(() => {
+    const wasNavigating = navigation.current.navigating;
+    navigation.current.active = false;
+    navigation.current.navigating = false;
+    if (wasNavigating) {
+      setCameraNavigating(false);
+      gl.domElement.style.cursor = 'grab';
+    }
+    invalidate();
+  }, [gl, invalidate, setCameraNavigating]);
+
+  useEffect(() => () => {
+    setCameraNavigating(false);
+    gl.domElement.style.cursor = '';
+  }, [gl, setCameraNavigating]);
+
   useFrame((_state, delta) => {
     if (!animating.current) return;
-    const factor = 1 - Math.exp(-delta * 4.6);
+    const factor = 1 - Math.exp(-delta * 5.4);
     camera.position.lerp(targetPosition.current, factor);
     if (controlsRef.current) {
       controlsRef.current.target.lerp(targetLookAt.current, factor);
@@ -848,16 +962,9 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
       maxPolarAngle={Math.PI / 2.08}
       screenSpacePanning
       zoomToCursor
-      onStart={() => {
-        animating.current = false;
-        document.body.style.cursor = 'grabbing';
-        setCameraInteracting(true);
-      }}
-      onEnd={() => {
-        document.body.style.cursor = '';
-        setCameraInteracting(false);
-      }}
-      onChange={clampTarget}
+      onStart={handleControlsStart}
+      onEnd={handleControlsEnd}
+      onChange={handleControlsChange}
     />
   );
 }
@@ -872,20 +979,27 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
   const layerVisibility = useCommercialMapStore((state) => state.layerVisibility);
   const layerOpacity = useCommercialMapStore((state) => state.layerOpacity);
   const reducedGraphics = useCommercialMapStore((state) => state.reducedGraphics);
-  const cameraInteracting = useCommercialMapStore((state) => state.cameraInteracting);
+  const cameraNavigating = useCommercialMapStore((state) => state.cameraNavigating);
   const { gl, invalidate } = useThree();
+  const setCanvasCursor = useCallback((cursor: 'grab' | 'grabbing' | 'pointer') => {
+    gl.domElement.style.cursor = cursor;
+  }, [gl]);
   const extent = useMemo(() => getSceneExtent(entities), [entities]);
   const lotByEntity = useMemo(() => new Map(lots.map((lot) => [lot.entityId, lot])), [lots]);
   const selectedEntity = entities.find((entity) => entity.id === selectedEntityId) ?? null;
-  const visibleEntities = useMemo(() => entities.filter((entity) => (
-    layerVisibility[entity.layerId] !== false || selectedEntityId === entity.id
-  )), [entities, layerVisibility, selectedEntityId]);
-  const lotEntries = useMemo(() => visibleEntities
+  const visibleLayerEntities = useMemo(() => entities.filter((entity) => (
+    layerVisibility[entity.layerId] !== false
+  )), [entities, layerVisibility]);
+  const selectedHiddenEntity = selectedEntity && layerVisibility[selectedEntity.layerId] === false ? selectedEntity : null;
+  const renderedEntities = useMemo(() => selectedHiddenEntity
+    ? [...visibleLayerEntities, selectedHiddenEntity]
+    : visibleLayerEntities, [selectedHiddenEntity, visibleLayerEntities]);
+  const lotEntries = useMemo(() => renderedEntities
     .map((entity) => ({ entity, lot: lotByEntity.get(entity.id) }))
-    .filter((entry): entry is LotEntry => Boolean(entry.lot)), [lotByEntity, visibleEntities]);
-  const nonLotEntities = useMemo(() => visibleEntities.filter((entity) => !lotByEntity.has(entity.id)), [lotByEntity, visibleEntities]);
+    .filter((entry): entry is LotEntry => Boolean(entry.lot)), [lotByEntity, renderedEntities]);
+  const nonLotEntities = useMemo(() => renderedEntities.filter((entity) => !lotByEntity.has(entity.id)), [lotByEntity, renderedEntities]);
   const labelVisibility = useSemanticLabelVisibility({
-    entities: visibleEntities,
+    entities: renderedEntities,
     lotByEntity,
     extent,
     labelsVisible,
@@ -905,15 +1019,21 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
     return () => { gl.shadowMap.autoUpdate = true; };
   }, [entities, gl, invalidate, reducedGraphics]);
 
+  useEffect(() => {
+    if (!cameraNavigating) return;
+    setHoveredEntityId(null);
+  }, [cameraNavigating, setHoveredEntityId]);
+
   return (
     <>
-      <color attach="background" args={['#e8eee7']} />
-      <fog attach="fog" args={['#e8eee7', extent.diagonal * 2.7, extent.diagonal * 6.5]} />
-      <ambientLight intensity={1.4} />
-      <hemisphereLight args={['#ffffff', '#536c59', 1.35]} />
+      <color attach="background" args={['#dfe8de']} />
+      <fog attach="fog" args={['#dfe8de', extent.diagonal * 3.2, extent.diagonal * 7.4]} />
+      <ambientLight intensity={0.68} />
+      <hemisphereLight args={['#fffdf5', '#48634e', 0.9]} />
       <directionalLight
         position={[extent.centerX - extent.width * 0.3, Math.max(54, extent.diagonal * 0.55), extent.centerZ + extent.depth * 0.35]}
-        intensity={2.35}
+        intensity={2.15}
+        color="#fff4d8"
         castShadow={!reducedGraphics}
         shadow-mapSize-width={reducedGraphics ? 512 : 2048}
         shadow-mapSize-height={reducedGraphics ? 512 : 2048}
@@ -927,7 +1047,7 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
       />
       <directionalLight
         position={[extent.centerX + extent.width * 0.4, Math.max(24, extent.diagonal * 0.22), extent.centerZ - extent.depth * 0.3]}
-        intensity={0.42}
+        intensity={0.38}
         color="#d8e9ff"
       />
       <mesh
@@ -937,7 +1057,7 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
         raycast={NO_RAYCAST}
       >
         <planeGeometry args={[extent.width + groundMargin, extent.depth + groundMargin]} />
-        <meshStandardMaterial color="#d6e1d4" roughness={1} />
+        <meshStandardMaterial color="#cfdccc" roughness={1} metalness={0} />
       </mesh>
       <ReferenceUnderlay calibration={calibration} />
       <BatchedLots
@@ -950,7 +1070,8 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
         onSelect={setSelectedEntityId}
         onHover={setHoveredEntityId}
         onFocus={focusSelection}
-        cameraInteracting={cameraInteracting}
+        cameraNavigating={cameraNavigating}
+        onCursor={setCanvasCursor}
       />
       {nonLotEntities.map((entity) => (
         <EntityMesh
@@ -961,13 +1082,14 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
           filtersActive={filtersActive}
           isMatch={matchingEntityIds.has(entity.id)}
           layerOpacity={layerOpacity[entity.layerId] ?? 1}
-          cameraInteracting={cameraInteracting}
+          cameraNavigating={cameraNavigating}
           onSelect={setSelectedEntityId}
           onHover={setHoveredEntityId}
           onFocus={focusSelection}
+          onCursor={setCanvasCursor}
         />
       ))}
-      {visibleEntities.filter((entity) => labelVisibility.ids.has(entity.id)).map((entity) => (
+      {renderedEntities.filter((entity) => labelVisibility.ids.has(entity.id)).map((entity) => (
         <EntityLabel
           key={`label:${entity.id}`}
           entity={entity}
@@ -1029,11 +1151,13 @@ export function CommercialMapCanvas(props: CommercialMapCanvasProps) {
       dpr={reducedGraphics ? [0.85, 1.2] : [1, 1.5]}
       shadows={!reducedGraphics}
       gl={{ antialias: !reducedGraphics, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false }}
-      onCreated={({ gl }) => {
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.04;
-      }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 0.96;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.domElement.style.cursor = 'grab';
+        }}
       onPointerMissed={() => setSelectedEntityId(null)}
     >
       <Suspense fallback={<CanvasLoader />}>

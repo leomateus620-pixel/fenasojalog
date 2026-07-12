@@ -1,0 +1,81 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  CAMERA_NAVIGATION_MIN_DELTA,
+  MAP_CLICK_MAX_DELTA,
+  isCameraNavigationMovement,
+  isMapSelectionClick,
+  isSelectableMapClassification,
+  selectionFocusProfile,
+} from '@/features/commercial-map/utils/interaction';
+import { useCommercialMapStore } from '@/features/commercial-map/state/useCommercialMapStore';
+
+describe('pipeline de seleção do mapa comercial', () => {
+  beforeEach(() => {
+    useCommercialMapStore.setState({
+      selectedEntityId: null,
+      hoveredEntityId: null,
+      activePanel: null,
+      workspaceMode: '3d',
+      cameraNavigating: false,
+    });
+  });
+
+  it('aceita clique normal e rejeita deslocamento de arraste', () => {
+    expect(isMapSelectionClick(0)).toBe(true);
+    expect(isMapSelectionClick(MAP_CLICK_MAX_DELTA)).toBe(true);
+    expect(isMapSelectionClick(MAP_CLICK_MAX_DELTA + 0.01)).toBe(false);
+  });
+
+  it('só suspende hover depois que a câmera realmente se move', () => {
+    expect(isCameraNavigationMovement(CAMERA_NAVIGATION_MIN_DELTA / 2, 0)).toBe(false);
+    expect(isCameraNavigationMovement(CAMERA_NAVIGATION_MIN_DELTA, 0)).toBe(true);
+    expect(isCameraNavigationMovement(0, CAMERA_NAVIGATION_MIN_DELTA * 2)).toBe(true);
+  });
+
+  it('mantém quadras e estruturas selecionáveis sem transformar vias em alvos', () => {
+    expect(isSelectableMapClassification('SELLABLE_LOT')).toBe(true);
+    expect(isSelectableMapClassification('QUADRA')).toBe(true);
+    expect(isSelectableMapClassification('PAVILION')).toBe(true);
+    expect(isSelectableMapClassification('LANDMARK')).toBe(true);
+    expect(isSelectableMapClassification('ROAD')).toBe(false);
+    expect(isSelectableMapClassification('PEDESTRIAN_PATH')).toBe(false);
+  });
+
+  it('abre detalhes, troca rapidamente e fecha a seleção de forma determinística', () => {
+    const select = useCommercialMapStore.getState().setSelectedEntityId;
+    select('entity:lot-1');
+    expect(useCommercialMapStore.getState()).toMatchObject({ selectedEntityId: 'entity:lot-1', activePanel: 'details' });
+
+    select('entity:pavilion-1');
+    expect(useCommercialMapStore.getState()).toMatchObject({ selectedEntityId: 'entity:pavilion-1', activePanel: 'details' });
+
+    select(null);
+    expect(useCommercialMapStore.getState()).toMatchObject({ selectedEntityId: null, activePanel: null });
+  });
+
+  it('mantém o estado comercial independente da navegação da câmera', () => {
+    useCommercialMapStore.getState().setCameraNavigating(true);
+    useCommercialMapStore.getState().setSelectedEntityId('entity:quadra-n');
+
+    expect(useCommercialMapStore.getState()).toMatchObject({
+      cameraNavigating: true,
+      selectedEntityId: 'entity:quadra-n',
+      activePanel: 'details',
+    });
+  });
+});
+
+describe('enquadramento contextual por tipo de entidade', () => {
+  it('preserva mais contexto para quadras, estacionamentos e arenas do que para lotes', () => {
+    const lot = selectionFocusProfile('SELLABLE_LOT');
+    const quadra = selectionFocusProfile('QUADRA');
+    const pavilion = selectionFocusProfile('PAVILION');
+    const parking = selectionFocusProfile('PARKING');
+
+    expect(quadra.contextRatio).toBeGreaterThan(lot.contextRatio);
+    expect(pavilion.contextRatio).toBeGreaterThan(lot.contextRatio);
+    expect(parking.contextRatio).toBeGreaterThan(quadra.contextRatio);
+    expect(lot.fitPadding).toBeGreaterThan(parking.fitPadding);
+    expect(parking.maxDistanceRatio).toBeGreaterThan(pavilion.maxDistanceRatio);
+  });
+});
