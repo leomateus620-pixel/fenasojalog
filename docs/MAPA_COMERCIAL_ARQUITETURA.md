@@ -20,7 +20,7 @@ dessa lista.
 
 `src/features/commercial-map/data/officialReference2026.ts` registra o tamanho
 da página, o hash SHA-256 do JPEG analisado, o recorte em coordenadas PDF e a
-versão `2026.1` da referência.
+versão `2026.2` da referência.
 
 O raster de runtime é `public/maps/fenasoja-oficial-2026-park.webp` (`3000 ×
 2264`). Ele contém somente a área do parque, incluindo o acesso sul, e exclui a
@@ -46,8 +46,8 @@ A base contém:
 - a rede de ruas internas, alamedas, avenidas e acessos externos;
 - portões A1 a A11;
 - pavilhões e infraestrutura B1 a B42;
-- estruturas C1 a C8, D1 a D6, sanitários E, Arena F, Árvore Lunar G e Parque
-  de Diversões J;
+- estruturas C1 a C8, D1 a D6, 26 pontos sanitários E, Arena F, Árvore Lunar G
+  e Parque de Diversões J;
 - estacionamentos, Pista Campeira, Pavilhão 09, área de motorhome, test drive,
   etnias e Pórtico das Nações.
 
@@ -206,7 +206,40 @@ novo foco a partir da posição corrente.
 Uma fonte normalizada de metadados concentra identificador estável, nome
 oficial, tipo, quadra, lote, código de estrutura, via, situação comercial,
 referência geométrica, âncora, nível de rótulo, prioridade, palavras-chave e
-aliases. A conferência da legenda oficial corrigiu A10 e A11 para os nomes
-exatos `Portão 10` e `Portão 11`; a migration de dados
-`20260712010000_correct_official_gate_names_2026.sql` aplica a correção apenas a
-entidades oficiais gerenciadas, sem lote comercial associado.
+aliases. A conferência da legenda oficial preserva em A10 e A11 as descrições
+completas de entrada e saída. A migration
+`20260712020000_restore_official_gate_descriptions_2026.sql` restaura esses
+nomes apenas em entidades oficiais gerenciadas, sem lote comercial associado.
+
+## Refinamento visual e cartográfico 2026.2
+
+Os pavilhões cinza combinavam três causas de leitura incorreta: transparência
+aplicada também a estruturas sólidas, `depthWrite` condicional e bevel que
+expandia a silhueta para fora do polígono oficial. Além disso, alguns limites
+retangulares preliminares se tocavam ou se sobrepunham. Pavilhões, edifícios e
+apoios agora permanecem opacos com teste e escrita de profundidade; a atenuação
+de filtro usa cor sólida, e os pavilhões usam contorno exclusivo de cobertura
+sem bevel. Os limites de B1 a B10, B22 e Pavilhão 09 foram reconciliados com o
+raster oficial, criando separações reais sem alterar identificadores.
+
+A visibilidade dos rótulos possui dois estados explícitos. Em navegação, o
+limite semântico e a colisão de tela continuam ativos. Em foco, a projeção
+global é suspensa e apenas a identificação da entidade selecionada é montada;
+ao limpar a seleção, o modo de navegação volta automaticamente.
+
+Os portões A1 a A11 mantêm seus centros oficiais e passaram a usar pedestal,
+pórtico e setas derivadas da descrição de entrada, saída ou fluxo duplo. As
+geometrias decorativas não participam do raycast; um único volume invisível
+mantém a área de interação previsível.
+
+A auditoria dos sanitários identificou 26 símbolos E na planta. E18 e E23 foram
+reposicionados para os símbolos oficiais, E25 e E26 foram incorporados e os
+dois pontos preliminares sem símbolo foram removidos. A coordenada no solo
+continua sendo a fonte cartográfica, enquanto uma haste compartilhada eleva a
+sinalização azul acima de pavilhões associados. Assim o marcador e seu rótulo
+permanecem legíveis sem deslocar o ponto oficial nem ampliar sua área de clique.
+
+Setas, pictogramas e hastes usam geometrias e materiais compartilhados. O mapa
+continua em `frameloop="demand"`; seleção e hover alteram somente o estado
+transitório necessário, e o modo de foco evita recalcular a colisão de todos os
+rótulos.

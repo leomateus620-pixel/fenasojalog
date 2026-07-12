@@ -19,6 +19,14 @@ import {
   selectionFocusProfile,
 } from '../../utils/interaction';
 import { normalizeMapEntityMetadata, type MapLabelVisibility } from '../../utils/mapMetadata';
+import {
+  labelBelongsToActiveMode,
+  requiresSolidRendering,
+  RESTROOM_PRESENTATION_LIFT,
+  resolveGateAccessMode,
+  resolveMarkerPresentationLift,
+  resolveMapLabelMode,
+} from '../../utils/mapPresentation';
 import { useCommercialMapStore } from '../../state/useCommercialMapStore';
 import type { CameraPreset, CommercialLot, MapCalibration, MapEntity } from '../../types';
 
@@ -45,6 +53,71 @@ interface SceneExtent {
 
 const NO_RAYCAST = () => undefined;
 const LABEL_LEVEL_RANK: Record<MapLabelVisibility, number> = { far: 0, medium: 1, near: 2 };
+const MAP_BACKGROUND_COLOR = new THREE.Color('#dfe8de');
+
+function createGateArrowGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.09, 0.28);
+  shape.lineTo(0.09, 0.28);
+  shape.lineTo(0.09, -0.04);
+  shape.lineTo(0.24, -0.04);
+  shape.lineTo(0, -0.32);
+  shape.lineTo(-0.24, -0.04);
+  shape.lineTo(-0.09, -0.04);
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape, 1);
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
+function createRestroomIconGeometry() {
+  const shapes: THREE.Shape[] = [];
+  [-0.16, 0.16].forEach((x, index) => {
+    const head = new THREE.Shape();
+    head.absarc(x, -0.13, 0.072, 0, Math.PI * 2, false);
+    shapes.push(head);
+
+    const body = new THREE.Shape();
+    const halfWidth = index === 0 ? 0.055 : 0.07;
+    body.moveTo(x - halfWidth, -0.02);
+    body.lineTo(x + halfWidth, -0.02);
+    body.lineTo(x + halfWidth, 0.21);
+    body.lineTo(x - halfWidth, 0.21);
+    body.closePath();
+    shapes.push(body);
+  });
+  const geometry = new THREE.ShapeGeometry(shapes, 6);
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
+const SHARED_GATE_ARROW_GEOMETRY = createGateArrowGeometry();
+const SHARED_RESTROOM_ICON_GEOMETRY = createRestroomIconGeometry();
+const SHARED_WHITE_ICON_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#f8fbff',
+  depthWrite: true,
+  toneMapped: false,
+});
+const SHARED_RESTROOM_POLE_GEOMETRY = new THREE.CylinderGeometry(
+  0.038,
+  0.05,
+  RESTROOM_PRESENTATION_LIFT,
+  8,
+);
+const SHARED_RESTROOM_POLE_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#15557c',
+  roughness: 0.76,
+  metalness: 0.04,
+});
+
+function entityLabelHeight(entity: MapEntity) {
+  const classification = entity.classification;
+  if (classification === 'ROAD' || classification === 'PEDESTRIAN_PATH' || classification === 'QUADRA') return 0.16;
+  return Math.max(
+    0.22,
+    entity.geometry.extrusionHeight + resolveMarkerPresentationLift(classification) + 0.32,
+  );
+}
 
 function getSceneExtent(entities: MapEntity[]): SceneExtent {
   let minX = -MAP_REFERENCE_WIDTH / 2;
@@ -63,7 +136,12 @@ function getSceneExtent(entities: MapEntity[]): SceneExtent {
         maxZ = Math.max(maxZ, z);
       });
     });
-    maxHeight = Math.max(maxHeight, entity.geometry.elevation + entity.geometry.extrusionHeight);
+    maxHeight = Math.max(
+      maxHeight,
+      entity.geometry.elevation
+        + entity.geometry.extrusionHeight
+        + resolveMarkerPresentationLift(entity.classification),
+    );
   });
 
   const width = Math.max(4, maxX - minX);
@@ -93,7 +171,10 @@ function getEntityExtent(entity: MapEntity): SceneExtent {
   const maxZ = zs.length ? Math.max(...zs) : centroidZ + 1;
   const width = Math.max(1.6, maxX - minX);
   const depth = Math.max(1.6, maxZ - minZ);
-  const maxHeight = Math.max(0.5, entity.geometry.extrusionHeight);
+  const maxHeight = Math.max(
+    0.5,
+    entity.geometry.extrusionHeight + resolveMarkerPresentationLift(entity.classification),
+  );
   return {
     minX,
     maxX,
@@ -190,7 +271,10 @@ function createEntityGeometry(entity: MapEntity) {
   const classification = String(entity.classification);
   const surface = ['ROAD', 'PEDESTRIAN_PATH', 'GREEN_AREA', 'PARKING', 'WATER', 'QUADRA'].includes(classification);
   const height = surface ? Math.max(0.018, Math.min(entity.geometry.extrusionHeight, 0.08)) : Math.max(0.025, entity.geometry.extrusionHeight);
-  const bevel = !surface && height >= 0.35;
+  // Pavilion footprints follow the official fill exactly. A bevel expands the
+  // silhouette beyond that footprint and made neighbouring buildings appear
+  // stacked even when their cartographic bounds only touched.
+  const bevel = !surface && classification !== 'PAVILION' && height >= 0.35;
   const extruded = new THREE.ExtrudeGeometry(shape, {
     depth: height,
     bevelEnabled: bevel,
@@ -227,6 +311,21 @@ function createFootprintGeometry(entity: MapEntity) {
   return geometry;
 }
 
+function createRoofOutlineGeometry(entity: MapEntity) {
+  const vertices: number[] = [];
+  const height = Math.max(0.025, entity.geometry.extrusionHeight) + 0.018;
+  entity.geometry.coordinates.forEach((sourceRing) => {
+    const ring = withoutClosingPoint(sourceRing);
+    ring.forEach(([x, z], index) => {
+      const [nextX, nextZ] = ring[(index + 1) % ring.length] ?? [x, z];
+      vertices.push(x, height, z, nextX, height, nextZ);
+    });
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  return geometry;
+}
+
 function quadraLabel(value: string) {
   const normalized = value.trim().replace(/^quadra\s*/i, '');
   return normalized ? `Quadra ${normalized}` : 'Quadra';
@@ -239,6 +338,7 @@ interface EntityMeshProps {
   filtersActive: boolean;
   isMatch: boolean;
   layerOpacity: number;
+  sceneCenter: readonly [number, number];
   cameraNavigating: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
@@ -253,32 +353,66 @@ const EntityMesh = memo(function EntityMesh({
   filtersActive,
   isMatch,
   layerOpacity,
+  sceneCenter,
   cameraNavigating,
   onSelect,
   onHover,
   onFocus,
   onCursor,
 }: EntityMeshProps) {
-  const classification = String(entity.classification);
+  const classification = entity.classification;
   const isRoad = classification === 'ROAD';
   const isQuadra = classification === 'QUADRA';
+  const isPavilion = classification === 'PAVILION';
+  const isGate = classification === 'GATE';
+  const isRestroom = classification === 'RESTROOM' || classification === 'CHEMICAL_RESTROOM';
   const isFlat = entity.geometry.extrusionHeight < 0.3 || isRoad || isQuadra;
   const isInteractive = isSelectableMapClassification(entity.classification);
-  const geometry = useMemo(() => isQuadra ? null : createEntityGeometry(entity), [entity, isQuadra]);
+  const solidRendering = requiresSolidRendering(entity.classification);
+  const geometry = useMemo(() => isQuadra || isGate ? null : createEntityGeometry(entity), [entity, isGate, isQuadra]);
   const hitSurface = useMemo(() => isQuadra ? createHitSurfaceGeometry(entity) : null, [entity, isQuadra]);
-  const edges = useMemo(() => geometry && !isRoad ? new THREE.EdgesGeometry(geometry, 28) : null, [geometry, isRoad]);
+  const edges = useMemo(() => geometry && !isRoad && !isPavilion ? new THREE.EdgesGeometry(geometry, 28) : null, [geometry, isPavilion, isRoad]);
+  const roofOutline = useMemo(() => isPavilion ? createRoofOutlineGeometry(entity) : null, [entity, isPavilion]);
   const footprint = useMemo(() => isRoad || isQuadra ? createFootprintGeometry(entity) : null, [entity, isQuadra, isRoad]);
-  const color = CLASSIFICATION_COLORS[entity.classification] ?? '#78907d';
+  const markerCenter = useMemo(() => geometryCentroid(entity.geometry), [entity.geometry]);
+  const gateRotation = useMemo(() => Math.atan2(
+    sceneCenter[0] - markerCenter[0],
+    sceneCenter[1] - markerCenter[1],
+  ), [markerCenter, sceneCenter]);
+  const gateAccessMode = useMemo(() => resolveGateAccessMode(entity.name), [entity.name]);
+  const baseColor = CLASSIFICATION_COLORS[entity.classification] ?? '#78907d';
   const matched = Boolean(filtersActive && isMatch);
-  const visualOpacity = selected ? Math.max(0.94, layerOpacity) : layerOpacity * (filtersActive ? 0.82 : 1);
-  const selectedLift = selected ? (isFlat ? 0.055 : 0.14) : hovered && isInteractive ? 0.045 : 0;
+  const filterStrength = filtersActive && !isMatch && !selected ? 0.42 : 1;
+  const visualOpacity = selected ? Math.max(0.94, layerOpacity) : layerOpacity * filterStrength;
+  const presentationLift = resolveMarkerPresentationLift(classification);
+  const selectedLift = selected ? (isFlat ? 0.055 : 0.11) : 0;
+  const displayColor = useMemo(() => {
+    if (!solidRendering || selected) return baseColor;
+    const strength = THREE.MathUtils.clamp(layerOpacity * filterStrength, 0, 1);
+    return `#${new THREE.Color(baseColor).lerp(MAP_BACKGROUND_COLOR, (1 - strength) * 0.82).getHexString()}`;
+  }, [baseColor, filterStrength, layerOpacity, selected, solidRendering]);
+  const gateBaseColor = selected ? '#e7bd37' : hovered ? '#256b43' : '#174c31';
+  const gateAccentColor = selected ? '#174c31' : '#e9c84b';
+  const outlineGeometry = isPavilion ? roofOutline : isRoad || isQuadra ? footprint : edges;
+  const outlineColor = selected
+    ? '#fff1a8'
+    : hovered && isInteractive
+      ? '#f0d36a'
+      : isQuadra
+        ? '#3f7b4d'
+        : isRoad
+          ? '#7c857f'
+          : isPavilion
+            ? '#21313a'
+            : '#1f3327';
 
   useEffect(() => () => {
     geometry?.dispose();
     hitSurface?.dispose();
     edges?.dispose();
+    roofOutline?.dispose();
     footprint?.dispose();
-  }, [edges, footprint, geometry, hitSurface]);
+  }, [edges, footprint, geometry, hitSurface, roofOutline]);
 
   const interactionProps = isInteractive ? {
     onClick: (event: ThreeEvent<MouseEvent>) => {
@@ -305,28 +439,92 @@ const EntityMesh = memo(function EntityMesh({
   } : { raycast: NO_RAYCAST };
 
   return (
-    <group position={[0, entity.geometry.elevation + selectedLift, 0]}>
-      {!isQuadra && (
+    <group
+      position={[0, entity.geometry.elevation + selectedLift + presentationLift, 0]}
+      visible={!solidRendering || selected || layerOpacity > 0.015}
+    >
+      {!isQuadra && !isGate && (
         <mesh
           geometry={geometry!}
-          castShadow={!isFlat && visualOpacity > 0.45}
+          castShadow={!isFlat && (solidRendering || visualOpacity > 0.45)}
           receiveShadow
           {...interactionProps}
         >
           <meshStandardMaterial
-            color={color}
-            roughness={isFlat ? 0.9 : 0.72}
+            color={displayColor}
+            roughness={isPavilion ? 0.82 : isFlat ? 0.9 : 0.72}
             metalness={0}
-            transparent={visualOpacity < 0.995}
-            opacity={visualOpacity}
-            depthWrite={visualOpacity > 0.42}
-            emissive={selected || hovered || matched ? color : '#000000'}
-            emissiveIntensity={selected ? 0.16 : hovered ? 0.07 : matched ? 0.035 : 0}
+            transparent={!solidRendering && visualOpacity < 0.995}
+            opacity={solidRendering ? 1 : visualOpacity}
+            depthTest
+            depthWrite={solidRendering || visualOpacity > 0.42}
+            emissive={selected || hovered || matched ? baseColor : '#000000'}
+            emissiveIntensity={selected ? 0.13 : hovered ? 0.055 : matched ? 0.03 : 0}
+            flatShading={isPavilion}
             polygonOffset
             polygonOffsetFactor={isFlat ? -2 : 0}
             polygonOffsetUnits={isFlat ? -2 : 0}
           />
         </mesh>
+      )}
+
+      {isGate && (
+        <group position={[markerCenter[0], 0, markerCenter[1]]} rotation={[0, gateRotation, 0]}>
+          <mesh position={[0, 0.55, 0]} {...interactionProps}>
+            <cylinderGeometry args={[0.72, 0.72, 1.18, 10]} />
+            <meshBasicMaterial visible={false} />
+          </mesh>
+          <mesh position={[0, 0.035, 0]} raycast={NO_RAYCAST} receiveShadow>
+            <cylinderGeometry args={[0.66, 0.72, 0.07, 10]} />
+            <meshStandardMaterial color={gateAccentColor} roughness={0.78} metalness={0.04} />
+          </mesh>
+          <mesh position={[0, 0.14, 0]} raycast={NO_RAYCAST} castShadow receiveShadow>
+            <cylinderGeometry args={[0.59, 0.63, 0.2, 10]} />
+            <meshStandardMaterial color={gateBaseColor} roughness={0.72} metalness={0.02} />
+          </mesh>
+          {gateAccessMode === 'bidirectional' ? (
+            <>
+              <mesh
+                geometry={SHARED_GATE_ARROW_GEOMETRY}
+                material={SHARED_WHITE_ICON_MATERIAL}
+                position={[-0.18, 0.252, 0]}
+                scale={[0.72, 0.72, 0.72]}
+                raycast={NO_RAYCAST}
+                dispose={null}
+              />
+              <mesh
+                geometry={SHARED_GATE_ARROW_GEOMETRY}
+                material={SHARED_WHITE_ICON_MATERIAL}
+                position={[0.18, 0.253, 0]}
+                rotation={[0, Math.PI, 0]}
+                scale={[0.72, 0.72, 0.72]}
+                raycast={NO_RAYCAST}
+                dispose={null}
+              />
+            </>
+          ) : (
+            <mesh
+              geometry={SHARED_GATE_ARROW_GEOMETRY}
+              material={SHARED_WHITE_ICON_MATERIAL}
+              position={[0, 0.252, 0]}
+              rotation={[0, gateAccessMode === 'exit' ? Math.PI : 0, 0]}
+              raycast={NO_RAYCAST}
+              dispose={null}
+            />
+          )}
+          <mesh position={[-0.42, 0.59, 0.08]} raycast={NO_RAYCAST} castShadow>
+            <boxGeometry args={[0.13, 0.72, 0.13]} />
+            <meshStandardMaterial color={gateBaseColor} roughness={0.74} />
+          </mesh>
+          <mesh position={[0.42, 0.59, 0.08]} raycast={NO_RAYCAST} castShadow>
+            <boxGeometry args={[0.13, 0.72, 0.13]} />
+            <meshStandardMaterial color={gateBaseColor} roughness={0.74} />
+          </mesh>
+          <mesh position={[0, 0.94, 0.08]} raycast={NO_RAYCAST} castShadow>
+            <boxGeometry args={[0.97, 0.16, 0.17]} />
+            <meshStandardMaterial color={gateAccentColor} roughness={0.7} metalness={0.03} />
+          </mesh>
+        </group>
       )}
 
       {isQuadra && hitSurface && (
@@ -335,18 +533,43 @@ const EntityMesh = memo(function EntityMesh({
         </mesh>
       )}
 
-      <lineSegments
-        geometry={(isRoad || isQuadra ? footprint : edges)!}
-        position={[0, isRoad || isQuadra ? 0.004 : 0.012, 0]}
-        raycast={NO_RAYCAST}
-      >
-        <lineBasicMaterial
-          color={selected ? '#fff1a8' : isQuadra ? '#3f7b4d' : isRoad ? '#7c857f' : '#1f3327'}
-          transparent
-          opacity={selected ? 1 : Math.min(isQuadra ? 0.82 : isRoad ? 0.42 : 0.72, visualOpacity)}
-          toneMapped={false}
-        />
-      </lineSegments>
+      {outlineGeometry && (
+        <lineSegments
+          geometry={outlineGeometry}
+          position={[0, isRoad || isQuadra ? 0.004 : isPavilion ? 0 : 0.012, 0]}
+          raycast={NO_RAYCAST}
+          renderOrder={selected ? 4 : solidRendering ? 2 : 1}
+        >
+          <lineBasicMaterial
+            color={outlineColor}
+            transparent={!solidRendering}
+            opacity={solidRendering ? 1 : selected ? 1 : Math.min(isQuadra ? 0.82 : isRoad ? 0.42 : 0.72, visualOpacity)}
+            depthTest
+            depthWrite={solidRendering}
+            toneMapped={false}
+          />
+        </lineSegments>
+      )}
+
+      {isRestroom && (
+        <>
+          <mesh
+            geometry={SHARED_RESTROOM_POLE_GEOMETRY}
+            material={SHARED_RESTROOM_POLE_MATERIAL}
+            position={[markerCenter[0], -presentationLift / 2, markerCenter[1]]}
+            raycast={NO_RAYCAST}
+            castShadow
+            dispose={null}
+          />
+          <mesh
+            geometry={SHARED_RESTROOM_ICON_GEOMETRY}
+            material={SHARED_WHITE_ICON_MATERIAL}
+            position={[markerCenter[0], entity.geometry.extrusionHeight + 0.032, markerCenter[1]]}
+            raycast={NO_RAYCAST}
+            dispose={null}
+          />
+        </>
+      )}
 
     </group>
   );
@@ -605,11 +828,11 @@ const EntityLabel = memo(function EntityLabel({
   const classification = entity.classification;
   const isRoad = classification === 'ROAD' || classification === 'PEDESTRIAN_PATH';
   const isQuadra = classification === 'QUADRA';
+  const isGate = classification === 'GATE';
+  const isRestroom = classification === 'RESTROOM' || classification === 'CHEMICAL_RESTROOM';
   const dimmed = Boolean(lot && filtersActive && !isMatch && !selected);
   const status = lot ? STATUS_CONFIG[lot.status] : null;
-  const labelHeight = isRoad || isQuadra
-    ? 0.16
-    : Math.max(0.22, entity.geometry.extrusionHeight + 0.32);
+  const labelHeight = entityLabelHeight(entity);
 
   return (
     <Html
@@ -620,21 +843,25 @@ const EntityLabel = memo(function EntityLabel({
       style={{ pointerEvents: 'none' }}
     >
       {lot ? (
-        <div data-map-entity-id={entity.id} className={`commercial-map-label is-lot ${selected ? 'is-selected' : ''} ${dimmed ? 'is-dimmed' : ''}`}>
+        <div data-map-entity-id={entity.id} data-map-label-mode={selected ? 'focus' : 'navigation'} className={`commercial-map-label is-lot ${selected ? 'is-selected' : ''} ${dimmed ? 'is-dimmed' : ''}`}>
           <span aria-label={`Lote ${metadata.lotNumber ?? ''}`}>{metadata.lotNumber}</span>
           {(selected || hovered) && metadata.block && <strong>{quadraLabel(metadata.block)}</strong>}
           {(selected || hovered) && status && <small><b aria-hidden="true">{status.symbol}</b> {status.label}</small>}
         </div>
       ) : isRoad ? (
-        <div data-map-entity-id={entity.id} className="commercial-map-label is-road"><span>{metadata.officialDisplayName}</span></div>
+        <div data-map-entity-id={entity.id} data-map-label-mode="navigation" className="commercial-map-label is-road"><span>{metadata.officialDisplayName}</span></div>
       ) : isQuadra ? (
-        <div data-map-entity-id={entity.id} className={`commercial-map-label is-quadra ${selected ? 'is-selected' : ''}`}>
+        <div data-map-entity-id={entity.id} data-map-label-mode={selected ? 'focus' : 'navigation'} className={`commercial-map-label is-quadra ${selected ? 'is-selected' : ''}`}>
           <span>{quadraLabel(metadata.officialDisplayName || entity.publicIdentifier)}</span>
         </div>
       ) : (
-        <div data-map-entity-id={entity.id} className={`commercial-map-label is-structure ${selected ? 'is-selected' : ''}`}>
-          {metadata.structureCode && <strong className="commercial-map-label-code">{metadata.structureCode}</strong>}
-          <span>{metadata.officialDisplayName}</span>
+        <div
+          data-map-entity-id={entity.id}
+          data-map-label-mode={selected ? 'focus' : 'navigation'}
+          className={`commercial-map-label is-structure ${isGate ? 'is-access' : ''} ${isRestroom ? 'is-restroom' : ''} ${selected ? 'is-selected' : ''}`}
+        >
+          {metadata.structureCode && <strong className="commercial-map-label-code">{isRestroom ? 'E' : metadata.structureCode}</strong>}
+          <span>{isRestroom && !selected ? 'WC' : metadata.officialDisplayName}</span>
         </div>
       )}
     </Html>
@@ -664,9 +891,7 @@ function useSemanticLabelVisibility({
 }) {
   const candidates = useMemo(() => entities.map((entity) => {
     const metadata = normalizeMapEntityMetadata(entity, lotByEntity.get(entity.id));
-    const labelHeight = entity.classification === 'ROAD' || entity.classification === 'PEDESTRIAN_PATH' || entity.classification === 'QUADRA'
-      ? 0.16
-      : Math.max(0.22, entity.geometry.extrusionHeight + 0.32);
+    const labelHeight = entityLabelHeight(entity);
     return {
       entity,
       metadata,
@@ -676,8 +901,18 @@ function useSemanticLabelVisibility({
   const [visibility, setVisibility] = useState<{ ids: ReadonlySet<string>; level: MapLabelVisibility }>(() => ({ ids: new Set(), level: 'far' }));
   const previousSignature = useRef('');
   const matchingSignature = useMemo(() => [...matchingEntityIds].sort().join('|'), [matchingEntityIds]);
+  const labelMode = useMemo(() => resolveMapLabelMode(selectedEntityId), [selectedEntityId]);
+  const focusedVisibility = useMemo(() => labelMode.kind === 'focus'
+    ? { ids: new Set([labelMode.selectedEntityId]) as ReadonlySet<string>, level: 'near' as MapLabelVisibility }
+    : null, [labelMode]);
 
   useFrame((state) => {
+    if (labelMode.kind === 'focus') {
+      // Focus is a semantic label mode, not another collision priority. Skip
+      // the map-wide projection pass and keep exactly one stable identifier.
+      previousSignature.current = '';
+      return;
+    }
     const controls = (state as unknown as { controls?: OrbitControlsImpl }).controls;
     const target = controls?.target ?? new THREE.Vector3(extent.centerX, 0, extent.centerZ);
     const cameraDistance = state.camera.position.distanceTo(target);
@@ -700,6 +935,7 @@ function useSemanticLabelVisibility({
     const viewportHeight = state.size.height;
     const projected = candidates
       .filter(({ entity, metadata }) => {
+        if (!labelBelongsToActiveMode(labelMode, entity.id)) return false;
         if (entity.id === selectedEntityId || entity.id === hoveredEntityId) return true;
         if (!labelsVisible || reducedGraphics && mobile) return false;
         if (filtersActive && lotByEntity.has(entity.id) && !matchingEntityIds.has(entity.id)) return false;
@@ -740,7 +976,7 @@ function useSemanticLabelVisibility({
     setVisibility({ ids: new Set(ids), level });
   });
 
-  return visibility;
+  return focusedVisibility ?? visibility;
 }
 
 function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | null; extent: SceneExtent }) {
@@ -985,6 +1221,7 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
     gl.domElement.style.cursor = cursor;
   }, [gl]);
   const extent = useMemo(() => getSceneExtent(entities), [entities]);
+  const sceneCenter = useMemo(() => [extent.centerX, extent.centerZ] as const, [extent.centerX, extent.centerZ]);
   const lotByEntity = useMemo(() => new Map(lots.map((lot) => [lot.entityId, lot])), [lots]);
   const selectedEntity = entities.find((entity) => entity.id === selectedEntityId) ?? null;
   const visibleLayerEntities = useMemo(() => entities.filter((entity) => (
@@ -1082,6 +1319,7 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
           filtersActive={filtersActive}
           isMatch={matchingEntityIds.has(entity.id)}
           layerOpacity={layerOpacity[entity.layerId] ?? 1}
+          sceneCenter={sceneCenter}
           cameraNavigating={cameraNavigating}
           onSelect={setSelectedEntityId}
           onHover={setHoveredEntityId}

@@ -46,8 +46,8 @@ const MEDIUM_CLASSIFICATIONS = new Set<MapClassification>([
 ]);
 
 const OFFICIAL_DISPLAY_NAME_CORRECTIONS: Readonly<Record<string, string>> = {
-  A10: 'Portão 10',
-  A11: 'Portão 11',
+  A10: 'Portão 10 — entrada e saída de visitantes',
+  A11: 'Portão 11 — entrada e saída de visitantes e expositores',
 };
 
 function stringMetadata(entity: MapEntity, key: string): string | null {
