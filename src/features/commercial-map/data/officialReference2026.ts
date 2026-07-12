@@ -31,7 +31,7 @@ interface ReferenceEntityInput {
   metadata?: Record<string, unknown>;
 }
 
-export const OFFICIAL_REFERENCE_REVISION = '2026.1';
+export const OFFICIAL_REFERENCE_REVISION = '2026.2';
 
 /**
  * Reproducible crop used by the runtime underlay. Coordinates are PDF points
@@ -348,8 +348,8 @@ function addStructure(
   ['A7', 'Portão 7 — entrada de visitantes e expositores', [3267, 1703]],
   ['A8', 'Portão 8 — entrada de visitantes e expositores', [5206, 1302]],
   ['A9', 'Portão 9 — saída de visitantes e expositores', [3964, 1302]],
-  ['A10', 'Portão 10', [1214, 3137]],
-  ['A11', 'Portão 11', [5954, 1293]],
+  ['A10', 'Portão 10 — entrada e saída de visitantes', [1214, 3137]],
+  ['A11', 'Portão 11 — entrada e saída de visitantes e expositores', [5954, 1293]],
 ] as Array<[string, string, PdfPoint]>).forEach(([code, name, center]) => addEntity({
   publicIdentifier: code,
   name,
@@ -362,16 +362,16 @@ function addStructure(
 
 // Pavilions and infrastructure B1–B42, following the official lower legend.
 const bStructures: Array<[string, string, MapClassification, string, PdfBounds | PdfPoint, Parameters<typeof addStructure>[5]?]> = [
-  ['B1', 'Pavilhão 1 — Comércio e serviços', 'PAVILION', 'pavilions', [2310, 3570, 2700, 3820]],
-  ['B2', 'Pavilhão 14 — Artesanato e comércio', 'PAVILION', 'pavilions', [2360, 3820, 2710, 4160]],
-  ['B3', 'Pavilhão 12 — Indústria e comércio', 'PAVILION', 'pavilions', [2780, 3790, 3220, 4160]],
-  ['B4', 'Pavilhão 8 — Indústria e comércio', 'PAVILION', 'pavilions', [3180, 3790, 3350, 4160]],
-  ['B5', 'Pavilhão 13 — Comércio', 'PAVILION', 'pavilions', [3345, 3790, 3500, 4160]],
-  ['B6', 'Pavilhão 3 — Comércio', 'PAVILION', 'pavilions', [3490, 3790, 3760, 4160]],
-  ['B7', 'Pavilhão 4 — Cozinha da Soja', 'PAVILION', 'pavilions', [3495, 2475, 3670, 2575], { parent: 'N' }],
-  ['B8', 'Pavilhão 5 — Floriculturas', 'PAVILION', 'pavilions', [3210, 2200, 3440, 2410]],
-  ['B9', 'Pavilhões 6, 10 e 11 — Pecuária', 'PAVILION', 'pavilions', [2250, 2195, 3210, 2410]],
-  ['B10', 'Pavilhão 7 — Agricultura familiar / soja e derivados', 'PAVILION', 'pavilions', [1950, 2195, 2250, 2410]],
+  ['B1', 'Pavilhão 1 — Comércio e serviços', 'PAVILION', 'pavilions', [2298, 3600, 2655, 3759]],
+  ['B2', 'Pavilhão 14 — Artesanato e comércio', 'PAVILION', 'pavilions', [2418, 3833, 2658, 4074]],
+  ['B3', 'Pavilhão 12 — Indústria e comércio', 'PAVILION', 'pavilions', [2792, 3827, 3147, 4089]],
+  ['B4', 'Pavilhão 8 — Indústria e comércio', 'PAVILION', 'pavilions', [3172, 3788, 3296, 4100]],
+  ['B5', 'Pavilhão 13 — Comércio', 'PAVILION', 'pavilions', [3307, 3788, 3445, 4051]],
+  ['B6', 'Pavilhão 3 — Comércio', 'PAVILION', 'pavilions', [3460, 3786, 3670, 4098]],
+  ['B7', 'Pavilhão 4 — Cozinha da Soja', 'PAVILION', 'pavilions', [3495, 2497, 3666, 2568], { parent: 'N' }],
+  ['B8', 'Pavilhão 5 — Floriculturas', 'PAVILION', 'pavilions', [3198, 2203, 3411, 2390]],
+  ['B9', 'Pavilhões 6, 10 e 11 — Pecuária', 'PAVILION', 'pavilions', [2319, 2256, 3179, 2389]],
+  ['B10', 'Pavilhão 7 — Agricultura familiar / soja e derivados', 'PAVILION', 'pavilions', [1973, 2252, 2309, 2379]],
   ['B11', 'Centro administrativo / auditório', 'ADMINISTRATION', 'structures', [3735, 3850, 3860, 4150]],
   ['B12', 'Sede Fenasoja / Comissão Central', 'ADMINISTRATION', 'structures', [4105, 3681], { parent: 'B', width: 135, depth: 104 }],
   ['B13', 'Palco Cultural Lactalis', 'EVENT_VENUE', 'structures', [4092, 3575], { parent: 'B', width: 126, depth: 112, height: 1.05 }],
@@ -383,7 +383,7 @@ const bStructures: Array<[string, string, MapClassification, string, PdfBounds |
   ['B19', 'Brigada Militar', 'SECURITY', 'safety', [3701, 3821], { width: 62, depth: 84 }],
   ['B20', 'Praça das Nações', 'ATTRACTION', 'structures', [4800, 4350, 5070, 4870], { height: 0.16 }],
   ['B21', '19º RC MEC', 'BUILDING', 'structures', [4377, 3941], { parent: 'A', width: 105, depth: 218 }],
-  ['B22', 'Pavilhão Terceira Idade', 'PAVILION', 'pavilions', [720, 3520, 910, 3910]],
+  ['B22', 'Pavilhão Terceira Idade', 'PAVILION', 'pavilions', [742, 3538, 931, 3834]],
   ['B23', 'Ambulatório', 'EMERGENCY', 'safety', [2670, 3970, 2780, 4140], { verificationStatus: 'NEEDS_REVIEW', metadata: { sourceDiscrepancy: 'Visível no mapa, omitido na legenda inferior.' } }],
   ['B24', 'Corpo de Bombeiros', 'EMERGENCY', 'safety', [2664, 3513], { width: 58, depth: 58 }],
   ['B25', 'Comissão de Logística', 'SERVICE', 'structures', [4395, 3615], { parent: 'B', width: 120, depth: 120 }],
@@ -443,13 +443,14 @@ namedStructures.forEach(([code, name, classification, layer, footprint, options]
 ));
 
 // Repeated official E markers are sanitary facilities, never water features.
-const restroomCenters: PdfPoint[] = [
+export const OFFICIAL_RESTROOM_CENTERS_2026: readonly PdfPoint[] = [
   [5247, 1340], [5893, 1617], [1700, 2007], [3221, 2075], [1074, 2387], [4931, 2427],
   [3348, 2534], [4998, 2638], [5115, 2645], [4645, 2660], [5073, 2698], [1059, 2991],
-  [4623, 3020], [5055, 3030], [1607, 3052], [4968, 3080], [5082, 3087], [3632, 3157],
-  [2407, 3218], [2411, 3273], [4351, 3319], [2279, 3648], [4968, 3764], [2391, 3886],
+  [4623, 3020], [5055, 3030], [1607, 3052], [4968, 3080], [5082, 3087], [3157, 3918],
+  [2407, 3218], [2411, 3273], [4351, 3319], [2279, 3648], [3156, 4009], [2391, 3886],
+  [2156, 2240], [3213, 2280],
 ];
-restroomCenters.forEach((center, index) => addStructure(
+OFFICIAL_RESTROOM_CENTERS_2026.forEach((center, index) => addStructure(
   `E-${String(index + 1).padStart(2, '0')}`,
   'Sanitários',
   'RESTROOM',
@@ -460,7 +461,7 @@ restroomCenters.forEach((center, index) => addStructure(
 
 // Large official areas and permanent footprints.
 addStructure('PISTA-CAMPEIRA', 'Pista Campeira', 'LIVESTOCK_AREA', 'exporural', [1990, 1740, 3240, 2175], { height: 0.18 });
-addStructure('PAVILHAO-09', 'Pavilhão 09', 'PAVILION', 'pavilions', [1660, 1900, 1950, 2390], { height: 1.32 });
+addStructure('PAVILHAO-09', 'Pavilhão 09', 'PAVILION', 'pavilions', [1697, 1862, 1913, 2374], { height: 1.32 });
 addStructure('AREA-MOTORHOME', 'Área para Motor Home / Trailer para Expositores', 'PARKING', 'parking', [760, 1780, 1630, 2400], { height: 0.055, metadata: { usage: 'motorhome_trailer_expositores' } });
 addStructure('TEST-DRIVE', 'Área de estacionamento de veículos test drive', 'PARKING', 'parking', [760, 2860, 1640, 3145], { height: 0.055, metadata: { usage: 'test_drive' } });
 addEntity({
@@ -572,7 +573,7 @@ export const OFFICIAL_REFERENCE_DATA: CommercialMapData = {
     coordinateSystem: 'LOCAL_NORMALIZED',
     referenceWidth: MAP_REFERENCE_WIDTH,
     referenceHeight: MAP_REFERENCE_HEIGHT,
-    activeVersion: 2,
+    activeVersion: 3,
     isPublished: false,
     referenceRevision: OFFICIAL_REFERENCE_REVISION,
   },
@@ -593,7 +594,7 @@ export const OFFICIAL_REFERENCE_DATA: CommercialMapData = {
     knownDistanceMeters: null,
     mapUnitsPerMeter: null,
     status: 'UNVALIDATED',
-    version: 2,
+    version: 3,
   },
   layers: DEFAULT_REFERENCE_LAYERS,
   entities: OFFICIAL_REFERENCE_ENTITIES,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   OFFICIAL_2026_SOURCE_MANIFEST,
+  OFFICIAL_RESTROOM_CENTERS_2026,
   OFFICIAL_REFERENCE_DATA,
   OFFICIAL_REFERENCE_REVISION,
 } from '@/features/commercial-map/data/officialReference2026';
@@ -35,7 +36,7 @@ function bounds(entity: MapEntity) {
 
 describe('referência cartográfica oficial Fenasoja 2026', () => {
   it('mantém manifesto reproduzível e exclui a lista lateral de compradores', () => {
-    expect(OFFICIAL_REFERENCE_REVISION).toBe('2026.1');
+    expect(OFFICIAL_REFERENCE_REVISION).toBe('2026.2');
     expect(OFFICIAL_2026_SOURCE_MANIFEST.parkCropPdf.x + OFFICIAL_2026_SOURCE_MANIFEST.parkCropPdf.width)
       .toBeLessThan(OFFICIAL_2026_SOURCE_MANIFEST.buyerListExcludedFromX);
     expect(OFFICIAL_REFERENCE_DATA.project.referenceRevision).toBe(OFFICIAL_REFERENCE_REVISION);
@@ -117,17 +118,49 @@ describe('referência cartográfica oficial Fenasoja 2026', () => {
 
     const gates = OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.classification === 'GATE');
     expect(gates.map((gate) => gate.publicIdentifier).sort()).toEqual(['A1', 'A10', 'A11', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9']);
-    expect(OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.metadata.legendCode === 'E')).toHaveLength(24);
+    expect(OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.metadata.legendCode === 'E')).toHaveLength(26);
     expect(OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.metadata.legendCode === 'D6')).toHaveLength(3);
     expect(OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.metadata.legendCode === 'B42')).toHaveLength(2);
   });
 
-  it('mantém os portões sem completar descrições ausentes na legenda oficial', () => {
+  it('mantém as descrições oficiais completas dos portões A10 e A11', () => {
     const gates = new Map(OFFICIAL_REFERENCE_DATA.entities
       .filter((entity) => entity.classification === 'GATE')
       .map((entity) => [entity.publicIdentifier, entity.name]));
-    expect(gates.get('A10')).toBe('Portão 10');
-    expect(gates.get('A11')).toBe('Portão 11');
+    expect(gates.get('A10')).toBe('Portão 10 — entrada e saída de visitantes');
+    expect(gates.get('A11')).toBe('Portão 11 — entrada e saída de visitantes e expositores');
+  });
+
+  it('mantém os 26 sanitários nos centros vetoriais oficiais sem marcadores fantasmas', () => {
+    expect(OFFICIAL_RESTROOM_CENTERS_2026).toHaveLength(26);
+    expect(OFFICIAL_RESTROOM_CENTERS_2026).toEqual(expect.arrayContaining([
+      [2156, 2240],
+      [3213, 2280],
+      [3157, 3918],
+      [3156, 4009],
+    ]));
+    expect(OFFICIAL_RESTROOM_CENTERS_2026).not.toContainEqual([3632, 3157]);
+    expect(OFFICIAL_RESTROOM_CENTERS_2026).not.toContainEqual([4968, 3764]);
+
+    const restrooms = OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.classification === 'RESTROOM');
+    expect(restrooms).toHaveLength(26);
+    expect(restrooms.map((entity) => entity.publicIdentifier)).toEqual(
+      Array.from({ length: 26 }, (_, index) => `E-${String(index + 1).padStart(2, '0')}`),
+    );
+  });
+
+  it('mantém pavilhões oficiais separados em vez de geometrias sobrepostas', () => {
+    const pavilions = OFFICIAL_REFERENCE_DATA.entities.filter((entity) => entity.classification === 'PAVILION');
+    for (let first = 0; first < pavilions.length; first += 1) {
+      const a = bounds(pavilions[first]);
+      for (let second = first + 1; second < pavilions.length; second += 1) {
+        const b = bounds(pavilions[second]);
+        const overlapWidth = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX);
+        const overlapHeight = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY);
+        expect(overlapWidth > 0.000001 && overlapHeight > 0.000001,
+          `${pavilions[first].publicIdentifier}/${pavilions[second].publicIdentifier}`).toBe(false);
+      }
+    }
   });
 
   it('normaliza uma fonte única de metadados para rótulo, busca e geometria', () => {
