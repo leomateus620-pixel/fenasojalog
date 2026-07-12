@@ -90,9 +90,11 @@ O modelo existente continua baseado em `MapProject`, calibrações versionadas,
 camadas, `MapEntity`, GeoJSON Polygon e `CommercialLot`. Foram adicionadas as
 classificações `QUADRA` e `EVENT_VENUE`.
 
-Quadras são pais hierárquicos e renderizadas somente como contorno, sem cobrir
-ou capturar o clique dos lotes. Ruas permanecem visíveis durante busca e
-filtros; lotes não correspondentes são atenuados, preservando a orientação.
+Quadras são pais hierárquicos e continuam renderizadas somente como contorno.
+Uma superfície de hit sem custo de desenho fica abaixo de lotes e estruturas:
+os filhos preservam prioridade de clique, enquanto áreas livres permitem
+selecionar a própria quadra. Ruas permanecem visíveis durante busca e filtros;
+lotes não correspondentes são atenuados, preservando a orientação.
 
 No desktop, os números dos lotes, nomes de quadras, vias e estruturas
 prioritárias têm rótulos de nível de detalhe. No celular ou em modo gráfico
@@ -179,11 +181,14 @@ O perfil autenticado da cena original mostrou dois custos independentes:
 
 A cena passou a usar renderização sob demanda, sombras estáticas invalidadas
 somente quando necessário e um `THREE.BatchedMesh` para os lotes, com uma única
-geometria de linhas para suas bordas. Durante pan/órbita, o raycast comercial é
-suspenso e retomado ao final da interação. Os rótulos agora são escolhidos pela
-distância real da câmera, prioridade semântica, limite por viewport e colisão em
-espaço de tela. A visão geral autenticada caiu de 58 para 14 rótulos e de 578
-para 415 nós DOM no perfil de referência.
+geometria de linhas para suas bordas. O raycast e os handlers comerciais
+permanecem estáveis durante todo o gesto; apenas atualizações visuais de hover
+são suspensas depois que a câmera efetivamente se move. Um limiar independente
+de deslocamento diferencia clique de arraste sem acoplar seleção ao
+`OrbitControls`. Os rótulos agora são escolhidos pela distância real da câmera,
+prioridade semântica, limite por viewport e colisão em espaço de tela. A visão
+geral autenticada caiu de 58 para 14 rótulos e de 578 para 415 nós DOM no perfil
+de referência.
 
 Em uma janela ociosa de três segundos, `TaskDuration` caiu de 1777,968 ms para
 0,684 ms e `ScriptDuration` de 1670,992 ms para 0 ms. No mesmo gesto de

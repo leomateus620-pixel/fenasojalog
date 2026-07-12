@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   BadgeCheck,
   Building2,
   CalendarClock,
@@ -279,10 +278,6 @@ export function EntityDetailsPanel({ entity, lot, entities, lots, permissions }:
               <Badge variant="outline">Não comercial</Badge>
             )}
             <p>{entity.description || 'Estrutura identificada na planta oficial da Fenasoja.'}</p>
-            <div className="commercial-map-verification">
-              {entity.verificationStatus === 'VERIFIED' ? <BadgeCheck /> : <AlertTriangle />}
-              <span><strong>{VERIFICATION_LABELS[entity.verificationStatus]}</strong><small>{entity.geometry.calibrationVersion ? `Calibração v${entity.geometry.calibrationVersion}` : 'Geometria não calibrada'}</small></span>
-            </div>
           </div>
 
           <Tabs defaultValue="overview" className="commercial-map-detail-tabs">
