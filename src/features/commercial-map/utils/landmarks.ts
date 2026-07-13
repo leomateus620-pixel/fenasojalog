@@ -1,6 +1,10 @@
 import type { MapEntity } from '../types';
 
-export type StrategicLandmarkKind = 'german-pavilion' | 'fenasoja-restaurant' | 'sicredi-arena';
+export type StrategicLandmarkKind =
+  | 'fenasoja-headquarters'
+  | 'german-pavilion'
+  | 'fenasoja-restaurant'
+  | 'sicredi-arena';
 
 export interface StrategicLandmarkBounds {
   minX: number;
@@ -22,6 +26,19 @@ interface StrategicLandmarkDefinition {
 }
 
 const STRATEGIC_LANDMARKS: Readonly<Record<string, StrategicLandmarkDefinition>> = {
+  B12: {
+    kind: 'fenasoja-headquarters',
+    aliases: [
+      'Comissão Central',
+      'Sede da Fenasoja',
+      'Sede Fenasoja',
+      'Fenasoja Headquarters',
+    ],
+    // A fachada pública acompanha a borda sul da Quadra B e abre para a Rua Argentina.
+    facingRadians: 0,
+    focusDirection: [0.56, 0.36, 0.96],
+    visualHeight: ({ width, depth }) => Math.min(2.6, Math.max(width, depth) * 0.84),
+  },
   C8: {
     kind: 'german-pavilion',
     aliases: ['Etnia Alemã', 'Casa Alemã', 'Pavilhão Alemão'],
