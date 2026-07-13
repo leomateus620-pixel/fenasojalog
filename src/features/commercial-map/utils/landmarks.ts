@@ -25,22 +25,24 @@ const STRATEGIC_LANDMARKS: Readonly<Record<string, StrategicLandmarkDefinition>>
   C8: {
     kind: 'german-pavilion',
     aliases: ['Etnia Alemã', 'Casa Alemã', 'Pavilhão Alemão'],
-    facingRadians: 0,
-    focusDirection: [0.58, 0.62, 0.76],
+    // A varanda abre para a Praça das Nações, a leste do footprint C8.
+    facingRadians: Math.PI / 2,
+    focusDirection: [0.96, 0.36, 0.24],
     visualHeight: ({ width, depth }) => Math.min(2.15, Math.max(width, depth) * 0.78),
   },
   C2: {
     kind: 'fenasoja-restaurant',
     aliases: ['Restaurante Fenasoja', 'Restaurante da Fenasoja', 'Pavilhão Restaurante Fenasoja'],
     facingRadians: Math.PI,
-    focusDirection: [-0.58, 0.62, -0.76],
+    focusDirection: [-0.42, 0.4, -0.92],
     visualHeight: ({ width, depth }) => Math.min(2.7, Math.max(width, depth) * 0.62),
   },
   F: {
     kind: 'sicredi-arena',
     aliases: ['Arena Sicredi Icatu', 'Arena Sicredi', 'Palco Sicredi Icatu'],
-    facingRadians: 0,
-    focusDirection: [0.5, 0.6, 0.8],
+    // A boca de cena abre para a grande área pública a oeste da Arena.
+    facingRadians: -Math.PI / 2,
+    focusDirection: [-0.92, 0.56, 0.32],
     visualHeight: ({ width }) => Math.min(5.5, width * 0.5),
   },
 };

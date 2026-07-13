@@ -28,9 +28,12 @@ describe('marcos arquitetônicos estratégicos', () => {
     expect(resolveStrategicLandmarkKind(persistedRestaurant)).toBe('fenasoja-restaurant');
     expect(resolveStrategicLandmarkKind(persistedArena)).toBe('sicredi-arena');
     expect(resolveStrategicLandmarkKind({ publicIdentifier: 'B1' })).toBeNull();
+    expect(strategicLandmarkFacingRadians(persistedEtnia)).toBeCloseTo(Math.PI / 2);
     expect(strategicLandmarkFacingRadians(persistedRestaurant)).toBe(Math.PI);
+    expect(strategicLandmarkFacingRadians(persistedArena)).toBeCloseTo(-Math.PI / 2);
+    expect(strategicLandmarkFocusDirection(persistedEtnia)?.[0]).toBeGreaterThan(0);
     expect(strategicLandmarkFocusDirection(persistedRestaurant)?.[2]).toBeLessThan(0);
-    expect(strategicLandmarkFocusDirection(persistedArena)?.[2]).toBeGreaterThan(0);
+    expect(strategicLandmarkFocusDirection(persistedArena)?.[0]).toBeLessThan(0);
   });
 
   it('preserva os footprints oficiais enquanto calcula silhuetas mais altas', () => {
