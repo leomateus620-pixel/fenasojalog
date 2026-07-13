@@ -201,6 +201,9 @@ function getEntityExtent(entity: MapEntity): SceneExtent {
 function focusProfileForEntity(entity: MapEntity) {
   const profile = selectionFocusProfile(entity.classification);
   const landmark = resolveStrategicLandmarkKind(entity);
+  if (landmark === 'fenasoja-headquarters') {
+    return { ...profile, contextRatio: 0.055, fitPadding: 1.16, minDistanceRatio: 0.05, maxDistanceRatio: 0.3, minimumDirectionY: 0.32 };
+  }
   if (landmark === 'german-pavilion') {
     return { ...profile, contextRatio: 0.06, fitPadding: 1.24, minDistanceRatio: 0.05, maxDistanceRatio: 0.34, minimumDirectionY: 0.34 };
   }
@@ -884,7 +887,7 @@ const EntityLabel = memo(function EntityLabel({
     <Html
       position={[metadata.labelAnchor[0], entity.geometry.elevation + labelHeight, metadata.labelAnchor[1]]}
       center
-      distanceFactor={selected ? isArchitecturalLandmark ? 11.5 : 18 : lot ? 28 : level === 'far' ? 42 : 36}
+      distanceFactor={selected ? isArchitecturalLandmark ? 11.5 : 18 : isArchitecturalLandmark ? 16 : lot ? 28 : level === 'far' ? 42 : 36}
       zIndexRange={[22, 2]}
       style={{ pointerEvents: 'none' }}
     >
@@ -984,7 +987,12 @@ function useSemanticLabelVisibility({
         if (!labelBelongsToActiveMode(labelMode, entity.id)) return false;
         if (entity.id === selectedEntityId || entity.id === hoveredEntityId) return true;
         if (!labelsVisible || reducedGraphics && mobile) return false;
-        if (filtersActive && lotByEntity.has(entity.id) && !matchingEntityIds.has(entity.id)) return false;
+        if (filtersActive && !matchingEntityIds.has(entity.id)) {
+          const keepsCartographicContext = entity.classification === 'ROAD'
+            || entity.classification === 'PEDESTRIAN_PATH'
+            || entity.classification === 'QUADRA';
+          if (!keepsCartographicContext) return false;
+        }
         return LABEL_LEVEL_RANK[metadata.preferredLabelVisibility] <= currentRank;
       })
       .map((candidate) => {
