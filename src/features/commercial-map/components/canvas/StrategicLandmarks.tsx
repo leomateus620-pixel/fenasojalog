@@ -25,22 +25,29 @@ const SHARED_INVISIBLE_HIT_MATERIAL = new THREE.MeshBasicMaterial({ visible: fal
 const SHARED_SELECTED_SURFACE_MATERIAL = new THREE.MeshBasicMaterial({
   color: SELECTION_COLOR,
   transparent: true,
-  opacity: 0.14,
+  opacity: 0.12,
   depthWrite: false,
   toneMapped: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits: -1,
 });
 const SHARED_HOVERED_SURFACE_MATERIAL = new THREE.MeshBasicMaterial({
   color: SELECTION_COLOR,
   transparent: true,
-  opacity: 0.07,
+  opacity: 0.055,
   depthWrite: false,
   toneMapped: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits: -1,
 });
 const SHARED_SELECTED_LINE_MATERIAL = new THREE.LineBasicMaterial({ color: '#ffe797', toneMapped: false });
 const SHARED_HOVERED_LINE_MATERIAL = new THREE.LineBasicMaterial({ color: '#f0d36a', toneMapped: false });
 const SHARED_GERMAN_RED_MATERIAL = new THREE.MeshStandardMaterial({ color: '#ba2c35', roughness: 0.8 });
 const SHARED_GERMAN_GOLD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#e5b82f', roughness: 0.82 });
 const SHARED_BRAZIL_YELLOW_MATERIAL = new THREE.MeshStandardMaterial({ color: '#f1ce3f', roughness: 0.82 });
+const SHARED_BRAZIL_BLUE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#225aa8', roughness: 0.74 });
 
 type Vector3Tuple = [number, number, number];
 
@@ -67,21 +74,21 @@ type LandmarkPalette = Record<keyof LandmarkMaterialSet, string>;
 
 const LANDMARK_PALETTES: Record<StrategicLandmarkKind, LandmarkPalette> = {
   'german-pavilion': {
-    wall: '#eee5d5',
-    accent: '#c8ae8e',
-    roof: '#a44c2f',
-    trim: '#4b362d',
-    dark: '#263333',
-    glass: '#49636b',
+    wall: '#eee7d9',
+    accent: '#b8946d',
+    roof: '#a84d2f',
+    trim: '#4a3329',
+    dark: '#253130',
+    glass: '#3f5960',
     green: '#2f6b40',
     white: '#f5f1e6',
     platform: '#9b8b74',
     metal: '#424a47',
   },
   'fenasoja-restaurant': {
-    wall: '#d8c9ad',
-    accent: '#b9a17e',
-    roof: '#4b413e',
+    wall: '#ded2bc',
+    accent: '#aa916e',
+    roof: '#51473e',
     trim: '#58493f',
     dark: '#242a29',
     glass: '#43565b',
@@ -91,9 +98,9 @@ const LANDMARK_PALETTES: Record<StrategicLandmarkKind, LandmarkPalette> = {
     metal: '#5c615d',
   },
   'sicredi-arena': {
-    wall: '#d9ddd6',
-    accent: '#b9c3bb',
-    roof: '#ecebe2',
+    wall: '#d8ddd8',
+    accent: '#aeb9b2',
+    roof: '#efeee7',
     trim: '#0a7b4c',
     dark: '#151b1b',
     glass: '#263537',
@@ -105,7 +112,13 @@ const LANDMARK_PALETTES: Record<StrategicLandmarkKind, LandmarkPalette> = {
 };
 
 function material(color: string, roughness: number, metalness = 0) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness,
+    metalness,
+    depthTest: true,
+    depthWrite: true,
+  });
 }
 
 function useLandmarkMaterials(
@@ -141,7 +154,7 @@ function useLandmarkMaterials(
       item.color.copy(baseColor).lerp(MAP_BACKGROUND_COLOR, THREE.MathUtils.clamp(toneDown, 0, 0.9) * 0.82);
       if (selected) item.color.lerp(new THREE.Color('#fff1bd'), 0.06);
       item.emissive.copy(baseColor);
-      item.emissiveIntensity = selected ? 0.055 : hovered ? 0.018 : 0;
+      item.emissiveIntensity = selected ? 0.04 : hovered ? 0.012 : 0;
     });
     invalidate();
   }, [hovered, invalidate, kind, materials, selected, toneDown]);
@@ -299,6 +312,7 @@ function createHipRoofGeometry(width: number, depth: number, rise: number) {
     rightFront, rightBack, ridgeRight,
     rightBack, leftBack, ridgeLeft, rightBack, ridgeLeft, ridgeRight,
     leftBack, leftFront, ridgeLeft,
+    leftBack, rightBack, rightFront, leftBack, rightFront, leftFront,
   ].flat();
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
@@ -308,30 +322,68 @@ function createHipRoofGeometry(width: number, depth: number, rise: number) {
   return geometry;
 }
 
-function createArenaShellGeometry(radius: number, depth: number) {
-  const geometry = new THREE.CylinderGeometry(
-    radius,
-    radius,
-    depth,
-    28,
-    1,
-    true,
-    Math.PI / 2,
-    Math.PI,
-  );
-  geometry.rotateX(Math.PI / 2);
+function createArenaShellGeometry(halfWidth: number, rise: number, depth: number) {
+  const segments = 32;
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let index = 0; index <= segments; index += 1) {
+    const angle = Math.PI - index / segments * Math.PI;
+    const x = Math.cos(angle) * halfWidth;
+    const y = Math.sin(angle) * rise;
+    positions.push(x, y, depth / 2, x, y, -depth / 2);
+  }
+  for (let index = 0; index < segments; index += 1) {
+    const front = index * 2;
+    const back = front + 1;
+    const nextFront = front + 2;
+    const nextBack = front + 3;
+    indices.push(front, nextFront, back, nextFront, nextBack, back);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function createArchedFacadeGeometry(halfWidth: number, rise: number) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfWidth, 0);
+  for (let index = 0; index <= 32; index += 1) {
+    const angle = Math.PI - index / 32 * Math.PI;
+    shape.lineTo(Math.cos(angle) * halfWidth, Math.sin(angle) * rise);
+  }
+  shape.lineTo(-halfWidth, 0);
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape, 1);
   geometry.computeVertexNormals();
   return geometry;
 }
 
-function createArchedFacadeGeometry(radius: number) {
+function createEllipticalArchBandGeometry(
+  halfWidth: number,
+  rise: number,
+  thickness: number,
+) {
+  const innerHalfWidth = Math.max(0.1, halfWidth - thickness);
+  const innerRise = Math.max(0.1, rise - thickness * 0.82);
   const shape = new THREE.Shape();
-  shape.moveTo(-radius, 0);
-  shape.absarc(0, 0, radius, Math.PI, 0, true);
-  shape.lineTo(-radius, 0);
+  shape.moveTo(-halfWidth, 0);
+  for (let index = 0; index <= 32; index += 1) {
+    const angle = Math.PI - index / 32 * Math.PI;
+    shape.lineTo(Math.cos(angle) * halfWidth, Math.sin(angle) * rise);
+  }
+  for (let index = 32; index >= 0; index -= 1) {
+    const angle = Math.PI - index / 32 * Math.PI;
+    shape.lineTo(Math.cos(angle) * innerHalfWidth, Math.sin(angle) * innerRise);
+  }
   shape.closePath();
-  const geometry = new THREE.ShapeGeometry(shape, 28);
+  const geometry = new THREE.ShapeGeometry(shape, 1);
   geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
   return geometry;
 }
 
@@ -431,7 +483,7 @@ function useArchitecturalDetail(
         ? Math.max(20, bounds.width * 5)
         : Math.max(18, bounds.width * 6.2);
     const distance = camera.position.distanceTo(center);
-    const nextNear = distance <= threshold;
+    const nextNear = distance <= threshold * (nearRef.current ? 1.12 : 1);
     if (nearRef.current === nextNear) return;
     nearRef.current = nextNear;
     setNear(nextNear);
@@ -453,38 +505,46 @@ function GermanPavilion({
 }: LandmarkModelProps) {
   const width = bounds.width;
   const depth = bounds.depth;
-  const bodyWidth = width * 0.86;
-  const bodyDepth = depth * 0.62;
-  const wallHeight = height * 0.57;
-  const roofRise = height * 0.31;
+  const bodyWidth = width * 0.84;
+  const bodyDepth = depth * 0.57;
+  const wallHeight = height * 0.48;
+  const roofRise = height * 0.27;
   const frontZ = bodyDepth / 2;
+  const porchDepth = depth * 0.27;
   const bodyGeometry = useMemo(
     () => createGableBodyGeometry(bodyWidth, bodyDepth, wallHeight, roofRise),
     [bodyDepth, bodyWidth, roofRise, wallHeight],
   );
   const roofPitch = Math.atan2(roofRise, bodyWidth / 2);
   const roofLength = Math.hypot(bodyWidth / 2 + width * 0.045, roofRise);
-  const windows = [-0.31, -0.1, 0.1, 0.31].map((x) => ({
-    position: [x * bodyWidth, wallHeight * 0.52, frontZ + 0.026] as Vector3Tuple,
-    scale: [bodyWidth * 0.145, wallHeight * 0.35, 0.035] as Vector3Tuple,
-  }));
+  const windows: InstanceTransform[] = [
+    { position: [-bodyWidth * 0.31, wallHeight * 0.53, frontZ + 0.026], scale: [bodyWidth * 0.18, wallHeight * 0.36, 0.035] },
+    { position: [bodyWidth * 0.31, wallHeight * 0.53, frontZ + 0.026], scale: [bodyWidth * 0.18, wallHeight * 0.36, 0.035] },
+    { position: [-bodyWidth * 0.075, wallHeight * 0.42, frontZ + 0.03], scale: [bodyWidth * 0.12, wallHeight * 0.58, 0.04] },
+    { position: [bodyWidth * 0.075, wallHeight * 0.42, frontZ + 0.03], scale: [bodyWidth * 0.12, wallHeight * 0.58, 0.04] },
+  ];
   const frames: InstanceTransform[] = [
-    ...[-0.43, -0.22, 0, 0.22, 0.43].map((x) => ({
+    ...[-0.44, -0.21, 0, 0.21, 0.44].map((x) => ({
       position: [x * bodyWidth, wallHeight * 0.57, frontZ + 0.048] as Vector3Tuple,
-      scale: [0.045, wallHeight * 0.96, 0.045] as Vector3Tuple,
+      scale: [0.042, wallHeight * 1.02, 0.044] as Vector3Tuple,
     })),
-    { position: [0, wallHeight * 0.76, frontZ + 0.05], scale: [bodyWidth * 0.84, 0.045, 0.045] },
+    { position: [0, wallHeight * 0.78, frontZ + 0.05], scale: [bodyWidth * 0.88, 0.045, 0.045] },
+    { position: [0, wallHeight * 0.18, frontZ + 0.05], scale: [bodyWidth * 0.88, 0.04, 0.045] },
     { position: [-bodyWidth * 0.24, wallHeight + roofRise * 0.48, frontZ + 0.052], scale: [bodyWidth * 0.49, 0.042, 0.042], rotation: [0, 0, roofPitch] },
     { position: [bodyWidth * 0.24, wallHeight + roofRise * 0.48, frontZ + 0.052], scale: [bodyWidth * 0.49, 0.042, 0.042], rotation: [0, 0, -roofPitch] },
   ];
   const porchColumns = [-0.42, -0.2, 0.2, 0.42].map((x) => ({
-    position: [x * width, wallHeight * 0.31, frontZ + depth * 0.15] as Vector3Tuple,
-    scale: [0.055, wallHeight * 0.62, 0.055] as Vector3Tuple,
+    position: [x * width, wallHeight * 0.3, frontZ + porchDepth * 0.62] as Vector3Tuple,
+    scale: [0.052, wallHeight * 0.6, 0.052] as Vector3Tuple,
   }));
-  const stairItems = [0, 1, 2].map((index) => ({
-    position: [width * 0.34, 0.035 + index * 0.045, depth * (0.39 - index * 0.045)] as Vector3Tuple,
-    scale: [width * 0.25, 0.07, depth * 0.11] as Vector3Tuple,
+  const stairItems = [0, 1, 2, 3].map((index) => ({
+    position: [width * 0.17, 0.028 + index * 0.035, depth * (0.46 - index * 0.035)] as Vector3Tuple,
+    scale: [width * 0.28, 0.056, depth * 0.085] as Vector3Tuple,
   }));
+  const diagonalFrames: InstanceTransform[] = [
+    { position: [-bodyWidth * 0.33, wallHeight * 0.48, frontZ + 0.052], scale: [bodyWidth * 0.23, 0.038, 0.038], rotation: [0, 0, 0.62] },
+    { position: [bodyWidth * 0.33, wallHeight * 0.48, frontZ + 0.052], scale: [bodyWidth * 0.23, 0.038, 0.038], rotation: [0, 0, -0.62] },
+  ];
 
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry]);
 
@@ -496,47 +556,54 @@ function GermanPavilion({
         { position: [-bodyWidth * 0.25, wallHeight + roofRise * 0.52, 0], scale: [roofLength, 0.085, bodyDepth + depth * 0.09], rotation: [0, 0, roofPitch] },
         { position: [bodyWidth * 0.25, wallHeight + roofRise * 0.52, 0], scale: [roofLength, 0.085, bodyDepth + depth * 0.09], rotation: [0, 0, -roofPitch] },
       ]} />
-      <mesh geometry={UNIT_BOX} material={materials.accent} position={[0, 0.16, frontZ + depth * 0.09]} scale={[width * 0.92, 0.12, depth * 0.18]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
-      <mesh geometry={UNIT_BOX} material={materials.roof} position={[0, wallHeight * 0.66, frontZ + depth * 0.085]} rotation={[-0.08, 0, 0]} scale={[width * 0.96, 0.075, depth * 0.19]} castShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.accent} position={[0, 0.15, frontZ + porchDepth * 0.52]} scale={[width * 0.94, 0.12, porchDepth]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.roof} position={[0, wallHeight * 0.69, frontZ + porchDepth * 0.43]} rotation={[0.12, 0, 0]} scale={[width * 0.97, 0.07, porchDepth * 1.12]} castShadow raycast={NO_RAYCAST} dispose={null} />
       <ScaledInstances material={materials.glass} items={windows} />
-      <ScaledInstances material={materials.trim} items={frames} castShadow />
-      <ScaledInstances material={materials.trim} items={porchColumns} castShadow />
+      <ScaledInstances material={materials.trim} items={frames} />
+      <ScaledInstances material={materials.trim} items={porchColumns} />
       {showDetail && (
         <>
+          <ScaledInstances material={materials.trim} items={diagonalFrames} />
           <ScaledInstances material={materials.trim} items={[
-            { position: [0, wallHeight * 0.25, frontZ + depth * 0.16], scale: [width * 0.83, 0.045, 0.04] },
+            { position: [0, wallHeight * 0.25, frontZ + porchDepth * 0.68], scale: [width * 0.85, 0.042, 0.04] },
             ...[-0.4, -0.3, -0.2, -0.1, 0.1, 0.2, 0.3, 0.4].map((x) => ({
-              position: [x * width, wallHeight * 0.2, frontZ + depth * 0.16] as Vector3Tuple,
-              scale: [0.028, wallHeight * 0.3, 0.035] as Vector3Tuple,
+              position: [x * width, wallHeight * 0.19, frontZ + porchDepth * 0.68] as Vector3Tuple,
+              scale: [0.025, wallHeight * 0.28, 0.034] as Vector3Tuple,
             })),
           ]} />
           <ScaledInstances material={materials.platform} items={stairItems} receiveShadow />
-          <mesh geometry={UNIT_BOX} material={materials.platform} position={[0, height * 0.115, depth * 0.45]} scale={[width * 0.5, height * 0.16, depth * 0.08]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
-          <SignagePanel title="ETNIA ALEMÃ" position={[0, height * 0.12, depth * 0.492]} size={[width * 0.42, height * 0.075]} background="#4b362d" />
+          <mesh geometry={UNIT_BOX} material={materials.platform} position={[-width * 0.24, height * 0.105, depth * 0.47]} scale={[width * 0.38, height * 0.14, depth * 0.06]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
+          <SignagePanel title="ETNIA ALEMÃ" position={[-width * 0.24, height * 0.11, depth * 0.502]} size={[width * 0.32, height * 0.065]} background="#4b362d" />
+          <ScaledInstances geometry={UNIT_CYLINDER} material={materials.metal} items={[
+            { position: [-width * 0.08, height * 0.51, depth * 0.43], scale: [0.03, height * 0.96, 0.03] },
+            { position: [width * 0.08, height * 0.51, depth * 0.43], scale: [0.03, height * 0.96, 0.03] },
+          ]} />
+          <ScaledInstances material={materials.green} items={[
+            { position: [-width * 0.025, height * 0.76, depth * 0.437], scale: [width * 0.105, height * 0.07, 0.022] },
+          ]} />
+          <ScaledInstances material={SHARED_BRAZIL_YELLOW_MATERIAL} items={[
+            { position: [-width * 0.025, height * 0.76, depth * 0.451], scale: [width * 0.036, height * 0.032, 0.023] },
+          ]} />
+          <ScaledInstances material={SHARED_BRAZIL_BLUE_MATERIAL} items={[
+            { position: [-width * 0.025, height * 0.76, depth * 0.465], scale: [width * 0.014, height * 0.014, 0.024] },
+          ]} />
+          <ScaledInstances material={materials.dark} items={[
+            { position: [width * 0.135, height * 0.785, depth * 0.437], scale: [width * 0.105, height * 0.022, 0.022] },
+          ]} />
+          <ScaledInstances material={SHARED_GERMAN_RED_MATERIAL} items={[
+            { position: [width * 0.135, height * 0.758, depth * 0.437], scale: [width * 0.105, height * 0.022, 0.022] },
+          ]} />
+          <ScaledInstances material={SHARED_GERMAN_GOLD_MATERIAL} items={[
+            { position: [width * 0.135, height * 0.731, depth * 0.437], scale: [width * 0.105, height * 0.022, 0.022] },
+          ]} />
         </>
       )}
       {showFocusDetail && (
-        <>
-          <ScaledInstances geometry={UNIT_CYLINDER} material={materials.metal} items={[
-            { position: [width * 0.28, height * 0.48, depth * 0.44], scale: [0.035, height * 0.92, 0.035] },
-            { position: [width * 0.4, height * 0.48, depth * 0.44], scale: [0.035, height * 0.92, 0.035] },
-          ]} />
-          <ScaledInstances material={materials.green} items={[
-            { position: [width * 0.33, height * 0.74, depth * 0.445], scale: [width * 0.11, height * 0.075, 0.025] },
-          ]} />
-          <ScaledInstances material={SHARED_BRAZIL_YELLOW_MATERIAL} items={[
-            { position: [width * 0.33, height * 0.74, depth * 0.46], scale: [width * 0.035, height * 0.035, 0.026] },
-          ]} />
-          <ScaledInstances material={materials.dark} items={[
-            { position: [width * 0.45, height * 0.77, depth * 0.445], scale: [width * 0.09, height * 0.025, 0.025] },
-          ]} />
-          <ScaledInstances material={SHARED_GERMAN_RED_MATERIAL} items={[
-            { position: [width * 0.45, height * 0.745, depth * 0.445], scale: [width * 0.09, height * 0.025, 0.025] },
-          ]} />
-          <ScaledInstances material={SHARED_GERMAN_GOLD_MATERIAL} items={[
-            { position: [width * 0.45, height * 0.72, depth * 0.445], scale: [width * 0.09, height * 0.025, 0.025] },
-          ]} />
-        </>
+        <ScaledInstances material={materials.trim} items={[
+          { position: [-bodyWidth * 0.31, wallHeight * 0.53, frontZ + 0.054], scale: [0.025, wallHeight * 0.36, 0.025] },
+          { position: [bodyWidth * 0.31, wallHeight * 0.53, frontZ + 0.054], scale: [0.025, wallHeight * 0.36, 0.025] },
+          { position: [0, wallHeight * 0.42, frontZ + 0.056], scale: [0.025, wallHeight * 0.58, 0.025] },
+        ]} />
       )}
     </group>
   );
@@ -551,30 +618,34 @@ function FenasojaRestaurant({
 }: LandmarkModelProps) {
   const width = bounds.width;
   const depth = bounds.depth;
-  const wallHeight = height * 0.36;
-  const bodyDepth = depth * 0.72;
+  const wallHeight = height * 0.34;
+  const bodyDepth = depth * 0.7;
   const frontZ = bodyDepth / 2;
   const mainRoof = useMemo(
-    () => createHipRoofGeometry(width * 0.98, depth * 0.9, height * 0.34),
+    () => createHipRoofGeometry(width * 0.98, depth * 0.88, height * 0.28),
     [depth, height, width],
   );
   const upperRoof = useMemo(
-    () => createHipRoofGeometry(width * 0.46, depth * 0.42, height * 0.18),
+    () => createHipRoofGeometry(width * 0.44, depth * 0.36, height * 0.14),
     [depth, height, width],
   );
   const entranceBody = useMemo(
-    () => createGableBodyGeometry(width * 0.27, depth * 0.16, wallHeight * 0.83, height * 0.16),
+    () => createGableBodyGeometry(width * 0.27, depth * 0.18, wallHeight * 0.82, height * 0.14),
     [depth, height, wallHeight, width],
   );
-  const windowTransforms = [-0.41, -0.29, -0.17, 0.17, 0.29, 0.41].map((x) => ({
+  const windowTransforms = [-0.4, -0.27, 0.27, 0.4].map((x) => ({
     position: [x * width, wallHeight * 0.5, frontZ + 0.035] as Vector3Tuple,
-    scale: [width * 0.095, wallHeight * 0.48, 0.04] as Vector3Tuple,
+    scale: [width * 0.105, wallHeight * 0.5, 0.04] as Vector3Tuple,
   }));
-  const facadePosts = [-0.48, -0.36, -0.24, -0.12, 0.12, 0.24, 0.36, 0.48].map((x) => ({
+  const facadePosts = [-0.48, -0.34, -0.2, 0.2, 0.34, 0.48].map((x) => ({
     position: [x * width, wallHeight * 0.53, frontZ + 0.058] as Vector3Tuple,
-    scale: [0.038, wallHeight * 0.96, 0.045] as Vector3Tuple,
+    scale: [0.036, wallHeight * 0.98, 0.043] as Vector3Tuple,
   }));
-  const umbrellaPositions = [-0.37, -0.18, 0.18, 0.37].map((x) => x * width);
+  const doorTransforms: InstanceTransform[] = [
+    { position: [-width * 0.055, wallHeight * 0.42, frontZ + depth * 0.105], scale: [width * 0.09, wallHeight * 0.62, 0.035] },
+    { position: [width * 0.055, wallHeight * 0.42, frontZ + depth * 0.105], scale: [width * 0.09, wallHeight * 0.62, 0.035] },
+  ];
+  const umbrellaPositions = [-0.28, 0.28].map((x) => x * width);
 
   useEffect(() => () => {
     mainRoof.dispose();
@@ -585,37 +656,47 @@ function FenasojaRestaurant({
   return (
     <group dispose={null}>
       <mesh geometry={UNIT_BOX} material={materials.platform} position={[0, 0.045, 0]} scale={[width * 0.98, 0.09, depth * 0.98]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
-      <mesh geometry={UNIT_BOX} material={materials.wall} position={[0, wallHeight / 2 + 0.08, -depth * 0.04]} scale={[width * 0.9, wallHeight, bodyDepth]} castShadow receiveShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.wall} position={[0, wallHeight / 2 + 0.08, -depth * 0.04]} scale={[width * 0.92, wallHeight, bodyDepth]} castShadow receiveShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.trim} position={[0, wallHeight + 0.055, -depth * 0.04]} scale={[width * 0.96, 0.07, depth * 0.84]} castShadow raycast={NO_RAYCAST} dispose={null} />
       <mesh geometry={mainRoof} material={materials.roof} position={[0, wallHeight + 0.08, -depth * 0.04]} castShadow receiveShadow raycast={NO_RAYCAST} />
-      <mesh geometry={UNIT_BOX} material={materials.accent} position={[0, wallHeight + height * 0.31, -depth * 0.08]} scale={[width * 0.37, height * 0.13, depth * 0.25]} castShadow raycast={NO_RAYCAST} dispose={null} />
-      <mesh geometry={upperRoof} material={materials.roof} position={[0, wallHeight + height * 0.38, -depth * 0.08]} castShadow raycast={NO_RAYCAST} />
+      <mesh geometry={UNIT_BOX} material={materials.accent} position={[0, wallHeight + height * 0.265, -depth * 0.08]} scale={[width * 0.36, height * 0.11, depth * 0.23]} castShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={upperRoof} material={materials.roof} position={[0, wallHeight + height * 0.325, -depth * 0.08]} castShadow raycast={NO_RAYCAST} />
       <mesh geometry={entranceBody} material={materials.white} position={[0, 0.08, frontZ + depth * 0.04]} castShadow receiveShadow raycast={NO_RAYCAST} />
       <ScaledInstances material={materials.glass} items={windowTransforms} />
-      <ScaledInstances material={materials.trim} items={facadePosts} castShadow />
+      <ScaledInstances material={materials.glass} items={doorTransforms} />
+      <ScaledInstances material={materials.trim} items={facadePosts} />
+      <mesh geometry={UNIT_BOX} material={materials.roof} position={[0, wallHeight * 0.8, frontZ + depth * 0.13]} rotation={[0.05, 0, 0]} scale={[width * 0.34, 0.055, depth * 0.16]} castShadow raycast={NO_RAYCAST} dispose={null} />
       <ScaledInstances material={materials.green} items={[
-        { position: [-width * 0.31, 0.18, frontZ + depth * 0.11], scale: [width * 0.25, 0.16, depth * 0.08] },
-        { position: [width * 0.31, 0.18, frontZ + depth * 0.11], scale: [width * 0.25, 0.16, depth * 0.08] },
+        { position: [-width * 0.31, 0.16, frontZ + depth * 0.12], scale: [width * 0.23, 0.14, depth * 0.07] },
+        { position: [width * 0.31, 0.16, frontZ + depth * 0.12], scale: [width * 0.23, 0.14, depth * 0.07] },
       ]} />
       {showDetail && (
         <>
-          <SignagePanel title="FENASOJA" subtitle="RESTAURANTE" position={[0, wallHeight * 0.76, frontZ + depth * 0.135]} size={[width * 0.24, height * 0.1]} background="#176f43" />
-          <ScaledInstances geometry={UNIT_CYLINDER} material={materials.metal} items={umbrellaPositions.map((x) => ({
-            position: [x, height * 0.22, depth * 0.42] as Vector3Tuple,
-            scale: [0.028, height * 0.42, 0.028] as Vector3Tuple,
-          }))} />
-          <ScaledInstances geometry={UNIT_CONE} material={materials.green} items={umbrellaPositions.map((x) => ({
-            position: [x, height * 0.4, depth * 0.42] as Vector3Tuple,
-            scale: [width * 0.085, height * 0.09, width * 0.085] as Vector3Tuple,
-          }))} castShadow />
+          <SignagePanel title="FENASOJA" subtitle="RESTAURANTE" position={[0, wallHeight * 0.72, frontZ + depth * 0.222]} size={[width * 0.23, height * 0.085]} background="#176f43" />
+          <ScaledInstances material={materials.trim} items={[
+            { position: [-width * 0.4, wallHeight * 0.5, frontZ + 0.062], scale: [0.023, wallHeight * 0.5, 0.023] },
+            { position: [-width * 0.27, wallHeight * 0.5, frontZ + 0.062], scale: [0.023, wallHeight * 0.5, 0.023] },
+            { position: [width * 0.27, wallHeight * 0.5, frontZ + 0.062], scale: [0.023, wallHeight * 0.5, 0.023] },
+            { position: [width * 0.4, wallHeight * 0.5, frontZ + 0.062], scale: [0.023, wallHeight * 0.5, 0.023] },
+            { position: [0, wallHeight * 0.42, frontZ + depth * 0.126], scale: [0.025, wallHeight * 0.62, 0.025] },
+          ]} />
         </>
       )}
       {showFocusDetail && (
-        <ScaledInstances material={materials.trim} items={[
-          { position: [-width * 0.31, 0.13, depth * 0.47], scale: [width * 0.17, 0.07, 0.07] },
-          { position: [-width * 0.31, 0.22, depth * 0.47], scale: [width * 0.14, 0.035, 0.12] },
-          { position: [width * 0.31, 0.13, depth * 0.47], scale: [width * 0.17, 0.07, 0.07] },
-          { position: [width * 0.31, 0.22, depth * 0.47], scale: [width * 0.14, 0.035, 0.12] },
-        ]} />
+        <>
+          <ScaledInstances geometry={UNIT_CYLINDER} material={materials.metal} items={umbrellaPositions.map((x) => ({
+            position: [x, height * 0.2, depth * 0.43] as Vector3Tuple,
+            scale: [0.025, height * 0.38, 0.025] as Vector3Tuple,
+          }))} />
+          <ScaledInstances geometry={UNIT_CONE} material={materials.green} items={umbrellaPositions.map((x) => ({
+            position: [x, height * 0.37, depth * 0.43] as Vector3Tuple,
+            scale: [width * 0.068, height * 0.075, width * 0.068] as Vector3Tuple,
+          }))} />
+          <ScaledInstances material={materials.trim} items={[
+            { position: [-width * 0.31, 0.12, depth * 0.47], scale: [width * 0.15, 0.065, 0.065] },
+            { position: [width * 0.31, 0.12, depth * 0.47], scale: [width * 0.15, 0.065, 0.065] },
+          ]} />
+        </>
       )}
     </group>
   );
@@ -630,26 +711,45 @@ function SicrediArena({
 }: LandmarkModelProps) {
   const width = bounds.width;
   const depth = bounds.depth;
-  const radius = Math.min(width * 0.44, height * 0.94);
-  const shellDepth = depth * 0.58;
-  const shellZ = -depth * 0.1;
+  const halfWidth = Math.min(width * 0.455, height * 0.92);
+  const rise = Math.min(height * 0.83, halfWidth * 0.98);
+  const shellDepth = depth * 0.54;
+  const shellZ = -depth * 0.08;
   const shellFrontZ = shellZ + shellDepth / 2;
-  const shellGeometry = useMemo(() => createArenaShellGeometry(radius, shellDepth), [radius, shellDepth]);
-  const rearArch = useMemo(() => createArchedFacadeGeometry(radius * 0.86), [radius]);
+  const shellGeometry = useMemo(
+    () => createArenaShellGeometry(halfWidth, rise, shellDepth),
+    [halfWidth, rise, shellDepth],
+  );
+  const rearArch = useMemo(
+    () => createArchedFacadeGeometry(halfWidth * 0.86, rise * 0.84),
+    [halfWidth, rise],
+  );
   const greenArch = useMemo(
-    () => new THREE.TorusGeometry(radius - width * 0.025, width * 0.034, 8, 32, Math.PI),
-    [radius, width],
+    () => createEllipticalArchBandGeometry(halfWidth, rise, width * 0.038),
+    [halfWidth, rise, width],
   );
   const innerArch = useMemo(
-    () => new THREE.TorusGeometry(radius - width * 0.074, width * 0.012, 6, 28, Math.PI),
-    [radius, width],
+    () => createEllipticalArchBandGeometry(
+      halfWidth - width * 0.056,
+      rise - width * 0.045,
+      width * 0.012,
+    ),
+    [halfWidth, rise, width],
+  );
+  const interiorRib = useMemo(
+    () => createEllipticalArchBandGeometry(
+      halfWidth - width * 0.075,
+      rise - width * 0.06,
+      width * 0.012,
+    ),
+    [halfWidth, rise, width],
   );
   const trussItems: InstanceTransform[] = [
     ...[-0.62, -0.35, 0.35, 0.62].map((x) => ({
-      position: [x * radius, radius * 0.36, shellFrontZ + 0.07] as Vector3Tuple,
-      scale: [0.07, radius * 0.72, 0.07] as Vector3Tuple,
+      position: [x * halfWidth, rise * 0.36, shellFrontZ + 0.07] as Vector3Tuple,
+      scale: [0.065, rise * 0.72, 0.065] as Vector3Tuple,
     })),
-    { position: [0, radius * 0.69, shellFrontZ + 0.07], scale: [radius * 1.22, 0.07, 0.07] },
+    { position: [0, rise * 0.69, shellFrontZ + 0.07], scale: [halfWidth * 1.22, 0.065, 0.065] },
   ];
 
   useEffect(() => () => {
@@ -657,43 +757,50 @@ function SicrediArena({
     rearArch.dispose();
     greenArch.dispose();
     innerArch.dispose();
-  }, [greenArch, innerArch, rearArch, shellGeometry]);
+    interiorRib.dispose();
+  }, [greenArch, innerArch, interiorRib, rearArch, shellGeometry]);
 
   return (
     <group dispose={null}>
-      <mesh geometry={UNIT_BOX} material={materials.platform} position={[0, 0.07, depth * 0.34]} scale={[width * 0.94, 0.14, depth * 0.3]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
-      <mesh geometry={UNIT_BOX} material={materials.dark} position={[0, 0.14, shellZ]} scale={[radius * 1.72, 0.22, shellDepth * 0.88]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.platform} position={[0, 0.065, depth * 0.345]} scale={[width * 0.94, 0.13, depth * 0.29]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
+      <mesh geometry={UNIT_BOX} material={materials.dark} position={[0, 0.15, shellZ]} scale={[halfWidth * 1.74, 0.23, shellDepth * 0.87]} receiveShadow raycast={NO_RAYCAST} dispose={null} />
       <mesh geometry={shellGeometry} material={materials.white} position={[0, 0.18, shellZ]} castShadow receiveShadow raycast={NO_RAYCAST} />
-      <mesh geometry={rearArch} material={materials.dark} position={[0, 0.18, shellZ - shellDepth * 0.49]} raycast={NO_RAYCAST} />
+      <mesh geometry={rearArch} material={materials.dark} position={[0, 0.18, shellZ - shellDepth * 0.492]} raycast={NO_RAYCAST} />
+      <mesh geometry={UNIT_BOX} material={materials.glass} position={[0, rise * 0.31, shellZ - shellDepth * 0.485]} scale={[halfWidth * 1.34, rise * 0.51, 0.045]} raycast={NO_RAYCAST} dispose={null} />
       <mesh geometry={greenArch} material={materials.green} position={[0, 0.18, shellFrontZ + 0.06]} castShadow raycast={NO_RAYCAST} />
-      <mesh geometry={innerArch} material={materials.white} position={[0, 0.18, shellFrontZ + 0.085]} raycast={NO_RAYCAST} />
+      <mesh geometry={innerArch} material={materials.white} position={[0, 0.18, shellFrontZ + 0.082]} raycast={NO_RAYCAST} />
       <ScaledInstances material={materials.green} items={[
-        { position: [-radius * 0.91, radius * 0.27, shellZ], scale: [width * 0.075, radius * 0.55, shellDepth * 0.9], rotation: [0, 0, -0.13] },
-        { position: [radius * 0.91, radius * 0.27, shellZ], scale: [width * 0.075, radius * 0.55, shellDepth * 0.9], rotation: [0, 0, 0.13] },
+        { position: [-halfWidth * 0.93, rise * 0.27, shellZ], scale: [width * 0.064, rise * 0.54, shellDepth * 0.86], rotation: [0, 0, -0.1] },
+        { position: [halfWidth * 0.93, rise * 0.27, shellZ], scale: [width * 0.064, rise * 0.54, shellDepth * 0.86], rotation: [0, 0, 0.1] },
       ]} castShadow />
       <ScaledInstances material={materials.dark} items={[
-        { position: [-radius * 0.72, radius * 0.34, shellFrontZ + 0.1], scale: [width * 0.09, radius * 0.42, depth * 0.08] },
-        { position: [radius * 0.72, radius * 0.34, shellFrontZ + 0.1], scale: [width * 0.09, radius * 0.42, depth * 0.08] },
+        { position: [-halfWidth * 0.72, rise * 0.34, shellFrontZ + 0.1], scale: [width * 0.078, rise * 0.44, depth * 0.065] },
+        { position: [halfWidth * 0.72, rise * 0.34, shellFrontZ + 0.1], scale: [width * 0.078, rise * 0.44, depth * 0.065] },
       ]} />
       {showDetail && (
         <>
           <ScaledInstances material={materials.metal} items={trussItems} />
-          <SignagePanel title="SICREDI  |  ICATU" subtitle="COOPERA" position={[0, radius * 0.76, shellFrontZ + 0.14]} size={[radius * 1.04, radius * 0.14]} background="#164936" />
+          <SignagePanel title="SICREDI  |  ICATU" subtitle="COOPERA" position={[0, rise * 0.765, shellFrontZ + 0.14]} size={[halfWidth * 1.04, rise * 0.13]} background="#164936" />
           <ScaledInstances material={materials.accent} items={[
-            { position: [0, 0.16, depth * 0.25], scale: [width * 0.68, 0.055, depth * 0.04] },
-            { position: [0, 0.12, depth * 0.3], scale: [width * 0.74, 0.045, depth * 0.04] },
+            { position: [0, 0.155, depth * 0.255], scale: [width * 0.68, 0.05, depth * 0.038] },
+            { position: [0, 0.115, depth * 0.302], scale: [width * 0.75, 0.04, depth * 0.038] },
+            { position: [0, 0.08, depth * 0.348], scale: [width * 0.81, 0.035, depth * 0.038] },
           ]} />
         </>
       )}
       {showFocusDetail && (
         <>
+          <ScaledInstances geometry={interiorRib} material={materials.accent} items={[
+            { position: [0, 0.18, shellFrontZ - shellDepth * 0.25], scale: [1, 1, 1] },
+            { position: [0, 0.18, shellFrontZ - shellDepth * 0.52], scale: [1, 1, 1] },
+          ]} />
           <ScaledInstances material={materials.metal} items={[-0.82, -0.55, 0.55, 0.82].map((x) => ({
-            position: [x * radius, radius * 0.19, shellZ - shellDepth * 0.18] as Vector3Tuple,
-            scale: [0.045, radius * 0.38, 0.045] as Vector3Tuple,
+            position: [x * halfWidth, rise * 0.19, shellZ - shellDepth * 0.18] as Vector3Tuple,
+            scale: [0.042, rise * 0.38, 0.042] as Vector3Tuple,
           }))} />
           <ScaledInstances material={materials.dark} items={[
-            { position: [-radius * 0.42, radius * 0.17, shellZ - shellDepth * 0.29], scale: [width * 0.1, radius * 0.27, depth * 0.06] },
-            { position: [radius * 0.42, radius * 0.17, shellZ - shellDepth * 0.29], scale: [width * 0.1, radius * 0.27, depth * 0.06] },
+            { position: [-halfWidth * 0.43, rise * 0.18, shellZ - shellDepth * 0.27], scale: [width * 0.09, rise * 0.27, depth * 0.055] },
+            { position: [halfWidth * 0.43, rise * 0.18, shellZ - shellDepth * 0.27], scale: [width * 0.09, rise * 0.27, depth * 0.055] },
           ]} />
         </>
       )}
@@ -753,8 +860,16 @@ export function StrategicLandmarkMesh({
     bounds,
     selected,
   );
-  const selectedLift = selected ? 0.075 : 0;
   const facingRadians = strategicLandmarkFacingRadians(entity);
+  const modelBounds = useMemo(() => {
+    const quarterTurn = Math.abs(Math.sin(facingRadians)) > 0.7;
+    if (!quarterTurn) return bounds;
+    return {
+      ...bounds,
+      width: bounds.depth,
+      depth: bounds.width,
+    };
+  }, [bounds, facingRadians]);
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
 
@@ -784,7 +899,7 @@ export function StrategicLandmarkMesh({
   };
 
   const modelProps: LandmarkModelProps = {
-    bounds,
+    bounds: modelBounds,
     height,
     materials,
     showDetail,
@@ -793,7 +908,7 @@ export function StrategicLandmarkMesh({
 
   return (
     <group
-      position={[bounds.centerX, entity.geometry.elevation + selectedLift, bounds.centerZ]}
+      position={[bounds.centerX, entity.geometry.elevation, bounds.centerZ]}
       visible={selected || layerOpacity > 0.015}
       dispose={null}
     >
@@ -824,7 +939,7 @@ export function StrategicLandmarkMesh({
           <mesh
             geometry={footprint}
             material={selected ? SHARED_SELECTED_SURFACE_MATERIAL : SHARED_HOVERED_SURFACE_MATERIAL}
-            position={[0, 0.04, 0]}
+            position={[0, 0.025, 0]}
             raycast={NO_RAYCAST}
             dispose={null}
           />

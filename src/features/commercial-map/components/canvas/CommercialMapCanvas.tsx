@@ -202,13 +202,13 @@ function focusProfileForEntity(entity: MapEntity) {
   const profile = selectionFocusProfile(entity.classification);
   const landmark = resolveStrategicLandmarkKind(entity);
   if (landmark === 'german-pavilion') {
-    return { ...profile, contextRatio: 0.055, fitPadding: 1.2, minDistanceRatio: 0.05, maxDistanceRatio: 0.34, minimumDirectionY: 0.44 };
+    return { ...profile, contextRatio: 0.06, fitPadding: 1.24, minDistanceRatio: 0.05, maxDistanceRatio: 0.34, minimumDirectionY: 0.34 };
   }
   if (landmark === 'fenasoja-restaurant') {
-    return { ...profile, contextRatio: 0.075, fitPadding: 1.22, minDistanceRatio: 0.06, maxDistanceRatio: 0.42, minimumDirectionY: 0.46 };
+    return { ...profile, contextRatio: 0.085, fitPadding: 1.26, minDistanceRatio: 0.065, maxDistanceRatio: 0.42, minimumDirectionY: 0.36 };
   }
   if (landmark === 'sicredi-arena') {
-    return { ...profile, contextRatio: 0.16, fitPadding: 1.18, minDistanceRatio: 0.11, maxDistanceRatio: 0.6, minimumDirectionY: 0.48 };
+    return { ...profile, contextRatio: 0.2, fitPadding: 1.24, minDistanceRatio: 0.13, maxDistanceRatio: 0.62, minimumDirectionY: 0.46 };
   }
   return profile;
 }
@@ -884,7 +884,7 @@ const EntityLabel = memo(function EntityLabel({
     <Html
       position={[metadata.labelAnchor[0], entity.geometry.elevation + labelHeight, metadata.labelAnchor[1]]}
       center
-      distanceFactor={selected ? isArchitecturalLandmark ? 15 : 18 : lot ? 28 : level === 'far' ? 42 : 36}
+      distanceFactor={selected ? isArchitecturalLandmark ? 11.5 : 18 : lot ? 28 : level === 'far' ? 42 : 36}
       zIndexRange={[22, 2]}
       style={{ pointerEvents: 'none' }}
     >
@@ -1100,7 +1100,9 @@ function CameraRig({ selectedEntity, extent }: { selectedEntity: MapEntity | nul
     direction.normalize();
     const landmarkFocusDirection = strategicLandmarkFocusDirection(entity);
     if (landmarkFocusDirection) {
-      direction.lerp(new THREE.Vector3(...landmarkFocusDirection).normalize(), 0.72).normalize();
+      // Preserve a small amount of spatial continuity while making the public
+      // facade deterministic after rapid switches or a lateral manual view.
+      direction.lerp(new THREE.Vector3(...landmarkFocusDirection).normalize(), 0.92).normalize();
     }
     direction.y = Math.max(direction.y, focusProfile.minimumDirectionY);
     direction.normalize();
@@ -1298,7 +1300,7 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
     filtersActive,
   });
   const groundMargin = Math.max(8, extent.diagonal * 0.08);
-  const shadowSpan = Math.max(extent.width, extent.depth) * 0.72;
+  const shadowSpan = Math.max(extent.width, extent.depth) * 0.58;
 
   useEffect(() => {
     gl.shadowMap.autoUpdate = false;
@@ -1329,9 +1331,10 @@ function Scene({ entities, lots, calibration, matchingEntityIds, filtersActive }
         shadow-camera-right={shadowSpan}
         shadow-camera-top={shadowSpan}
         shadow-camera-bottom={-shadowSpan}
+        shadow-camera-near={0.5}
         shadow-camera-far={Math.max(180, extent.diagonal * 2.2)}
-        shadow-bias={-0.0001}
-        shadow-normalBias={0.025}
+        shadow-bias={-0.00006}
+        shadow-normalBias={0.035}
       />
       <directionalLight
         position={[extent.centerX + extent.width * 0.4, Math.max(24, extent.diagonal * 0.22), extent.centerZ - extent.depth * 0.3]}

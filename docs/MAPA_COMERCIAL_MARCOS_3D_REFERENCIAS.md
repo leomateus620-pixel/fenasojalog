@@ -124,6 +124,32 @@ footprint oficial e associado ao `entity.id` persistido. Assim, telhados,
 fachadas e detalhes não fragmentam hover, clique, duplo clique ou edição. As
 sombras estáticas são invalidadas somente quando seleção ou LOD muda.
 
+## Refinamento final de orientação e renderização
+
+- **C8:** o eixo frontal local foi girado em `+90°`, levando varanda, acesso,
+  sinalização e bandeiras para o lado leste, voltado à Praça das Nações. O
+  enquadramento selecionado usa uma leitura frontal baixa, sem perder a rua e
+  os volumes vizinhos.
+- **F:** a boca da concha foi girada em `-90°`, voltada à área pública oeste da
+  Arena. Como a rotação troca os eixos locais, largura e profundidade do asset
+  são permutadas somente na apresentação para manter toda a malha dentro do
+  footprint persistido.
+- **C2:** a orientação norte existente foi preservada; cobertura, lanternim,
+  frontão, marquise, vãos e entrada foram recalibrados para uma leitura frontal
+  mais baixa e arquitetônica.
+- A concha da Arena passou a usar uma superfície elíptica indexada e aros de
+  fachada próprios, evitando o aspecto de cilindro genérico. Coberturas
+  recebem faces inferiores e normais consistentes nas posições de inspeção.
+- O deslocamento vertical de seleção foi removido. Destaque, emissivo e
+  contorno permanecem no nível do piso, eliminando a impressão de peças
+  flutuantes.
+- Detalhes repetidos continuam instanciados; o LOD ganhou histerese para não
+  alternar próximo do limiar; elementos subpixel deixaram de lançar sombras.
+  A câmera de sombra foi ajustada ao parque com `normalBias` controlado.
+- O foco arquitetônico converge majoritariamente para a direção frontal de
+  cada marco, ainda preservando uma pequena continuidade do ângulo anterior.
+  As transições continuam interrompíveis pelos controles manuais.
+
 ## Matriz de validação
 
 - visão geral, distância média e foco dos três marcos;
