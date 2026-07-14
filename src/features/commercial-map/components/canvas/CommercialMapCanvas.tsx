@@ -201,6 +201,9 @@ function getEntityExtent(entity: MapEntity): SceneExtent {
 function focusProfileForEntity(entity: MapEntity) {
   const profile = selectionFocusProfile(entity.classification);
   const landmark = resolveStrategicLandmarkKind(entity);
+  if (landmark === 'administrative-center') {
+    return { ...profile, contextRatio: 0.085, fitPadding: 1.2, minDistanceRatio: 0.065, maxDistanceRatio: 0.4, minimumDirectionY: 0.36 };
+  }
   if (landmark === 'fenasoja-headquarters') {
     return { ...profile, contextRatio: 0.055, fitPadding: 1.16, minDistanceRatio: 0.05, maxDistanceRatio: 0.3, minimumDirectionY: 0.32 };
   }
