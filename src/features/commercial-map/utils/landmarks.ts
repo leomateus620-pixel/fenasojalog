@@ -1,6 +1,7 @@
 import type { MapEntity } from '../types';
 
 export type StrategicLandmarkKind =
+  | 'administrative-center'
   | 'fenasoja-headquarters'
   | 'polish-pavilion'
   | 'italian-pavilion'
@@ -29,6 +30,20 @@ interface StrategicLandmarkDefinition {
 }
 
 const STRATEGIC_LANDMARKS: Readonly<Record<string, StrategicLandmarkDefinition>> = {
+  B11: {
+    kind: 'administrative-center',
+    aliases: [
+      'Centro Administrativo',
+      'Auditório Fenasoja',
+      'Centro Administrativo Fenasoja',
+      'Centro Administrativo / Auditório',
+    ],
+    // O bloco longitudinal fica a oeste da Rua Brasília. A fachada repetitiva
+    // abre para leste e a empena com mural encerra o conjunto ao sul.
+    facingRadians: Math.PI / 2,
+    focusDirection: [0.94, 0.42, 0.34],
+    visualHeight: ({ width, depth }) => Math.min(3.15, Math.max(width, depth) * 0.42),
+  },
   B12: {
     kind: 'fenasoja-headquarters',
     aliases: [
@@ -37,9 +52,10 @@ const STRATEGIC_LANDMARKS: Readonly<Record<string, StrategicLandmarkDefinition>>
       'Sede Fenasoja',
       'Fenasoja Headquarters',
     ],
-    // A fachada pública acompanha a borda sul da Quadra B e abre para a Rua Argentina.
-    facingRadians: 0,
-    focusDirection: [0.56, 0.36, 0.96],
+    // A sede ocupa o canto sudoeste da Quadra B: a empena responde à Rua
+    // Argentina, mas também se apresenta para a curva da Rua Brasília.
+    facingRadians: -Math.PI / 9,
+    focusDirection: [-0.56, 0.38, 0.94],
     visualHeight: ({ width, depth }) => Math.min(2.6, Math.max(width, depth) * 0.84),
   },
   C5: {

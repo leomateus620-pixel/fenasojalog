@@ -15,23 +15,28 @@
 - altura persistida preservada: `0,62`; a altura arquitetônica de apresentação é
   derivada separadamente e não altera geometria, edição ou sincronização.
 
-Na planta oficial 2026, a B12 ocupa a borda sul da Quadra B. O acesso imediato
-é a Rua Argentina; B13 fica ao norte, B25 a leste e a Quadra A ao sul da via.
-Por isso a fachada pública e a entrada foram orientadas para o sul (`+Z` local,
-rotação visual `0`). Essa escolha não altera o polígono, as coordenadas ou a
-rotação persistida.
+Na planta oficial 2026, a B12 ocupa o canto sudoeste da Quadra B. O acesso
+imediato é a Rua Argentina; a Rua Brasília passa a oeste e forma a leitura de
+esquina/curva indicada pelas fotografias; B13 fica ao norte, B25 a leste e a
+Quadra A ao sul da via. Por isso o conjunto passou a se apresentar em três
+quartos para sudoeste (`-20°` visuais): a empena ainda responde à Rua Argentina,
+mas a fachada lateral, a entrada e o anexo também participam da aproximação pela
+Rua Brasília. Essa escolha não altera polígono, coordenadas nem rotação
+persistida.
 
 ## Referências fotográficas obrigatórias
 
-As três fotografias fornecidas em 12/07/2026 foram usadas em conjunto:
+As quatro fotografias fornecidas em 13/07/2026 foram usadas em conjunto:
 
 - exterior frontal: proporção da empena, grafite, faixa branca curva, hierarquia
   de portas e aberturas, marca e paisagismo;
 - exterior aproximado: profundidade do beiral, espessura da cobertura,
   estrutura aparente, recessos de entrada, esquadrias e identificação
   “Comissão Central”;
-- recepção: madeira e tons quentes, assentos claros, mesa baixa, painéis de
-  memória, vitrines e iluminação acolhedora atrás do vidro.
+- lateral da Sede: vínculo estrutural da Sala de Reuniões, cobertura baixa,
+  parede mural, degraus e relação com a circulação;
+- Centro Administrativo: usado como referência separada para o novo asset B11,
+  conforme o mapa técnico consolidado deste upgrade.
 
 ## Lacunas do bloco anterior
 
@@ -50,10 +55,12 @@ As três fotografias fornecidas em 12/07/2026 foram usadas em conjunto:
 
 O asset é procedural e específico para a B12. A leitura geral usa corpo em
 empena, duas placas espessas de cobertura, faixa frontal curva, esquadrias e
-vidro. Em distância média entram marca, treliças, apoios, pavimentação e
-floreiras. No foco entram somente os sinais de recepção que são legíveis através
-do acesso: fundo quente, assentos, mesa baixa, painéis, vitrine e luminárias
-emissivas sem sombras adicionais.
+vidro. O corpo principal foi recomposto dentro do footprint para receber, na
+lateral leste, a Sala de Reuniões baixa e fisicamente conectada, com cobertura,
+clerestório, porta, degraus e mural quente. Em distância média entram marca,
+treliças, apoios, pavimentação, palmeiras e floreiras. No foco entram somente os
+sinais de recepção que são legíveis através do acesso: fundo quente, assentos,
+mesa baixa, painéis, vitrine e luminárias emissivas sem sombras adicionais.
 
 A faixa curva é uma malha de 24 segmentos, e não uma textura sobre um bloco. A
 identificação possui superfície e UVs conformados à mesma parábola, evitando
@@ -70,8 +77,8 @@ detalhes ficam fora do raycast.
 - busca e seleção por `B12`, nome oficial e aliases continuam apontando para a
   mesma entidade;
 - edição permanece ligada ao GeoJSON persistido, não às malhas decorativas;
-- o foco usa a fachada sul em três quartos e a altura visual real para calcular
-  o enquadramento;
+- o foco usa a fachada sudoeste em três quartos e a altura visual real para
+  calcular o enquadramento;
 - o modo focado mantém somente o rótulo da entidade selecionada;
 - o contorno selecionado permanece acima da plataforma, sem geometria flutuante;
 - detalhes repetidos são instanciados e geometrias unitárias são compartilhadas;
